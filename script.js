@@ -112,8 +112,8 @@
 
     function initState() {
         state = { 
-            currentMode: 'classic60', 
-            modeConfig: MODE_CONFIG.classic60, 
+            currentMode: 'practice', 
+            modeConfig: MODE_CONFIG.practice, 
             gameActive: false, 
             timeLeft: 0, 
             timer: null, 
@@ -138,14 +138,29 @@
             ctx: null, 
             enabled: true, 
             initialized: false,
+            _noteSoundOnlyEl: null,
+            _countdownSoundEl: null,
             init() { 
                 if (this.initialized) return; 
                 try { 
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
-                    this.initialized = true; 
+                    this.initialized = true;
+                    this._noteSoundOnlyEl = document.getElementById('noteSoundOnly');
+                    this._countdownSoundEl = document.getElementById('countdownSound');
                 } catch (e) { 
                     console.error('Audio context init error:', e);
                 } 
+            },
+            async warmUp() {
+                if (!this.ctx) return;
+                try {
+                    if (this.ctx.state === 'suspended') await this.ctx.resume();
+                    // Play a silent buffer to fully unlock audio on iOS/Safari
+                    const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+                    const src = this.ctx.createBufferSource();
+                    src.buffer = buf; src.connect(this.ctx.destination);
+                    src.start(0);
+                } catch(e) { /* ignore */ }
             },
             resume() { 
                 if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(e=>e); 
@@ -167,9 +182,7 @@
             playEffect(type) {
                 if (!this.ctx || !this.enabled) return; 
                 this.resume();
-                const noteSoundOnlyEl = document.getElementById('noteSoundOnly');
-                const countdownSoundEl = document.getElementById('countdownSound');
-                if (noteSoundOnlyEl && noteSoundOnlyEl.checked && type !== 'countdown' && type !== 'timeup') return;
+                if (this._noteSoundOnlyEl && this._noteSoundOnlyEl.checked && type !== 'countdown' && type !== 'timeup') return;
                 const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
                 osc.connect(gain); 
                 gain.connect(this.ctx.destination); 
@@ -197,7 +210,7 @@
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.3); 
                 }
                 else if(type==='warning'){ 
-                    if(countdownSoundEl && !countdownSoundEl.checked) return; 
+                    if(this._countdownSoundEl && !this._countdownSoundEl.checked) return; 
                     osc.type='sine'; 
                     osc.frequency.value=1100; 
                     gain.gain.setValueAtTime(0.15, this.ctx.currentTime); 
@@ -411,7 +424,51 @@
         handleTextbookModeChange();
     }
 
-    function updateScoreboard() { dom.scoreDisplay.textContent = state.score; dom.comboDisplay.textContent = state.combo; }
+    function updateScoreboard() {
+        dom.scoreDisplay.textContent = state.score;
+        dom.comboDisplay.textContent = state.combo;
+        // Pop animation on score/combo change
+        const scoreBadge = dom.scoreDisplay.closest('.stat-badge');
+        const comboBadge = dom.comboDisplay.closest('.stat-badge');
+        if (scoreBadge) { scoreBadge.classList.remove('pop'); void scoreBadge.offsetWidth; scoreBadge.classList.add('pop'); }
+        if (comboBadge) { comboBadge.classList.remove('pop'); void comboBadge.offsetWidth; comboBadge.classList.add('pop'); }
+    }
+
+    function showComboBurst(combo) {
+        const el = document.createElement('div');
+        el.className = 'combo-burst';
+        el.textContent = combo >= 10 ? `🔥 ${combo} 連擊！` : `⚡ ${combo} 連擊！`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+    }
+
+    function spawnConfetti(count) {
+        const colors = ['#FF65A3','#FFCB45','#00D28E','#00A6ED','#8B66FF','#FF8C42','#FF4A6B'];
+        for (let i = 0; i < count; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = (30 + Math.random() * 40) + 'vw';
+            piece.style.top = (35 + Math.random() * 20) + 'vh';
+            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.animationDelay = (Math.random() * 0.3) + 's';
+            piece.style.animationDuration = (0.8 + Math.random() * 0.6) + 's';
+            piece.style.width = (6 + Math.random() * 8) + 'px';
+            piece.style.height = (6 + Math.random() * 8) + 'px';
+            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            document.body.appendChild(piece);
+            setTimeout(() => piece.remove(), 1400);
+        }
+    }
+
+    function showScoreFloat(points, x, y) {
+        const el = document.createElement('div');
+        el.className = 'score-float';
+        el.textContent = '+' + points;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+    }
     
     function enableGameControls(enabled) { 
         document.querySelectorAll('.note-btn').forEach(btn => btn.disabled = !enabled || state.answered); 
@@ -442,10 +499,12 @@
             const ledgerBelowEl = document.getElementById('ledgerLineBelow');
             allowAbove = ledgerAboveEl ? ledgerAboveEl.checked : true; 
             allowBelow = ledgerBelowEl ? ledgerBelowEl.checked : true;
-            noteRange = allowBelow ? [0,10] : [2,10]; if (!allowAbove) noteRange[1] = 9;
+            noteRange = allowBelow ? [0,10] : [2,10]; if (!allowAbove) noteRange[1] = 9; else noteRange[1] = 12;
         }
 
-        const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)], base = MAPS[clef][Math.floor(Math.random() * (noteRange[1]-noteRange[0]+1)) + noteRange[0]];
+        const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
+        const maxIdx = Math.min(noteRange[1], MAPS[clef].length - 1);
+        const base = MAPS[clef][Math.floor(Math.random() * (maxIdx - noteRange[0] + 1)) + noteRange[0]];
         let finalName = base.letter, accidental = null;
         if (Math.random() < accidentalChance) {
             const isSharp = Math.random() < 0.5;
@@ -485,14 +544,17 @@
             state.answered = true; 
             state.combo++; 
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
-            if (state.modeConfig.type === 'challenge') state.score += Math.round(10 * state.modeConfig.scoreMulti + state.combo);
+            const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
+            if (pts) state.score += pts;
             dom.messageBox.textContent = `✅ 太棒了！這是 ${state.currentNote.correctName} | 分數：${state.score}`; 
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
-            if (btn) btn.classList.add('correct'); 
+            if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
+            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
             setTimeout(() => { if (btn) btn.classList.remove('correct', 'wrong'); if (state.gameActive) nextQuestion(); }, 500);
         } else {
-            const statKey = `${state.currentNote.correctName} (${state.currentNote.clef==='treble'?'高音':'低音'})`;
+            const clefLabel = {treble:'高音',bass:'低音',alto:'中音',tenor:'次中音'}[state.currentNote.clef] || state.currentNote.clef;
+            const statKey = `${state.currentNote.correctName} (${clefLabel})`;
             state.wrongNoteStats[statKey] = (state.wrongNoteStats[statKey]||0) + 1; 
             state.combo = 0; 
             audio.playEffect('wrong');
@@ -546,7 +608,7 @@
 
     function startGame() {
         audio.init(); 
-        audio.resume();
+        audio.warmUp();
         if (!dom.userName.value.trim() || !dom.userId.value.trim()) {
             dom.nameField.classList.toggle('error', !dom.userName.value.trim()); 
             dom.idField.classList.toggle('error', !dom.userId.value.trim());
@@ -567,6 +629,7 @@
         state.answered = false; 
         state.wrongNoteStats = {}; 
         state.answerTimeList = [];
+        if (state.timer) { clearInterval(state.timer); state.timer = null; }
         
         switchScreen('screen-game');
 
@@ -650,9 +713,11 @@
                 method: 'POST', 
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                 body: JSON.stringify(record),
+                mode: 'no-cors',
+                redirect: 'follow',
                 signal: controller.signal
             });
-            setTimeout(loadRanks, 1500);
+            setTimeout(loadRanks, 2000);
         } catch (e) {
             console.error("上傳失敗：", e);
         } finally {
@@ -661,9 +726,11 @@
     }
 
     function endGame() { 
+        if (!state.gameActive) return;
         state.gameActive = false; 
         enableGameControls(false); 
         clearInterval(state.timer); 
+        state.timer = null;
         dom.timeProgress.style.transition = 'none'; 
         
         generateReport(); 
@@ -674,12 +741,13 @@
         switchScreen('screen-leaderboard');
     }
 
-    async function loadRanks() {
+    async function loadRanks(retries) {
+        if (retries === undefined) retries = 2;
         dom.rankList.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-light); font-weight:800;">📡 載入中...</div>';
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         try { 
-            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { signal: controller.signal });
+            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { redirect: 'follow', signal: controller.signal });
             if (!res.ok) throw new Error(`伺服器回應錯誤 (HTTP ${res.status})`);
             const contentType = res.headers.get('content-type') || '';
             const text = await res.text();
@@ -691,13 +759,25 @@
             state.allRanks = Array.isArray(data) ? data.filter(r => r && r.mode) : []; 
             renderRanks(); 
         } catch (e) {
+            if (retries > 0) {
+                console.warn('排行榜載入失敗，重試中...', retries);
+                clearTimeout(timeoutId);
+                setTimeout(() => loadRanks(retries - 1), 2000);
+                return;
+            }
             const isTimeout = e.name === 'AbortError';
-            const msg = isTimeout ? '連線逾時' : (e.message || '未知錯誤');
-            dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span></div>`; 
+            const msg = isTimeout ? '連線逾時，請檢查網絡' : (e.message || '未知錯誤');
+            dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`; 
+            const retryBtn = dom.rankList.querySelector('.rank-retry-btn');
+            if (retryBtn) retryBtn.addEventListener('click', () => loadRanks());
             console.warn("排行榜載入異常：", e);
         } finally {
             clearTimeout(timeoutId);
         }
+    }
+
+    function escHtml(str) {
+        return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     function renderRanks() {
@@ -712,16 +792,22 @@
         }
         dom.rankList.innerHTML = f.slice(0, 50).map((item, i) => {
             const isSelf = state.currentUser.name === item.name && state.currentUser.id === item.id;
+            const cls = escHtml(item.class); const name = escHtml(item.name);
+            const accuracy = parseInt(item.accuracy) || 0; const score = parseInt(item.score) || 0;
             return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''} ${isSelf?'self':''}">
                 <div class="rank-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'}</div>
-                <div class="rank-name"><span>${item.class}班 ${item.name}</span><div class="rank-badges">${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">你</span>':''} <span class="rank-tag" style="background:#CBD5E1; color:#333;">${item.accuracy}% 正確率</span></div></div>
-                <div class="rank-score">${item.score}</div></div>`;
+                <div class="rank-name"><span>${cls}班 ${name}</span><div class="rank-badges">${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">你</span>':''} <span class="rank-tag" style="background:#CBD5E1; color:#333;">${accuracy}% 正確率</span></div></div>
+                <div class="rank-score">${score}</div></div>`;
         }).join('');
     }
 
     function initEvents() {
+        // Pre-warm audio on first user interaction (unlocks AudioContext on iOS/Safari)
+        const warmOnce = () => { audio.init(); audio.warmUp(); document.removeEventListener('pointerdown', warmOnce); };
+        document.addEventListener('pointerdown', warmOnce);
+
         window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
-        dom.soundToggle.addEventListener('click', () => { audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
+        dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
         dom.modeCards.forEach(card => card.addEventListener('click', () => { dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
         
         dom.settingsToggleBtn.addEventListener('click', () => { dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
