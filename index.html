@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>音符小精靈 · 音名大闖關</title>
+    <title>音符小精靈 · 睇譜認音小遊戲</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -19,13 +19,13 @@
     <!-- ===================================== -->
     <div id="screen-setup" class="screen active">
         <div>
-            <h1 class="game-title">音符小精靈 · 音名大闖關</h1>
-            <div class="game-subtitle">看譜識音 互動訓練</div>
+            <h1 class="game-title">音符小精靈 · 睇譜認音小遊戲</h1>
+            <div class="game-subtitle">邊玩邊學 認識音符</div>
         </div>
 
         <div class="card">
             <div class="user-info-area">
-                <div class="user-field" id="nameField"><label>👤</label><input type="text" id="userName" placeholder="輸入姓名" autocomplete="off"></div>
+                <div class="user-field" id="nameField"><label>👤</label><input type="text" id="userName" placeholder="你的名字" autocomplete="off"></div>
                 <div class="user-field" id="gradeField">
                     <label>📌</label>
                     <select id="userGrade">
@@ -46,20 +46,20 @@
 
         <div class="card">
             <div class="settings-header" id="settingsToggleBtn">
-                <span>⚙️ 自定義練譜設定</span>
+                <span>⚙️ 自訂練習設定</span>
                 <span id="settingsArrow">▼ 展開</span>
             </div>
             <div class="settings-content" id="settingsContent">
                 <div class="settings-group" style="background:#FFF9E6; border-color:#F4BA42; margin-bottom:16px;">
-                    <label class="group-title">📚 課本同步難度（選擇後會鎖定下方選項）</label>
+                    <label class="group-title">📚 跟住課本進度練習（選擇後自動調整下面設定）</label>
                     <select class="settings-select" id="textbookMode">
-                        <option value="0">自由設定模式</option>
-                        <option value="1">小一：僅高音譜自然音（無加線）</option>
-                        <option value="2">小二：高音譜自然音（含下加線）</option>
-                        <option value="3">小三：高音譜 + 少量升號</option>
-                        <option value="4">小四：高低音譜混合</option>
+                        <option value="0">自由設定</option>
+                        <option value="1">小一：高音譜 Do Re Mi（無加線）</option>
+                        <option value="2">小二：高音譜全部音（有下加線）</option>
+                        <option value="3">小三：高音譜 + 少少升號</option>
+                        <option value="4">小四：高音譜 + 低音譜</option>
                         <option value="5">小五：高低音譜 + 升降號</option>
-                        <option value="6">小六：全難度大混戰</option>
+                        <option value="6">小六：全部難度大挑戰</option>
                     </select>
                 </div>
                 <div class="settings-grid">
@@ -87,22 +87,22 @@
                         </div>
                     </div>
                     <div class="settings-group">
-                        <label class="group-title">🎹 符頭與輔助</label>
+                        <label class="group-title">🎹 音符外觀</label>
                         <select class="settings-select" id="noteHeadStyle" style="margin-bottom:8px;">
                             <option value="filled">實心 (四分音符)</option>
                             <option value="whole">空心 (全音符)</option>
                             <option value="half">帶桿空心 (二分音符)</option>
                         </select>
                         <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="allowRetry" checked> 允許重試</label>
-                            <label class="checkbox-item checked"><input type="checkbox" id="highlightLine" checked> 高亮對齊線</label>
+                            <label class="checkbox-item checked"><input type="checkbox" id="allowRetry" checked> 答錯可重試</label>
+                            <label class="checkbox-item checked"><input type="checkbox" id="highlightLine" checked> 顯示輔助線</label>
                         </div>
                     </div>
                     <div class="settings-group">
-                        <label class="group-title">🔊 音效偏好</label>
+                        <label class="group-title">🔊 聲音設定</label>
                         <div class="checkbox-group">
-                            <label class="checkbox-item"><input type="checkbox" id="noteSoundOnly"> 僅播音高</label>
-                            <label class="checkbox-item checked"><input type="checkbox" id="countdownSound" checked> 介面音效</label>
+                            <label class="checkbox-item"><input type="checkbox" id="noteSoundOnly"> 只播音高</label>
+                            <label class="checkbox-item checked"><input type="checkbox" id="countdownSound" checked> 按鈕音效</label>
                         </div>
                     </div>
                 </div>
@@ -111,20 +111,20 @@
 
         <div class="mode-cards" id="modeCards">
             <div class="mode-card practice active" data-mode="practice">
-                <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">無限時間慢慢練</div>
+                <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時間，慢慢學</div>
             </div>
             <div class="mode-card challenge" data-mode="speed30">
-                <div class="mode-icon">⚡</div><div class="mode-name">30秒速衝</div><div class="mode-desc">考驗絕對反應力</div>
+                <div class="mode-icon">⚡</div><div class="mode-name">30秒快答</div><div class="mode-desc">鬥快認音符！</div>
             </div>
             <div class="mode-card challenge" data-mode="classic60">
-                <div class="mode-icon">⭐</div><div class="mode-name">1分鐘經典</div><div class="mode-desc">穩紮穩打拼高分</div>
+                <div class="mode-icon">⭐</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">穩穩地爭取高分</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
-                <div class="mode-icon">🔥</div><div class="mode-name">無失誤闖關</div><div class="mode-desc">錯1題直接結束</div>
+                <div class="mode-icon">🔥</div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">錯一題就結束！</div>
             </div>
         </div>
 
-        <button class="btn-start" id="startBtn">🚀 開始挑戰</button>
+        <button class="btn-start" id="startBtn">🚀 準備好了，開始！</button>
         <button class="btn-view-ranks" id="viewRanksBtn">🏆 查看排行榜</button>
     </div>
 
@@ -134,7 +134,7 @@
     <div id="screen-game" class="screen">
         <div class="card" style="padding: 16px;">
             <div class="game-header-bar">
-                <div class="user-badge" id="inGameUser">👋 準備中...</div>
+                <div class="user-badge" id="inGameUser">👋 準備好了嗎...</div>
                 <div class="progress-area">
                     <div class="progress-bar"><div class="progress-fill" id="timeProgress" style="width: 100%;"></div></div>
                     <div class="stat-badge time-badge">⏱️ <span id="timeDisplay">--</span></div>
@@ -152,14 +152,14 @@
             </div>
         </div>
 
-        <div class="message-box" id="messageBox">集中注意力，馬上開始！</div>
+        <div class="message-box" id="messageBox">專心看譜，準備開始！🎵</div>
 
         <div class="notes-grid" id="notesGrid"></div>
 
         <div class="action-row">
-            <button class="btn-action" id="revealBtn" disabled>👀 偷看答案</button>
+            <button class="btn-action" id="revealBtn" disabled>� 看答案</button>
             <button class="btn-action" id="skipBtn" disabled>⏩ 跳過</button>
-            <button class="btn-action" id="endBtn" disabled>🏁 提早結束</button>
+            <button class="btn-action" id="endBtn" disabled>🏁 結束挑戰</button>
         </div>
     </div>
 
@@ -171,24 +171,24 @@
             
             <!-- 左側結算區 -->
             <div class="report-section">
-                <h2 class="report-title">🎯 挑戰完成！</h2>
+                <h2 class="report-title">� 做得好！挑戰完成！</h2>
                 <div class="report-grid" id="reportGrid"></div>
                 <div id="reportWeakness" class="weakness-box"></div>
-                <button class="btn-restart-large" id="backToSetupBtn">🔄 回到大廳再玩一次</button>
+                <button class="btn-restart-large" id="backToSetupBtn">🔄 再玩一次！</button>
             </div>
 
             <!-- 右側排行區 -->
             <div class="ranking-section">
-                <h2 class="rank-title">🏆 英雄榜</h2>
+                <h2 class="rank-title">🏆 光榮榜</h2>
                 <div class="rank-filters">
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option><option value="E">E班</option><option value="F">F班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
-                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="speed30">30秒速衝</option><option value="classic60" selected>1分鐘經典</option><option value="noMiss">無失誤闖關</option></select></div>
+                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="speed30">30秒快答</option><option value="classic60" selected>1分鐘挑戰</option><option value="noMiss">零失誤挑戰</option></select></div>
                 </div>
                 <div class="rank-list" id="rankList">
                     <div style="text-align:center; padding:30px; color:var(--text-light); font-weight:800;">📡 載入中...</div>
                 </div>
-                <div style="text-align:center; font-size:0.8rem; color:#888;">即時連線至雲端資料庫</div>
+                <div style="text-align:center; font-size:0.8rem; color:#888;">排名即時更新 📡</div>
             </div>
             
         </div>

@@ -24,9 +24,9 @@
 
     const MODE_CONFIG = {
         practice: { name:'練習模式', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0 },
-        speed30:  { name:'30秒速衝', type:'challenge', duration:30, maxWrong:Infinity, scoreMulti:1.2 },
-        classic60:{ name:'1分鐘經典', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
-        noMiss:   { name:'無失誤闖關', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 }
+        speed30:  { name:'30秒快答', type:'challenge', duration:30, maxWrong:Infinity, scoreMulti:1.2 },
+        classic60:{ name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
+        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 }
     };
 
     const TEXTBOOK_CONFIG = {
@@ -437,7 +437,7 @@
     function showComboBurst(combo) {
         const el = document.createElement('div');
         el.className = 'combo-burst';
-        el.textContent = combo >= 10 ? `🔥 ${combo} 連擊！` : `⚡ ${combo} 連擊！`;
+        el.textContent = combo >= 10 ? `🔥 ${combo} 題連對！勁啊！` : `⚡ ${combo} 題連對！`;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 900);
     }
@@ -546,7 +546,7 @@
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
             if (pts) state.score += pts;
-            dom.messageBox.textContent = `✅ 太棒了！這是 ${state.currentNote.correctName} | 分數：${state.score}`; 
+            dom.messageBox.textContent = `✅ 答對了！這個是 ${state.currentNote.correctName} ✨ 得分：${state.score}`; 
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
@@ -563,12 +563,12 @@
             if (state.wrongCount + 1 >= state.modeConfig.maxWrong || (allowRetryEl && !allowRetryEl.checked)) {
                 state.answered = true; 
                 state.wrongCount++; 
-                dom.messageBox.textContent = `❌ 答錯了！正確答案是 ${state.currentNote.correctName}`; 
+                dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住它唔！`; 
                 dom.messageBox.className = 'message-box wrong';
                 if (btn) btn.classList.add('wrong'); 
                 setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 800);
             } else {
-                dom.messageBox.textContent = `❌ 答錯了！再試一次吧！`; 
+                dom.messageBox.textContent = `❌ 差一點點！再試試看！`; 
                 dom.messageBox.className = 'message-box warning';
                 if (btn) { btn.classList.add('wrong'); setTimeout(() => btn.classList.remove('wrong'), 500); }
             }
@@ -612,12 +612,12 @@
         if (!dom.userName.value.trim() || !dom.userId.value.trim()) {
             dom.nameField.classList.toggle('error', !dom.userName.value.trim()); 
             dom.idField.classList.toggle('error', !dom.userId.value.trim());
-            alert('⚠️ 請先填寫完整的姓名與座號！');
+            alert('❗ 請先填好姓名和座號才可以開始哦！');
             return;
         }
         saveSettings();
         state.currentUser = { name: dom.userName.value.trim(), grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value.trim() };
-        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 加油！模式：${state.modeConfig.name}`;
+        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
 
         state.gameActive = false; 
         state.timeLeft = state.modeConfig.duration; 
@@ -644,7 +644,7 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            dom.messageBox.textContent = `🎮 ${state.modeConfig.name} 開始！`; 
+            dom.messageBox.textContent = `� ${state.modeConfig.name} — 開始囉！加油！`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -663,7 +663,7 @@
         if (state.timeLeft === 10) { 
             dom.timeDisplay.classList.add('warning'); 
             dom.timeProgress.classList.add('warning'); 
-            dom.messageBox.textContent = '⚠️ 最後10秒！加快速度！'; 
+            dom.messageBox.textContent = '⚠️ 最後10秒！加油加油！'; 
             dom.messageBox.className = 'message-box warning'; 
         }
         if (state.timeLeft <= 10 && state.timeLeft > 0) audio.playEffect('warning');
@@ -679,9 +679,9 @@
     function generateReport() {
         const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
         const avg = state.answerTimeList.length ? (state.answerTimeList.reduce((a,b)=>a+b,0)/state.answerTimeList.length).toFixed(1) : 0;
-        dom.reportGrid.innerHTML = `<div class="report-item"><div class="report-label">總答題</div><div class="report-value">${state.totalQuestions}</div></div><div class="report-item"><div class="report-label">得分</div><div class="report-value">${state.score}</div></div><div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div><div class="report-item"><div class="report-label">平均用時</div><div class="report-value">${avg}s</div></div><div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${state.maxCombo}</div></div><div class="report-item"><div class="report-label">錯題</div><div class="report-value" style="color:var(--primary-red)">${state.wrongCount}</div></div>`;
+        dom.reportGrid.innerHTML = `<div class="report-item"><div class="report-label">答題數</div><div class="report-value">${state.totalQuestions}</div></div><div class="report-item"><div class="report-label">得分</div><div class="report-value">${state.score}</div></div><div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div><div class="report-item"><div class="report-label">平均速度</div><div class="report-value">${avg}秒</div></div><div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${state.maxCombo}</div></div><div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${state.wrongCount}</div></div>`;
         const sorted = Object.entries(state.wrongNoteStats).sort((a,b)=>b[1]-a[1]);
-        dom.reportWeakness.innerHTML = sorted.length ? `<div>最常錯誤的音符：</div><ul>${sorted.slice(0,3).map(([k,v]) => `<li><strong>${k}</strong>：錯了 ${v} 次</li>`).join('')}</ul>` : '<div>太棒了！本次沒有錯題，絕對音感大師！ 🎉</div>';
+        dom.reportWeakness.innerHTML = sorted.length ? `<div>要加油練習的音符：</div><ul>${sorted.slice(0,3).map(([k,v]) => `<li><strong>${k}</strong>：錯了 ${v} 次</li>`).join('')}</ul>` : '<div>🌟 太厲害了！全部答對，你是音樂小天才！ 🎉</div>';
     }
 
     // ==========================================
@@ -766,7 +766,7 @@
                 return;
             }
             const isTimeout = e.name === 'AbortError';
-            const msg = isTimeout ? '連線逾時，請檢查網絡' : (e.message || '未知錯誤');
+            const msg = isTimeout ? '網絡連線太慢了，請檢查網絡' : (e.message || '未知錯誤');
             dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`; 
             const retryBtn = dom.rankList.querySelector('.rank-retry-btn');
             if (retryBtn) retryBtn.addEventListener('click', () => loadRanks());
@@ -787,7 +787,7 @@
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
         f.sort((a,b)=> (parseInt(b.score)||0) - (parseInt(a.score)||0) || (parseInt(b.max_combo)||0) - (parseInt(a.max_combo)||0));
         if (!f.length) { 
-            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">該模式還沒有挑戰紀錄喔！</div>'; 
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
             return; 
         }
         dom.rankList.innerHTML = f.slice(0, 50).map((item, i) => {
@@ -796,7 +796,7 @@
             const accuracy = parseInt(item.accuracy) || 0; const score = parseInt(item.score) || 0;
             return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''} ${isSelf?'self':''}">
                 <div class="rank-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'}</div>
-                <div class="rank-name"><span>${cls}班 ${name}</span><div class="rank-badges">${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">你</span>':''} <span class="rank-tag" style="background:#CBD5E1; color:#333;">${accuracy}% 正確率</span></div></div>
+                <div class="rank-name"><span>${cls}班 ${name}</span><div class="rank-badges">${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">我</span>':''} <span class="rank-tag" style="background:#CBD5E1; color:#333;">${accuracy}% 正確</span></div></div>
                 <div class="rank-score">${score}</div></div>`;
         }).join('');
     }
@@ -827,8 +827,8 @@
             switchScreen('screen-leaderboard');
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = `🔍 答案是：${state.currentNote.correctName}`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 1500); });
-        dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = `� 答案是：${state.currentNote.correctName}，記住了嗎？`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 1500); });
+        dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
         
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
         const preventInput = () => state.inputFocused = true;
