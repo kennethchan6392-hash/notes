@@ -49,11 +49,11 @@
     let state = {};
     let audio = {};
 
-    // Preload accurate clef SVG images for canvas rendering
+    // Preload clef SVG images using real music clef glyphs
     const clefImages = { treble: new Image(), bass: new Image(), cClef: new Image() };
-    clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 130"><g fill="none" stroke="%231E1E2F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M28,118 C28,124 22,128 17,126 C12,124 11,117 16,113 C21,109 28,112 28,118Z" fill="%231E1E2F" stroke="none"/><path d="M28,115 L28,98 C28,80 26,68 26,55 C26,35 38,18 38,10 C38,-2 30,-8 24,8 C18,24 20,50 26,68 C30,78 32,88 30,100 C28,110 20,114 16,110 C12,106 12,96 18,92 C24,88 30,94 28,102"/></g></svg>');
-    clefImages.bass.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 80"><g fill="%231E1E2F"><circle cx="12" cy="28" r="5"/><path d="M12,28 C12,10 30,4 38,16 C46,28 36,48 18,52 C26,44 32,34 28,24 C24,14 16,18 12,28Z"/><circle cx="42" cy="18" r="3"/><circle cx="42" cy="34" r="3"/></g></svg>');
-    clefImages.cClef.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 90"><g fill="%231E1E2F"><rect x="2" y="2" width="5" height="86" rx="1"/><rect x="10" y="2" width="2.5" height="86" rx="0.5"/><path d="M14,8 C30,8 30,22 14,26 L14,8Z M14,29 L18,33 L14,37Z M14,52 C30,52 30,66 14,70 L14,52Z M14,75 L18,71 L14,67Z" stroke="none"/><path d="M14,26 C28,26 34,34 34,44.5 C34,55 28,63 14,63" stroke="%231E1E2F" stroke-width="2.2" fill="none" stroke-linecap="round"/></g></svg>');
+    clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 300"><text x="60" y="230" text-anchor="middle" font-size="250" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄞</text></svg>');
+    clefImages.bass.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 180"><text x="70" y="138" text-anchor="middle" font-size="150" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄢</text></svg>');
+    clefImages.cClef.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 200"><text x="65" y="152" text-anchor="middle" font-size="170" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄡</text></svg>');
     // Redraw staff when any clef image finishes loading
     const onClefLoad = () => { if (state.currentNote && dom.ctx) drawStaff(); };
     clefImages.treble.onload = onClefLoad;
@@ -242,31 +242,54 @@
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
-        // Treble clef: image spans from ~line3 area down to below staff
-        // y parameter = baseY + lineSpacing * 3  (bottom reference)
-        const imgH = ls * 6.5;  // spans 6.5 line-spacings tall
-        const imgW = imgH * (50 / 130); // aspect ratio from viewBox
-        const drawX = x - imgW * 0.55;
-        const drawY = y - imgH * 0.78; // position so curl sits on lines correctly
-        if (clefImages.treble.complete) ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
+        const imgH = ls * 7.9;
+        const imgW = imgH * (120 / 300);
+        const drawX = x - imgW * 0.42;
+        const drawY = y - imgH * 0.725;
+        if (clefImages.treble.complete && clefImages.treble.naturalWidth > 0) {
+            ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
+            return;
+        }
+        ctx.save();
+        ctx.fillStyle = '#1E1E2F';
+        ctx.font = `${Math.round(ls * 6)}px serif`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('𝄞', x - ls * 1.4, y + ls * 0.6);
+        ctx.restore();
     }
 
     function drawBassClef(ctx, x, y, ls) {
-        // Bass clef: y parameter = baseY + lineSpacing * 1  (top reference)
-        const imgH = ls * 4;   // spans 4 line-spacings
-        const imgW = imgH * (50 / 80);
-        const drawX = x - imgW * 0.3;
-        const drawY = y - imgH * 0.15;
-        if (clefImages.bass.complete) ctx.drawImage(clefImages.bass, drawX, drawY, imgW, imgH);
+        const imgH = ls * 4.7;
+        const imgW = imgH * (140 / 180);
+        const drawX = x - imgW * 0.34;
+        const drawY = y - imgH * 0.42;
+        if (clefImages.bass.complete && clefImages.bass.naturalWidth > 0) {
+            ctx.drawImage(clefImages.bass, drawX, drawY, imgW, imgH);
+            return;
+        }
+        ctx.save();
+        ctx.fillStyle = '#1E1E2F';
+        ctx.font = `${Math.round(ls * 3.6)}px serif`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('𝄢', x - ls * 1.3, y + ls * 1.0);
+        ctx.restore();
     }
 
     function drawCClef(ctx, x, y, ls) {
-        // C clef (alto/tenor): centered on the given y (the middle line reference)
-        const imgH = ls * 4.5;  // spans about 4.5 line-spacings
-        const imgW = imgH * (50 / 90);
-        const drawX = x - imgW * 0.3;
-        const drawY = y - imgH * 0.5; // vertically centered
-        if (clefImages.cClef.complete) ctx.drawImage(clefImages.cClef, drawX, drawY, imgW, imgH);
+        const imgH = ls * 4.7;
+        const imgW = imgH * (130 / 200);
+        const drawX = x - imgW * 0.31;
+        const drawY = y - imgH * 0.50;
+        if (clefImages.cClef.complete && clefImages.cClef.naturalWidth > 0) {
+            ctx.drawImage(clefImages.cClef, drawX, drawY, imgW, imgH);
+            return;
+        }
+        ctx.save();
+        ctx.fillStyle = '#1E1E2F';
+        ctx.font = `${Math.round(ls * 3.8)}px serif`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('𝄡', x - ls * 1.3, y + ls * 0.8);
+        ctx.restore();
     }
 
     function drawSharp(ctx, x, y, ls) {
@@ -309,7 +332,7 @@
         if (state.currentNote.clef === 'treble') { dom.clefBadge.textContent = '高音譜號'; drawTrebleClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing); }
         else if (state.currentNote.clef === 'bass') { dom.clefBadge.textContent = '低音譜號'; drawBassClef(ctx, clefX, baseY + lineSpacing * 1, lineSpacing); }
         else if (state.currentNote.clef === 'alto') { dom.clefBadge.textContent = '中音譜號'; drawCClef(ctx, clefX, baseY + lineSpacing * 2, lineSpacing); }
-        else if (state.currentNote.clef === 'tenor') { dom.clefBadge.textContent = '次中音譜號'; drawCClef(ctx, clefX, baseY + lineSpacing * 1, lineSpacing); }
+        else if (state.currentNote.clef === 'tenor') { dom.clefBadge.textContent = '次中音譜號'; drawCClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing); }
 
         ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; const lW = 24;
         if (state.currentNote.yFactor > 4) for(let i=1; i<=Math.floor(state.currentNote.yFactor - 4); i++) { ctx.beginPath(); ctx.moveTo(centerX-lW, baseY + (4+i)*lineSpacing); ctx.lineTo(centerX+lW, baseY + (4+i)*lineSpacing); ctx.stroke(); }
