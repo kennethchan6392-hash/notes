@@ -4,7 +4,7 @@
     // ==========================================
     const CONFIG = {
         // GAS API (needs to be accessible to all)
-        API_URL: "https://script.google.com/macros/s/AKfycbzBR4gG3BVVAtySbpV_n21FGlSWtO5C1XTcVOA3CkuoqS24YXZUFJ4LBNlsRo_-plqE/exec",
+        API_URL: "https://script.google.com/macros/s/AKfycbzc2rdfrulFGfo93uVbrXQvDmaBwTlAdUQNuc2eUNBj6zD-cahF6gUuxdlOWl9Ym233/exec",
         
         NOTE_FREQUENCIES: {
             'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
@@ -242,10 +242,10 @@
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
-        const imgH = ls * 7.9;
+        const imgH = ls * 8.5;
         const imgW = imgH * (120 / 300);
         const drawX = x - imgW * 0.42;
-        const drawY = y - imgH * 0.725;
+        const drawY = y - imgH * 0.680;
         if (clefImages.treble.complete && clefImages.treble.naturalWidth > 0) {
             ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
             return;
@@ -259,10 +259,10 @@
     }
 
     function drawBassClef(ctx, x, y, ls) {
-        const imgH = ls * 4.7;
+        const imgH = ls * 5.2;
         const imgW = imgH * (140 / 180);
         const drawX = x - imgW * 0.34;
-        const drawY = y - imgH * 0.42;
+        const drawY = y - imgH * 0.37;
         if (clefImages.bass.complete && clefImages.bass.naturalWidth > 0) {
             ctx.drawImage(clefImages.bass, drawX, drawY, imgW, imgH);
             return;
@@ -676,15 +676,27 @@
 
     async function loadRanks() {
         dom.rankList.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-light); font-weight:800;">📡 載入中...</div>';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         try { 
-            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`);
-            if (!res.ok) throw new Error("伺服器回應錯誤");
-            const data = await res.json();
+            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { signal: controller.signal });
+            if (!res.ok) throw new Error(`伺服器回應錯誤 (HTTP ${res.status})`);
+            const contentType = res.headers.get('content-type') || '';
+            const text = await res.text();
+            if (!contentType.includes('json') && (text.trimStart().startsWith('<'))) {
+                console.error("GAS 回傳 HTML 錯誤頁面，請檢查部署設定：", text.slice(0, 300));
+                throw new Error("GAS 部署錯誤：請確認部署權限設為「所有人」");
+            }
+            const data = JSON.parse(text);
             state.allRanks = Array.isArray(data) ? data.filter(r => r && r.mode) : []; 
             renderRanks(); 
-        } catch (e) { 
-            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">請檢查網路或 API 部署權限</span></div>'; 
+        } catch (e) {
+            const isTimeout = e.name === 'AbortError';
+            const msg = isTimeout ? '連線逾時' : (e.message || '未知錯誤');
+            dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span></div>`; 
             console.warn("排行榜載入異常：", e);
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
