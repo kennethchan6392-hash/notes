@@ -162,6 +162,23 @@
                     src.start(0);
                 } catch(e) { /* ignore */ }
             },
+            bgPlay() {
+                const el = document.getElementById('bgMusic');
+                if (!el) return;
+                el.volume = 0.28;
+                if (this.enabled) el.play().catch(()=>{});
+            },
+            bgStop() {
+                const el = document.getElementById('bgMusic');
+                if (!el) return;
+                el.pause();
+                el.currentTime = 0;
+            },
+            bgSetMute(muted) {
+                const el = document.getElementById('bgMusic');
+                if (!el) return;
+                if (muted) { el.pause(); } else { el.play().catch(()=>{}); }
+            },
             resume() { 
                 if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(e=>e); 
             },
@@ -255,10 +272,10 @@
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
-        const imgH = ls * 8.5;
+        const imgH = ls * 10.5;
         const imgW = imgH * (120 / 300);
         const drawX = x - imgW * 0.42;
-        const drawY = y - imgH * 0.680;
+        const drawY = y - imgH * 0.590;
         if (clefImages.treble.complete && clefImages.treble.naturalWidth > 0) {
             ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
             return;
@@ -631,6 +648,7 @@
         state.answerTimeList = [];
         if (state.timer) { clearInterval(state.timer); state.timer = null; }
         
+        audio.bgPlay();
         switchScreen('screen-game');
 
         startCountdown(() => {
@@ -731,6 +749,7 @@
         enableGameControls(false); 
         clearInterval(state.timer); 
         state.timer = null;
+        audio.bgStop();
         dom.timeProgress.style.transition = 'none'; 
         
         generateReport(); 
@@ -796,7 +815,14 @@
             const accuracy = parseInt(item.accuracy) || 0; const score = parseInt(item.score) || 0;
             return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''} ${isSelf?'self':''}">
                 <div class="rank-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'}</div>
-                <div class="rank-name"><span>${cls}班 ${name}</span><div class="rank-badges">${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">我</span>':''} <span class="rank-tag" style="background:#CBD5E1; color:#333;">${accuracy}% 正確</span></div></div>
+                <div class="rank-name">
+                    <span class="rank-student-name">${name}</span>
+                    <div class="rank-badges">
+                        <span class="rank-tag rank-class-tag">${cls}班</span>
+                        ${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">我</span>':''}
+                        <span class="rank-tag" style="background:#CBD5E1; color:#333;">${accuracy}% 正確</span>
+                    </div>
+                </div>
                 <div class="rank-score">${score}</div></div>`;
         }).join('');
     }
@@ -807,7 +833,7 @@
         document.addEventListener('pointerdown', warmOnce);
 
         window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
-        dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
+        dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
         dom.modeCards.forEach(card => card.addEventListener('click', () => { dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
         
         dom.settingsToggleBtn.addEventListener('click', () => { dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
