@@ -69,7 +69,6 @@
                             <label class="checkbox-item checked"><input type="checkbox" id="clefTreble" checked> 高音</label>
                             <label class="checkbox-item checked"><input type="checkbox" id="clefBass" checked> 低音</label>
                             <label class="checkbox-item"><input type="checkbox" id="clefAlto"> 中音</label>
-                            <label class="checkbox-item"><input type="checkbox" id="clefTenor"> 次中音</label>
                         </div>
                     </div>
                     <div class="settings-group" id="accidentalGroup">
@@ -99,8 +98,18 @@
                         </div>
                     </div>
                     <div class="settings-group">
-                        <label class="group-title">🔊 聲音設定</label>
-                        <div class="checkbox-group">
+                        <label class="group-title">🔊 音量設定</label>
+                        <div class="volume-control">
+                            <span class="vol-label">🎵 背景音樂</span>
+                            <input type="range" id="bgVolume" min="0" max="100" value="18" class="vol-slider">
+                            <span class="vol-value" id="bgVolumeVal">18%</span>
+                        </div>
+                        <div class="volume-control">
+                            <span class="vol-label">🔔 音效</span>
+                            <input type="range" id="sfxVolume" min="0" max="100" value="80" class="vol-slider">
+                            <span class="vol-value" id="sfxVolumeVal">80%</span>
+                        </div>
+                        <div class="checkbox-group" style="margin-top:4px;">
                             <label class="checkbox-item"><input type="checkbox" id="noteSoundOnly"> 只播音高</label>
                             <label class="checkbox-item checked"><input type="checkbox" id="countdownSound" checked> 按鈕音效</label>
                         </div>

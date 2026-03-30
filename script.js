@@ -129,7 +129,8 @@
             inputFocused: false, 
             wrongNoteStats: {}, 
             answerTimeList: [], 
-            questionStartTime: 0 
+            questionStartTime: 0,
+            attemptedThisQuestion: false
         };
     }
 
@@ -165,7 +166,8 @@
             bgPlay() {
                 const el = document.getElementById('bgMusic');
                 if (!el) return;
-                el.volume = 0.28;
+                const vol = parseInt(document.getElementById('bgVolume')?.value ?? 18);
+                el.volume = vol / 100;
                 if (this.enabled) el.play().catch(()=>{});
             },
             bgStop() {
@@ -177,21 +179,48 @@
             bgSetMute(muted) {
                 const el = document.getElementById('bgMusic');
                 if (!el) return;
-                if (muted) { el.pause(); } else { el.play().catch(()=>{}); }
+                if (muted) { el.pause(); } else { el.volume = parseInt(document.getElementById('bgVolume')?.value ?? 18) / 100; el.play().catch(()=>{}); }
+            },
+            getSfxGain() {
+                const v = parseInt(document.getElementById('sfxVolume')?.value ?? 80);
+                return v / 100;
+            },
+            playClick(type) {
+                if (!this.ctx || !this.enabled) return;
+                this.resume();
+                const g = this.getSfxGain();
+                const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                if (type === 'select') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(660, this.ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.06);
+                    gain.gain.setValueAtTime(0.18 * g, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+                    osc.start(this.ctx.currentTime); osc.stop(this.ctx.currentTime + 0.18);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(380, this.ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.14 * g, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                    osc.start(this.ctx.currentTime); osc.stop(this.ctx.currentTime + 0.1);
+                }
             },
             resume() { 
                 if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(e=>e); 
             },
             playNote(key) {
                 if (!this.ctx || !this.enabled || !CONFIG.NOTE_FREQUENCIES[key]) return;
-                this.resume(); 
+                this.resume();
+                const g = this.getSfxGain();
                 const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
                 osc.type = 'sine'; 
                 osc.frequency.value = CONFIG.NOTE_FREQUENCIES[key];
                 osc.connect(gain); 
                 gain.connect(this.ctx.destination);
                 gain.gain.setValueAtTime(0, this.ctx.currentTime); 
-                gain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 0.05); 
+                gain.gain.linearRampToValueAtTime(0.4 * g, this.ctx.currentTime + 0.05); 
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
                 osc.start(this.ctx.currentTime); 
                 osc.stop(this.ctx.currentTime + 0.8);
@@ -199,6 +228,7 @@
             playEffect(type) {
                 if (!this.ctx || !this.enabled) return; 
                 this.resume();
+                const g = this.getSfxGain();
                 if (this._noteSoundOnlyEl && this._noteSoundOnlyEl.checked && type !== 'countdown' && type !== 'timeup') return;
                 const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
                 osc.connect(gain); 
@@ -207,7 +237,7 @@
                 if(type==='countdown'){ 
                     osc.type='sine'; 
                     osc.frequency.value=880; 
-                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime); 
+                    gain.gain.setValueAtTime(0.2*g, this.ctx.currentTime); 
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.2); 
                     dur=0.2; 
                 }
@@ -215,7 +245,7 @@
                     osc.type='triangle'; 
                     osc.frequency.setValueAtTime(440, this.ctx.currentTime); 
                     osc.frequency.setValueAtTime(220, this.ctx.currentTime+0.3); 
-                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime); 
+                    gain.gain.setValueAtTime(0.3*g, this.ctx.currentTime); 
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.5); 
                     dur=0.5; 
                 }
@@ -223,14 +253,14 @@
                     osc.type='sawtooth'; 
                     osc.frequency.setValueAtTime(200, this.ctx.currentTime); 
                     osc.frequency.setValueAtTime(150, this.ctx.currentTime+0.1); 
-                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime); 
+                    gain.gain.setValueAtTime(0.2*g, this.ctx.currentTime); 
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.3); 
                 }
                 else if(type==='warning'){ 
                     if(this._countdownSoundEl && !this._countdownSoundEl.checked) return; 
                     osc.type='sine'; 
                     osc.frequency.value=1100; 
-                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime); 
+                    gain.gain.setValueAtTime(0.15*g, this.ctx.currentTime); 
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.3); 
                 }
                 osc.start(this.ctx.currentTime); 
@@ -409,7 +439,6 @@
                 const clefTrebleEl = document.getElementById('clefTreble'); if (clefTrebleEl) clefTrebleEl.checked = cfg.clef.includes('treble');
                 const clefBassEl = document.getElementById('clefBass'); if (clefBassEl) clefBassEl.checked = cfg.clef.includes('bass');
                 const clefAltoEl = document.getElementById('clefAlto'); if (clefAltoEl) clefAltoEl.checked = false;
-                const clefTenorEl = document.getElementById('clefTenor'); if (clefTenorEl) clefTenorEl.checked = false;
                 const accSharpEl = document.getElementById('accidentalSharp'); if (accSharpEl) accSharpEl.checked = cfg.accidentalChance > 0;
                 const accFlatEl = document.getElementById('accidentalFlat'); if (accFlatEl) accFlatEl.checked = cfg.accidentalChance > 0;
                 const ledgerAboveEl = document.getElementById('ledgerLineAbove'); if (ledgerAboveEl) ledgerAboveEl.checked = cfg.ledgerAbove;
@@ -503,7 +532,7 @@
         if (config) { 
             clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow; 
         } else {
-            ['Treble','Bass','Alto','Tenor'].forEach(c => { 
+            ['Treble','Bass','Alto'].forEach(c => { 
                 const el = document.getElementById(`clef${c}`);
                 if(el && el.checked) clefOptions.push(c.toLowerCase()); 
             });
@@ -552,9 +581,12 @@
 
     function handleAnswer(answer) {
         if (!state.gameActive || state.answered) return;
-        state.answerTimeList.push((Date.now() - state.questionStartTime) / 1000); 
-        state.totalQuestions++; 
-        audio.resume();
+        // Only record time and count questions on the first attempt
+        if (!state.attemptedThisQuestion) {
+            state.answerTimeList.push((Date.now() - state.questionStartTime) / 1000);
+            state.totalQuestions++;
+            state.attemptedThisQuestion = true;
+        }
         const correct = answer === state.currentNote.correctName, btn = document.querySelector(`.note-btn[data-note="${answer}"]`);
 
         if (correct) {
@@ -595,7 +627,8 @@
 
     function nextQuestion() { 
         state.currentNote = generateNote(); 
-        state.answered = false; 
+        state.answered = false;
+        state.attemptedThisQuestion = false;
         state.questionStartTime = Date.now(); 
         drawStaff(); 
         enableGameControls(true); 
@@ -646,8 +679,10 @@
         state.answered = false; 
         state.wrongNoteStats = {}; 
         state.answerTimeList = [];
+        state.attemptedThisQuestion = false;
         if (state.timer) { clearInterval(state.timer); state.timer = null; }
         
+        // Ensure bg music is playing (may have been stopped after last game)
         audio.bgPlay();
         switchScreen('screen-game');
 
@@ -749,7 +784,7 @@
         enableGameControls(false); 
         clearInterval(state.timer); 
         state.timer = null;
-        audio.bgStop();
+        // Keep BG music playing on result page
         dom.timeProgress.style.transition = 'none'; 
         
         generateReport(); 
@@ -829,23 +864,42 @@
 
     function initEvents() {
         // Pre-warm audio on first user interaction (unlocks AudioContext on iOS/Safari)
-        const warmOnce = () => { audio.init(); audio.warmUp(); document.removeEventListener('pointerdown', warmOnce); };
+        const warmOnce = () => { audio.init(); audio.warmUp(); audio.bgPlay(); document.removeEventListener('pointerdown', warmOnce); };
         document.addEventListener('pointerdown', warmOnce);
+        // Try immediate autoplay; if blocked, warmOnce fires on first tap
+        setTimeout(() => { audio.init(); audio.bgPlay(); }, 0);
+
+        // Volume sliders
+        const bgVol = document.getElementById('bgVolume');
+        const sfxVol = document.getElementById('sfxVolume');
+        const bgValEl = document.getElementById('bgVolumeVal');
+        const sfxValEl = document.getElementById('sfxVolumeVal');
+        if (bgVol) bgVol.addEventListener('input', () => {
+            const v = bgVol.value;
+            if (bgValEl) bgValEl.textContent = v + '%';
+            const el = document.getElementById('bgMusic');
+            if (el) el.volume = v / 100;
+            localStorage.setItem('bgVolume', v);
+        });
+        if (sfxVol) sfxVol.addEventListener('input', () => {
+            if (sfxValEl) sfxValEl.textContent = sfxVol.value + '%';
+            localStorage.setItem('sfxVolume', sfxVol.value);
+        });
 
         window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
         dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
-        dom.modeCards.forEach(card => card.addEventListener('click', () => { dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
+        dom.modeCards.forEach(card => card.addEventListener('click', () => { audio.init(); audio.playClick('select'); dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
         
-        dom.settingsToggleBtn.addEventListener('click', () => { dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
-        dom.inputs.forEach(el => el.addEventListener('change', () => { if (el.id === 'textbookMode') handleTextbookModeChange(); toggleCheckboxAppearance(); saveSettings(); if (el.id.startsWith('clef') || el.id.startsWith('accidental')) { buildNoteButtons(); enableGameControls(false); } }));
+        dom.settingsToggleBtn.addEventListener('click', () => { audio.init(); audio.playClick(); dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
+        dom.inputs.forEach(el => el.addEventListener('change', () => { audio.init(); audio.playClick(); if (el.id === 'textbookMode') handleTextbookModeChange(); toggleCheckboxAppearance(); saveSettings(); if (el.id.startsWith('clef') || el.id.startsWith('accidental')) { buildNoteButtons(); enableGameControls(false); } }));
         
         dom.startBtn.addEventListener('click', startGame); 
         dom.endBtn.addEventListener('click', endGame); 
-        dom.backToSetupBtn.addEventListener('click', () => { 
+        dom.backToSetupBtn.addEventListener('click', () => { audio.playClick();
             document.querySelector('.leaderboard-layout').classList.remove('view-only');
             switchScreen('screen-setup'); 
         });
-        document.getElementById('viewRanksBtn')?.addEventListener('click', () => {
+        document.getElementById('viewRanksBtn')?.addEventListener('click', () => { audio.init(); audio.playClick();
             document.querySelector('.leaderboard-layout').classList.add('view-only');
             document.getElementById('reportGrid').innerHTML = '';
             document.getElementById('reportWeakness').innerHTML = '';
@@ -894,7 +948,12 @@
         }
         loadSavedSettings(); 
         toggleCheckboxAppearance(); 
-        enableGameControls(false); 
+        enableGameControls(false);
+        // Restore volume slider values
+        const savedBg = localStorage.getItem('bgVolume');
+        const savedSfx = localStorage.getItem('sfxVolume');
+        if (savedBg) { const el = document.getElementById('bgVolume'); if (el) { el.value = savedBg; const v = document.getElementById('bgVolumeVal'); if (v) v.textContent = savedBg + '%'; } }
+        if (savedSfx) { const el = document.getElementById('sfxVolume'); if (el) { el.value = savedSfx; const v = document.getElementById('sfxVolumeVal'); if (v) v.textContent = savedSfx + '%'; } }
         initEvents();
     });
 })();

@@ -168,6 +168,26 @@ input { user-select: auto; }
 }
 .settings-select:focus { border-color: var(--primary-purple); }
 
+.volume-control {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+}
+.vol-label { font-size: 0.82rem; font-weight: 800; color: var(--text-light); min-width: 64px; }
+.vol-slider {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 6px; border-radius: 10px; background: #D8DFFF; outline: none; cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--primary-purple); cursor: pointer;
+    box-shadow: 0 2px 6px rgba(139,102,255,0.4);
+}
+.vol-slider::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; border: none;
+    background: var(--primary-purple); cursor: pointer;
+}
+.vol-value { font-size: 0.78rem; font-weight: 900; color: var(--primary-purple-dark); min-width: 34px; text-align: right; }
+
 /* 模式選擇 */
 .mode-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
 .mode-card {
