@@ -24,7 +24,7 @@ body {
     background: linear-gradient(160deg, #FFD6EF 0%, #D6E4FF 35%, #CCFDE8 65%, #FFF0B3 100%);
     background-attachment: fixed;
     min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
-    font-family: 'Nunito', '微軟正黑體', sans-serif; padding: 2vh 16px; color: var(--text-dark); overflow-x: hidden;
+    font-family: 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', sans-serif; padding: 2vh 16px; color: var(--text-dark); overflow-x: hidden;
 }
 
 input { user-select: auto; }
@@ -98,7 +98,7 @@ input { user-select: auto; }
 /* ===== 介面一：大廳與設定 (Setup Screen) ===== */
 .game-title {
     font-size: 3.8rem; font-weight: 900; text-align: center; line-height: 1.2;
-    font-family: 'Fredoka One', 'Nunito', '微軟正黑體', cursive;
+    font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', cursive;
     background: linear-gradient(120deg, #8B66FF 0%, #FF65A3 40%, #FFCB45 70%, #00D28E 100%);
     background-size: 200% auto;
     -webkit-background-clip: text; background-clip: text;
@@ -208,7 +208,7 @@ input { user-select: auto; }
 .mode-card.active .mode-icon { animation: iconBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes iconBobble { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes iconBounce { 0% { transform: scale(0.7); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
-.mode-name { font-size: 1.15rem; font-weight: 900; margin-bottom: 5px; font-family: 'Fredoka One', 'Nunito', cursive; }
+.mode-name { font-size: 1.15rem; font-weight: 900; margin-bottom: 5px; font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive; }
 .mode-desc { font-size: 0.82rem; font-weight: 700; opacity: 0.85; }
 
 .btn-start {
@@ -218,7 +218,7 @@ input { user-select: auto; }
     box-shadow: 0 7px 0 #D96A20, var(--highlight-inner);
     letter-spacing: 3px; width: 100%; margin-top: 10px;
     animation: pulseGlow 2.5s ease-in-out infinite;
-    font-family: 'Fredoka One', 'Nunito', cursive;
+    font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
 }
 .btn-start:hover { transform: translateY(-3px); box-shadow: 0 10px 0 #D96A20, 0 14px 28px rgba(255,140,66,0.35), var(--highlight-inner); }
 .btn-start:active { transform: translateY(7px); box-shadow: 0 0px 0 transparent; animation: none; }
@@ -287,7 +287,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     position: absolute; inset: 0; background: rgba(255, 253, 248, 0.88);
     border-radius: var(--border-radius); display: none; align-items: center; justify-content: center;
     font-size: 9rem; font-weight: 900; color: var(--primary-purple); z-index: 10; backdrop-filter: blur(6px);
-    font-family: 'Fredoka One', 'Nunito', cursive;
+    font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
 }
 .countdown-overlay.show { display: flex; animation: countdownPop 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes countdownPop { 0% { transform: scale(0.4); opacity: 0; } 50% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
@@ -387,7 +387,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .report-title {
     font-size: 1.6rem; font-weight: 900; color: var(--primary-purple); margin-bottom: 22px;
-    font-family: 'Fredoka One', 'Nunito', cursive;
+    font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
     white-space: nowrap;
     animation: titleWiggle 2s ease-in-out infinite;
 }
@@ -399,7 +399,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .report-item:hover { transform: scale(1.05) translateY(-2px); box-shadow: 0 8px 20px rgba(139,102,255,0.12); }
 .report-label { font-size: 0.9rem; font-weight: 800; color: var(--text-light); margin-bottom: 5px; }
-.report-value { font-size: 1.8rem; font-weight: 900; color: var(--primary-purple); font-family: 'Fredoka One', 'Nunito', cursive; }
+.report-value { font-size: 1.8rem; font-weight: 900; color: var(--primary-purple); font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive; }
 .weakness-box {
     background: linear-gradient(135deg, #FFF0F0, #FFF8F8);
     padding: 16px; border-radius: 18px; color: var(--primary-red-dark);
@@ -416,7 +416,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .rank-title {
     font-size: 1.7rem; font-weight: 900; text-align: center; color: var(--text-dark);
-    font-family: 'Fredoka One', 'Nunito', cursive;
+    font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
     background: linear-gradient(120deg, var(--primary-purple), var(--primary-pink));
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -448,7 +448,11 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
     background: linear-gradient(45deg, transparent 40%, rgba(255,215,0,0.12) 50%, transparent 60%);
     animation: medalShimmer 3s ease-in-out infinite;
+    z-index: 0; pointer-events: none;
 }
+.rank-item.first .rank-pos,
+.rank-item.first .rank-name,
+.rank-item.first .rank-score { position: relative; z-index: 1; }
 @keyframes medalShimmer {
     0%   { transform: translateX(-100%) rotate(0deg); }
     100% { transform: translateX(100%) rotate(0deg); }
@@ -465,7 +469,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .rank-badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .rank-tag { font-size: 0.65rem; background: var(--text-light); color: white; padding: 2px 7px; border-radius: 6px; display: inline-block; width: fit-content; }
 .rank-class-tag { background: var(--primary-blue) !important; }
-.rank-score { font-size: 1.4rem; font-weight: 900; color: var(--primary-purple); font-family: 'Fredoka One', 'Nunito', cursive; }
+.rank-score { font-size: 1.4rem; font-weight: 900; color: var(--primary-purple); font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive; }
 
 .btn-restart-large {
     background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
@@ -510,7 +514,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 /* ===== 連擊慶祝 & 五彩碎紙 ===== */
 .combo-burst {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    font-size: 3.5rem; font-weight: 900; font-family: 'Fredoka One', 'Nunito', cursive;
+    font-size: 3.5rem; font-weight: 900; font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
     color: var(--primary-purple); z-index: 1000; pointer-events: none;
     text-shadow: 0 4px 16px rgba(139,102,255,0.4);
     animation: comboBurst 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -535,7 +539,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 /* ===== 得分跳動 ===== */
 .score-float {
     position: fixed; z-index: 1000; pointer-events: none;
-    font-size: 1.6rem; font-weight: 900; font-family: 'Fredoka One', 'Nunito', cursive;
+    font-size: 1.6rem; font-weight: 900; font-family: 'Fredoka One', 'Nunito', 'Noto Sans TC', cursive;
     color: var(--primary-green); text-shadow: 0 2px 8px rgba(0,210,142,0.3);
     animation: scoreFloat 0.8s ease-out forwards;
 }
