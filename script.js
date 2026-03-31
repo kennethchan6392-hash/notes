@@ -24,7 +24,6 @@
 
     const MODE_CONFIG = {
         practice: { name:'練習模式', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0 },
-        speed30:  { name:'30秒快答', type:'challenge', duration:30, maxWrong:Infinity, scoreMulti:1.2 },
         classic60:{ name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
         noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 }
     };
@@ -33,16 +32,15 @@
         1: { clef:['treble'], accidentalChance:0, noteRange:[2,9], ledgerAbove:false, ledgerBelow:false },
         2: { clef:['treble'], accidentalChance:0, noteRange:[0,11], ledgerAbove:false, ledgerBelow:true },
         3: { clef:['treble'], accidentalChance:0.1, noteRange:[0,12], ledgerAbove:true, ledgerBelow:true },
-        4: { clef:['treble','treble','treble','bass'], accidentalChance:0.15, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
-        5: { clef:['treble','bass'], accidentalChance:0.25, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
-        6: { clef:['treble','bass'], accidentalChance:0.4, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true }
+        4: { clef:['treble'], accidentalChance:0.15, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
+        5: { clef:['treble'], accidentalChance:0.25, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
+        6: { clef:['treble'], accidentalChance:0.4, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true }
     };
 
     const MAPS = {
         treble: [{letter:'C',octave:4,yFactor:5},{letter:'D',octave:4,yFactor:4.5},{letter:'E',octave:4,yFactor:4},{letter:'F',octave:4,yFactor:3.5},{letter:'G',octave:4,yFactor:3},{letter:'A',octave:4,yFactor:2.5},{letter:'B',octave:4,yFactor:2},{letter:'C',octave:5,yFactor:1.5},{letter:'D',octave:5,yFactor:1},{letter:'E',octave:5,yFactor:0.5},{letter:'F',octave:5,yFactor:0},{letter:'G',octave:5,yFactor:-0.5},{letter:'A',octave:5,yFactor:-1}],
-        bass: [{letter:'G',octave:2,yFactor:4},{letter:'A',octave:2,yFactor:3.5},{letter:'B',octave:2,yFactor:3},{letter:'C',octave:3,yFactor:2.5},{letter:'D',octave:3,yFactor:2},{letter:'E',octave:3,yFactor:1.5},{letter:'F',octave:3,yFactor:1},{letter:'G',octave:3,yFactor:0.5},{letter:'A',octave:3,yFactor:0},{letter:'B',octave:3,yFactor:-0.5},{letter:'C',octave:4,yFactor:-1}],
-        alto: [{letter:'F',octave:3,yFactor:5},{letter:'G',octave:3,yFactor:4.5},{letter:'A',octave:3,yFactor:4},{letter:'B',octave:3,yFactor:3.5},{letter:'C',octave:4,yFactor:3},{letter:'D',octave:4,yFactor:2.5},{letter:'E',octave:4,yFactor:2},{letter:'F',octave:4,yFactor:1.5},{letter:'G',octave:4,yFactor:1},{letter:'A',octave:4,yFactor:0.5},{letter:'B',octave:4,yFactor:0},{letter:'C',octave:5,yFactor:-0.5},{letter:'D',octave:5,yFactor:-1}],
-        tenor: [{letter:'D',octave:3,yFactor:5},{letter:'E',octave:3,yFactor:4.5},{letter:'F',octave:3,yFactor:4},{letter:'G',octave:3,yFactor:3.5},{letter:'A',octave:3,yFactor:3},{letter:'B',octave:3,yFactor:2.5},{letter:'C',octave:4,yFactor:2},{letter:'D',octave:4,yFactor:1.5},{letter:'E',octave:4,yFactor:1},{letter:'F',octave:4,yFactor:0.5},{letter:'G',octave:4,yFactor:0},{letter:'A',octave:4,yFactor:-0.5},{letter:'B',octave:4,yFactor:-1}]
+
+
     };
 
     let dom = {};
@@ -50,15 +48,11 @@
     let audio = {};
 
     // Preload clef SVG images using real music clef glyphs
-    const clefImages = { treble: new Image(), bass: new Image(), cClef: new Image() };
+    const clefImages = { treble: new Image() };
     clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 300"><text x="60" y="230" text-anchor="middle" font-size="250" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄞</text></svg>');
-    clefImages.bass.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 180"><text x="70" y="138" text-anchor="middle" font-size="150" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄢</text></svg>');
-    clefImages.cClef.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 200"><text x="65" y="152" text-anchor="middle" font-size="170" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄡</text></svg>');
-    // Redraw staff when any clef image finishes loading
+    // Redraw staff when clef image finishes loading
     const onClefLoad = () => { if (state.currentNote && dom.ctx) drawStaff(); };
     clefImages.treble.onload = onClefLoad;
-    clefImages.bass.onload = onClefLoad;
-    clefImages.cClef.onload = onClefLoad;
 
     function initDOM() {
         dom = {
@@ -130,7 +124,8 @@
             wrongNoteStats: {}, 
             answerTimeList: [], 
             questionStartTime: 0,
-            attemptedThisQuestion: false
+            attemptedThisQuestion: false,
+            showAnswerHighlight: false
         };
     }
 
@@ -318,39 +313,7 @@
         ctx.restore();
     }
 
-    function drawBassClef(ctx, x, y, ls) {
-        const imgH = ls * 5.2;
-        const imgW = imgH * (140 / 180);
-        const drawX = x - imgW * 0.34;
-        const drawY = y - imgH * 0.37;
-        if (clefImages.bass.complete && clefImages.bass.naturalWidth > 0) {
-            ctx.drawImage(clefImages.bass, drawX, drawY, imgW, imgH);
-            return;
-        }
-        ctx.save();
-        ctx.fillStyle = '#1E1E2F';
-        ctx.font = `${Math.round(ls * 3.6)}px serif`;
-        ctx.textBaseline = 'middle';
-        ctx.fillText('𝄢', x - ls * 1.3, y + ls * 1.0);
-        ctx.restore();
-    }
 
-    function drawCClef(ctx, x, y, ls) {
-        const imgH = ls * 4.7;
-        const imgW = imgH * (130 / 200);
-        const drawX = x - imgW * 0.31;
-        const drawY = y - imgH * 0.50;
-        if (clefImages.cClef.complete && clefImages.cClef.naturalWidth > 0) {
-            ctx.drawImage(clefImages.cClef, drawX, drawY, imgW, imgH);
-            return;
-        }
-        ctx.save();
-        ctx.fillStyle = '#1E1E2F';
-        ctx.font = `${Math.round(ls * 3.8)}px serif`;
-        ctx.textBaseline = 'middle';
-        ctx.fillText('𝄡', x - ls * 1.3, y + ls * 0.8);
-        ctx.restore();
-    }
 
     function drawSharp(ctx, x, y, ls) {
         ctx.save(); ctx.translate(x, y); const s = ls / 10; ctx.scale(s, s);
@@ -389,10 +352,7 @@
         }
 
         const clefX = startX + (w < 400 ? 25 : 35);
-        if (state.currentNote.clef === 'treble') { dom.clefBadge.textContent = '高音譜號'; drawTrebleClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing); }
-        else if (state.currentNote.clef === 'bass') { dom.clefBadge.textContent = '低音譜號'; drawBassClef(ctx, clefX, baseY + lineSpacing * 1, lineSpacing); }
-        else if (state.currentNote.clef === 'alto') { dom.clefBadge.textContent = '中音譜號'; drawCClef(ctx, clefX, baseY + lineSpacing * 2, lineSpacing); }
-        else if (state.currentNote.clef === 'tenor') { dom.clefBadge.textContent = '次中音譜號'; drawCClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing); }
+        dom.clefBadge.textContent = '高音譜號'; drawTrebleClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing);
 
         ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; const lW = 24;
         if (state.currentNote.yFactor > 4) for(let i=1; i<=Math.floor(state.currentNote.yFactor - 4); i++) { ctx.beginPath(); ctx.moveTo(centerX-lW, baseY + (4+i)*lineSpacing); ctx.lineTo(centerX+lW, baseY + (4+i)*lineSpacing); ctx.stroke(); }
@@ -416,6 +376,26 @@
             else { ctx.moveTo(centerX + lineSpacing*0.55, noteY - 2); ctx.lineTo(centerX + lineSpacing*0.55, noteY - lineSpacing*3.5); }
             ctx.stroke();
         }
+
+        // Show correct answer highlight on staff when answered wrong or revealed
+        if (state.showAnswerHighlight) {
+            ctx.save();
+            ctx.strokeStyle = '#FF4A6B';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.arc(centerX, noteY, lineSpacing * 1.3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Draw correct name label below/above the circle
+            ctx.fillStyle = '#FF4A6B';
+            ctx.font = `bold ${Math.round(lineSpacing * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
+            const labelY = noteY > middleLineY ? noteY + lineSpacing * 1.6 : noteY - lineSpacing * 1.6;
+            ctx.fillText(state.currentNote.correctName, centerX, labelY);
+            ctx.restore();
+        }
     }
 
     // ==========================================
@@ -437,8 +417,6 @@
             const cfg = TEXTBOOK_CONFIG[tbMode];
             if (cfg) {
                 const clefTrebleEl = document.getElementById('clefTreble'); if (clefTrebleEl) clefTrebleEl.checked = cfg.clef.includes('treble');
-                const clefBassEl = document.getElementById('clefBass'); if (clefBassEl) clefBassEl.checked = cfg.clef.includes('bass');
-                const clefAltoEl = document.getElementById('clefAlto'); if (clefAltoEl) clefAltoEl.checked = false;
                 const accSharpEl = document.getElementById('accidentalSharp'); if (accSharpEl) accSharpEl.checked = cfg.accidentalChance > 0;
                 const accFlatEl = document.getElementById('accidentalFlat'); if (accFlatEl) accFlatEl.checked = cfg.accidentalChance > 0;
                 const ledgerAboveEl = document.getElementById('ledgerLineAbove'); if (ledgerAboveEl) ledgerAboveEl.checked = cfg.ledgerAbove;
@@ -532,10 +510,8 @@
         if (config) { 
             clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow; 
         } else {
-            ['Treble','Bass','Alto'].forEach(c => { 
-                const el = document.getElementById(`clef${c}`);
-                if(el && el.checked) clefOptions.push(c.toLowerCase()); 
-            });
+            const clefTrebleEl = document.getElementById('clefTreble');
+            if(clefTrebleEl && clefTrebleEl.checked) clefOptions.push('treble');
             if (!clefOptions.length) clefOptions = ['treble'];
             const accSharpEl = document.getElementById('accidentalSharp');
             const accFlatEl = document.getElementById('accidentalFlat');
@@ -600,9 +576,17 @@
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
             if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            // Practice mode milestone
+            if (state.modeConfig.type === 'practice') {
+                const correct = state.totalQuestions - state.wrongCount;
+                if (correct > 0 && correct % 20 === 0) {
+                    showComboBurst(correct); spawnConfetti(30);
+                    dom.messageBox.textContent = `🎯 已答對 ${correct} 題！你好棒！繼續加油！`;
+                }
+            }
             setTimeout(() => { if (btn) btn.classList.remove('correct', 'wrong'); if (state.gameActive) nextQuestion(); }, 500);
         } else {
-            const clefLabel = {treble:'高音',bass:'低音',alto:'中音',tenor:'次中音'}[state.currentNote.clef] || state.currentNote.clef;
+            const clefLabel = '高音';
             const statKey = `${state.currentNote.correctName} (${clefLabel})`;
             state.wrongNoteStats[statKey] = (state.wrongNoteStats[statKey]||0) + 1; 
             state.combo = 0; 
@@ -612,10 +596,11 @@
             if (state.wrongCount + 1 >= state.modeConfig.maxWrong || (allowRetryEl && !allowRetryEl.checked)) {
                 state.answered = true; 
                 state.wrongCount++; 
+                state.showAnswerHighlight = true; drawStaff();
                 dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住它唔！`; 
                 dom.messageBox.className = 'message-box wrong';
                 if (btn) btn.classList.add('wrong'); 
-                setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 800);
+                setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
             } else {
                 dom.messageBox.textContent = `❌ 差一點點！再試試看！`; 
                 dom.messageBox.className = 'message-box warning';
@@ -629,6 +614,7 @@
         state.currentNote = generateNote(); 
         state.answered = false;
         state.attemptedThisQuestion = false;
+        state.showAnswerHighlight = false;
         state.questionStartTime = Date.now(); 
         drawStaff(); 
         enableGameControls(true); 
@@ -733,8 +719,94 @@
         const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
         const avg = state.answerTimeList.length ? (state.answerTimeList.reduce((a,b)=>a+b,0)/state.answerTimeList.length).toFixed(1) : 0;
         dom.reportGrid.innerHTML = `<div class="report-item"><div class="report-label">答題數</div><div class="report-value">${state.totalQuestions}</div></div><div class="report-item"><div class="report-label">得分</div><div class="report-value">${state.score}</div></div><div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div><div class="report-item"><div class="report-label">平均速度</div><div class="report-value">${avg}秒</div></div><div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${state.maxCombo}</div></div><div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${state.wrongCount}</div></div>`;
+        
         const sorted = Object.entries(state.wrongNoteStats).sort((a,b)=>b[1]-a[1]);
-        dom.reportWeakness.innerHTML = sorted.length ? `<div>要加油練習的音符：</div><ul>${sorted.slice(0,3).map(([k,v]) => `<li><strong>${k}</strong>：錯了 ${v} 次</li>`).join('')}</ul>` : '<div>🌟 太厲害了！全部答對，你是音樂小天才！ 🎉</div>';
+        if (!sorted.length) {
+            dom.reportWeakness.innerHTML = '<div>🌟 太厲害了！全部答對，你是音樂小天才！ 🎉</div>';
+            return;
+        }
+        // Categorize errors
+        let ledgerErrors = 0, staffErrors = 0, accidentalErrors = 0, naturalErrors = 0;
+        sorted.forEach(([k, v]) => {
+            const noteName = k.split(' (')[0];
+            if (noteName.includes('#') || noteName.includes('♭')) accidentalErrors += v;
+            else naturalErrors += v;
+        });
+        // Check if errors are from ledger line notes (yFactor > 4 or < 0)
+        Object.entries(state.wrongNoteStats).forEach(([k]) => {
+            const noteName = k.split(' (')[0].replace('#','').replace('♭','');
+            const clefName = k.match(/\((.+)\)/)?.[1] || '';
+            const clefKey = clefName === '高音' ? 'treble' : null;
+            if (clefKey && MAPS[clefKey]) {
+                const noteInfo = MAPS[clefKey].find(n => n.letter === noteName);
+                if (noteInfo && (noteInfo.yFactor > 4 || noteInfo.yFactor < 0)) ledgerErrors += state.wrongNoteStats[k];
+                else staffErrors += state.wrongNoteStats[k];
+            }
+        });
+        // Speed trend
+        let speedTrend = '';
+        if (state.answerTimeList.length >= 6) {
+            const half = Math.floor(state.answerTimeList.length / 2);
+            const firstHalf = state.answerTimeList.slice(0, half).reduce((a,b)=>a+b,0) / half;
+            const secondHalf = state.answerTimeList.slice(half).reduce((a,b)=>a+b,0) / (state.answerTimeList.length - half);
+            if (secondHalf > firstHalf * 1.3) speedTrend = '<li>⚠️ 後半段反應變慢，可能有少少攰，記得休息</li>';
+            else if (secondHalf < firstHalf * 0.8) speedTrend = '<li>🚀 愈做愈快，進步明顯！</li>';
+        }
+        let analysis = '<ul>';
+        analysis += sorted.slice(0,3).map(([k,v]) => `<li><strong>${k}</strong>：錯了 ${v} 次</li>`).join('');
+        if (ledgerErrors > staffErrors && ledgerErrors > 2) analysis += '<li>📏 加線音符出錯較多，可以多練習上下加線範圍</li>';
+        if (accidentalErrors > naturalErrors && accidentalErrors > 2) analysis += '<li>🎵 升降號音符出錯較多，需加強升降記號辨認</li>';
+        if (speedTrend) analysis += speedTrend;
+        analysis += '</ul>';
+        dom.reportWeakness.innerHTML = `<div>要加油練習的音符：</div>${analysis}`;
+
+        // Save to history
+        saveHistory(accuracy, avg);
+    }
+
+    // ==========================================
+    // 📊 歷史進度追蹤
+    // ==========================================
+    function saveHistory(accuracy, avgSpeed) {
+        try {
+            const history = JSON.parse(localStorage.getItem('musicGameHistory') || '[]');
+            history.push({
+                date: new Date().toLocaleDateString('zh-TW'),
+                mode: state.currentMode,
+                score: state.score,
+                accuracy: parseInt(accuracy),
+                avgSpeed: parseFloat(avgSpeed),
+                questions: state.totalQuestions,
+                maxCombo: state.maxCombo
+            });
+            // Keep last 20 records
+            if (history.length > 20) history.splice(0, history.length - 20);
+            localStorage.setItem('musicGameHistory', JSON.stringify(history));
+        } catch(e) { /* ignore storage errors */ }
+    }
+
+    function getHistorySummary() {
+        try {
+            const history = JSON.parse(localStorage.getItem('musicGameHistory') || '[]');
+            if (history.length < 2) return '';
+            const recent = history.slice(-5);
+            const older = history.slice(-10, -5);
+            if (!older.length) return '';
+            const recentAcc = Math.round(recent.reduce((a,r) => a + (r.accuracy||0), 0) / recent.length);
+            const olderAcc = Math.round(older.reduce((a,r) => a + (r.accuracy||0), 0) / older.length);
+            const recentSpd = (recent.reduce((a,r) => a + (r.avgSpeed||0), 0) / recent.length).toFixed(1);
+            const olderSpd = (older.reduce((a,r) => a + (r.avgSpeed||0), 0) / older.length).toFixed(1);
+            let html = '<div class="history-summary"><div class="group-title">📈 進度趨勢（近 ' + history.length + ' 次）</div><ul style="margin:8px 0 0 16px; font-size:0.9rem;">';
+            const accDiff = recentAcc - olderAcc;
+            if (accDiff > 5) html += `<li>✅ 正確率進步中！${olderAcc}% → ${recentAcc}%</li>`;
+            else if (accDiff < -5) html += `<li>⚠️ 正確率下降了 ${olderAcc}% → ${recentAcc}%，多練練</li>`;
+            else html += `<li>📊 正確率穩定在 ${recentAcc}% 附近</li>`;
+            const spdDiff = parseFloat(recentSpd) - parseFloat(olderSpd);
+            if (spdDiff < -0.3) html += `<li>🚀 反應速度加快了！${olderSpd}s → ${recentSpd}s</li>`;
+            else if (spdDiff > 0.3) html += `<li>🐢 反應變慢了 ${olderSpd}s → ${recentSpd}s</li>`;
+            html += '</ul></div>';
+            return html;
+        } catch(e) { return ''; }
     }
 
     // ==========================================
@@ -788,6 +860,9 @@
         dom.timeProgress.style.transition = 'none'; 
         
         generateReport(); 
+        // Show history trend
+        const historyEl = document.getElementById('reportHistory');
+        if (historyEl) historyEl.innerHTML = getHistorySummary();
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
         document.querySelector('.leaderboard-layout').classList.remove('view-only');
@@ -840,6 +915,14 @@
         if (fC !== '0') f = f.filter(r => r.class === fC); 
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
         f.sort((a,b)=> (parseInt(b.score)||0) - (parseInt(a.score)||0) || (parseInt(b.max_combo)||0) - (parseInt(a.max_combo)||0));
+        // Deduplicate: keep only highest score per name+class+id
+        const seen = new Set();
+        f = f.filter(r => {
+            const key = `${(r.name||'').trim()}|${(r.class||'')}|${(r.id||'').toString().trim()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
         if (!f.length) { 
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
             return; 
@@ -887,6 +970,12 @@
         });
 
         window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
+        // Auto-select textbook level when grade changes
+        dom.userGrade.addEventListener('change', () => {
+            audio.init(); audio.playClick();
+            const tbModeEl = document.getElementById('textbookMode');
+            if (tbModeEl) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
+        });
         dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
         dom.modeCards.forEach(card => card.addEventListener('click', () => { audio.init(); audio.playClick('select'); dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
         
@@ -907,7 +996,7 @@
             switchScreen('screen-leaderboard');
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = `� 答案是：${state.currentNote.correctName}，記住了嗎？`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 1500); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); dom.messageBox.textContent = `💡 答案是：${state.currentNote.correctName}，記住了嗎？`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2000); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
         
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
@@ -946,7 +1035,10 @@
             audio.enabled = storedSound === 'true'; 
             dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; 
         }
-        loadSavedSettings(); 
+        loadSavedSettings();
+        // Sync textbook mode to grade on first load if no saved settings override
+        const tbModeEl = document.getElementById('textbookMode');
+        if (tbModeEl && dom.userGrade) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); }
         toggleCheckboxAppearance(); 
         enableGameControls(false);
         // Restore volume slider values
