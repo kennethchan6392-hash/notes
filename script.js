@@ -592,20 +592,13 @@
             state.combo = 0; 
             audio.playEffect('wrong');
             
-            const allowRetryEl = document.getElementById('allowRetry');
-            if (state.wrongCount + 1 >= state.modeConfig.maxWrong || (allowRetryEl && !allowRetryEl.checked)) {
-                state.answered = true; 
-                state.wrongCount++; 
-                state.showAnswerHighlight = true; drawStaff();
-                dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住它唔！`; 
-                dom.messageBox.className = 'message-box wrong';
-                if (btn) btn.classList.add('wrong'); 
-                setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
-            } else {
-                dom.messageBox.textContent = `❌ 差一點點！再試試看！`; 
-                dom.messageBox.className = 'message-box warning';
-                if (btn) { btn.classList.add('wrong'); setTimeout(() => btn.classList.remove('wrong'), 500); }
-            }
+            state.answered = true; 
+            state.wrongCount++; 
+            state.showAnswerHighlight = true; drawStaff();
+            dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住它唔！`; 
+            dom.messageBox.className = 'message-box wrong';
+            if (btn) btn.classList.add('wrong'); 
+            setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
         } 
         updateScoreboard();
     }
