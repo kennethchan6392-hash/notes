@@ -1,5 +1,6 @@
 /* ===== 基礎變數 & 重置 ===== */
-* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+button, select, input { touch-action: manipulation; }
 
 :root {
     --primary-pink: #FF65A3; --primary-pink-dark: #D83A7D;
@@ -23,8 +24,12 @@
 body {
     background: linear-gradient(160deg, #FFD6EF 0%, #D6E4FF 35%, #CCFDE8 65%, #FFF0B3 100%);
     background-attachment: fixed;
-    min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
-    font-family: 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', sans-serif; padding: 2vh 16px; color: var(--text-dark); overflow-x: hidden;
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; justify-content: center; align-items: flex-start;
+    font-family: 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', sans-serif;
+    padding: 2vh 16px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right));
+    color: var(--text-dark); overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
 }
 
 input { user-select: auto; }
@@ -331,7 +336,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border: none; border-radius: 24px; width: 80px; height: 80px;
     font-size: 2rem; font-weight: 900; cursor: pointer; transition: all 0.15s;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    position: relative; touch-action: manipulation;
+    position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
     letter-spacing: 0;
 }
 .note-btn .key-hint { position: absolute; bottom: 6px; font-size: 0.7rem; font-weight: 900; background: rgba(0,0,0,0.15); padding: 2px 6px; border-radius: 6px; }
@@ -564,7 +569,32 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .card, .screen, .countdown-overlay, .note-btn, .btn-action, .btn-start { animation: none !important; transition: none !important; }
 }
 
-/* ===== Extra small screens ===== */
+/* ===== iPad / Tablet (768-1024px) ===== */
+@media (min-width: 768px) and (max-width: 1024px) {
+    body { padding: 2vh 24px; }
+    .screen { max-width: 800px; }
+    .note-btn { width: 90px; height: 90px; font-size: 2.2rem; }
+    .note-row { gap: 14px; }
+    .staff-container { min-height: 220px; padding: 18px 24px; }
+    .mode-cards { grid-template-columns: repeat(3, 1fr); }
+    .leaderboard-layout { grid-template-columns: 1.2fr 1fr; }
+}
+
+/* ===== Phone game screen: fill viewport, minimize scrolling ===== */
+@media (max-width: 600px) {
+    #screen-game {
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        justify-content: space-between;
+        padding-bottom: env(safe-area-inset-bottom, 8px);
+    }
+    #screen-game > .card { padding: 8px 12px; }
+    #screen-setup, #screen-leaderboard {
+        padding-bottom: env(safe-area-inset-bottom, 8px);
+    }
+}
+
+/* ===== Extra small screens (phones) ===== */
 @media (max-width: 480px) {
     .game-header-bar { flex-direction: column; gap: 6px; }
     .user-badge { font-size: 0.8rem; padding: 6px 12px; }
@@ -578,4 +608,58 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .btn-action { padding: 6px 14px; font-size: 0.8rem; }
     .action-row { gap: 6px; }
     .game-title { font-size: 2.2rem; }
+}
+
+/* ===== Landscape phones: horizontal layout for game ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+    body { padding: 6px 16px; align-items: flex-start; }
+    .screen { gap: 6px; }
+    #screen-game {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto 1fr auto;
+        gap: 6px;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        padding: 6px env(safe-area-inset-right, 6px) 6px env(safe-area-inset-left, 6px);
+    }
+    #screen-game > .card:first-child {
+        grid-column: 1 / -1;
+        padding: 6px 10px;
+    }
+    .staff-container {
+        min-height: 140px;
+        padding: 6px 10px;
+        grid-column: 1;
+        grid-row: 2;
+    }
+    .notes-grid {
+        grid-column: 2;
+        grid-row: 2 / 4;
+        align-self: center;
+    }
+    .message-box {
+        grid-column: 1;
+        grid-row: 3;
+        font-size: 0.85rem;
+        min-height: 32px;
+        padding: 6px;
+    }
+    .action-row {
+        grid-column: 1 / -1;
+    }
+    .note-btn { width: 52px; height: 52px; font-size: 1.2rem; }
+    .note-row { gap: 5px; }
+    .stat-badge { padding: 4px 8px; font-size: 0.8rem; min-width: 56px; }
+    .progress-bar { height: 12px; }
+    .game-title { font-size: 1.8rem; }
+    .countdown-overlay { font-size: 5rem; }
+    .bg-note { display: none; }
+    .clef-badge { top: 6px; right: 6px; padding: 4px 10px; font-size: 0.75rem; }
+}
+
+/* ===== iPhone safe area padding (notch / home indicator) ===== */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .sound-toggle { bottom: calc(22px + env(safe-area-inset-bottom, 0px)); right: calc(22px + env(safe-area-inset-right, 0px)); }
+    .btn-start { margin-bottom: env(safe-area-inset-bottom, 0px); }
 }

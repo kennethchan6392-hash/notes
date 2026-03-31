@@ -918,7 +918,7 @@
         // Deduplicate: keep only highest score per name+class+id
         const seen = new Set();
         f = f.filter(r => {
-            const key = `${(r.name||'').trim()}|${(r.class||'')}|${(r.id||'').toString().trim()}`;
+            const key = `${String(r.name||'').trim()}|${String(r.class||'')}|${String(r.id||'').trim()}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -970,6 +970,16 @@
         });
 
         window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
+        // Handle orientation change on mobile (debounced resize)
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', () => {
+                setTimeout(() => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } }, 200);
+            });
+        } else {
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } }, 300);
+            });
+        }
         // Auto-select textbook level when grade changes
         dom.userGrade.addEventListener('change', () => {
             audio.init(); audio.playClick();
