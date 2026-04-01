@@ -43,6 +43,101 @@
 
     };
 
+    // ==========================================
+    // 學生名冊 (按年級+班別)
+    // ==========================================
+    const STUDENT_ROSTER = {
+        '1A':['歐卓瑤','區善妤','陳晏霆','陳晞瑜','陳浩軒','陳奕劻','曾皓榮','周逸曦','鄭鈊語','張蔚浠','趙棽悠','蔡昊妍','鍾慧琳','杜子楓','何格霖','許芯賢','黃翊宸','禤鎧霖','林智賢','林煒傑','李俊熹','梁智軒','廖正迎','雷景博','盧思文','吳楚湉','吳楷燁','蘇靖媛','蘇芊悅','鄧凱晴','鄧皓銘','黃思喬'],
+        '1B':['區美淇','蔡一一','陳峻銘','陳祉維','鄭弘悅','陳浩銘','陳彥熹','鍾允澄','霍愷琳','侯綺曦','黃思穎','翁詔謙','葉勺瑀','余梓睿','谷可芯','郭明琳','郭玥晞','鄺韋然','李睿詩','李灝諺','李柰葆','呂紀柔','吳鉑樅','吳玥橋','譚崇禧','余佳妍','阮芯渝','黃浠瑜','王紫晴','黃霆睿','黃慧芯','楊景程','鍾毅'],
+        '1C':['陳俊諾','曾浩謙','周朗晴','鄒禹丞','謝依琳','陳俊謙','鄭宇哲','趙子宸','蔡芷澄','鍾允賢','杜子臻','傅紫鈺','何冠杰','洪欣彤','甘昕蕎','葛霈妍','古羽婷','林昊霖','劉宸睿','李旻珈','梁熙琳','梁宥延','盧鍶嵐','龍柏宇','黃皓洋','吳泳俙','顏燕朗','邵睿麒','譚貝妍','黃莃晴','黃政朗','黃柏羲'],
+        '1D':['陳芷悠','陳浩朗','陳柏熹','陳柏雨','謝韋鴻','陳柏銳','丁聖哲','馮曜辰','付夢希','何樂瑤','何心妍','洪悅芯','葉芯瑜','郭昊謙','鄺韋喬','李焯希','李昕禧','李湘瑤','凌學揚','梁鏸文','呂子瑩','盧浠恩','麥恩庭','吳紫妍','史倩雯','蘇行一','蘇樂宜','謝睎晴','黃子恩','黃翊軒','張浩彥'],
+        '1E':['陳政揚','陳綺臻','謝凱欣','張敏','鄭亦螢','莊梓揚','鍾浠宸','傅兆煌','嚴紫鈴','高梓豪','高朗睿','關妤浠','林焯豪','利紫榆','梁凱嵐','梁景睿','梁知行','呂子瑜','呂承熹','吳祉玥','魏飛','柯舒甯','歐陽貝蕎','彭芊穎','任晉承','施茗涵','譚弘熙','謝雅蕎','黃靖恩','黃愷瑩','張皓辰'],
+        '1F':['歐陽博','陳宥琋','陳彥晴','陳柏霖','張知行','張銘延','徐靖柔','馮紫曦','傅祺淇','何曉榆','楊斯婷','郭詠昕','林灝天','李昕禧','梁凱晴','李鍶彤','倫曉縈','陸梓瑜','麥子淳','伍梓逸','吳子朗','吳君灝','石浚楷','蘇駿言','蘇雨晴','杜海峰','余澔朗','文子瑜','黃杏言','黃嘉唯','黃妤翹','周語慧','周宏軒'],
+        '2A':['歐陽廷亮','陳慶揚','陳雅惠','陳栢埏','陳泰霖','陳韡臻','陳穎瑩','張芯悅','趙熙潼','趙偉諾','蔡沛持','鍾博堯','鍾孟渝','高晨稀','楊愷琳','葉靝瑀','林以淳','林健朗','劉心弦','李羽溋','梁卓嵐','梁雋彥','李芯穎','李鍠林','梁楚恬','吳銘豪','柯芊霖','王卓睿','黃梓烽','黃子浩','黃梓妍','王顥熹'],
+        '2B':['陳芊語','陳鐫傑','陳逸烯','周奕臻','鄭柏霖','戚梓恩','蔡靖柔','崔雨正','方志華','關凱豐','何梓樂','何馨玥','洪槿炎','簡煒詩','李政言','李駿宇','李洛儀','李旻佑','梁博延','羅思欣','曲頡銘','沈樂晴','孫子淇','杜安叡','袁梓然','黃卓謙','王旻澔','黃美晨','黃尚銘','胡語庭','于恩朗'],
+        '2C':['曹梓恬','陳柏然','曾俊喆','曾柏熙','謝鏵請','鄭承晉','鄭妤曦','張亦然','楊子皓','黎梓燊','賴心逸','林嘉蕊','劉承鍇','李卓謙','李俊熙','李灝霖','李旭恩','李思諾','李倩玟','梁峻熙','梁宇軒','梁羽婷','李靖怡','梁栩澄','羅樂桐','倫梓淏','盧芯悅','吳芷蕎','潘淽玥','蕭雅瑩','黃藝濤','王柏霖'],
+        '2D':['區裕熙','馬澤晨','周皓然','鄒語霏','鄭采甯','鄭寶叮','鄭詠硏','張焯傑','趙梓朗','蔡禮軒','蔡柏麟','莊柏言','何祉澄','黎芯妍','林宥賢','劉思玥','李曉霖','李沛桓','李思睿','梁灝文','梁承昊','廖倬諾','羅浩朗','駱穎誼','吳翊昕','岑妍','阮梓玥','溫梓妤','王思媛','黃思哲','謝諾臻','庄庭睿'],
+        '2E':['陳芊諭','陳愷澄','陳浩宇','陳柏橋','曾穎','周晉霆','張馨雨','張君彥','徐倫飛','崔仲騫','馮熙童','何梓穎','許皓政','楊柏燊','郭盈希','李梓樂','李幸妍','李嘉峻','李羽朗','李穎妍','梁鎧琳','梁語芯','羅芯穎','麥梓峰','吳楚驍','施俊承','蔡依臻','黃天佑','胡驍龍','詹碩庭','鄭錦鵬','鄭瑾寧','鄒悅晴'],
+        '2F':['陳洛瑤','周洤宇','張昊暄','張時灝','朱靖熹','馮振諾','郭真希','甘芷瑤','古子駿','黎俊賢','黎文博','劉恩慈','李汶軒','李筱恩','廖栢霖','羅霈帆','羅穎霖','龍俊榮','盧梓聰','魏紫喬','鮑曉睿','岑純曦','孫政賢','譚皓政','徐穎思','黃智謙','黃君廉','黃藝康','徐芯瑜','容凱琪','張家烯'],
+        '3A':['陳芊睿','陳叡琪','陳國宇','陳力天','曾穎曦','周謹言','張靖汶','張梓曦','趙俊傑','蔡禮濬','鍾世宥','曹紫昕','鍾日朗','許庭欣','黃珈儀','江希彤','高顯淳','郭銘昊','林頌軒','李芊樂','李樂峒','梁凱甯','梁貝兒','李禹辰','羅俊稀','倪夢詒','區梓盈','彭梓皓','施均融','蘇振維','阮梓瑜','黃子芯','黃康瑅','張語桐'],
+        '3B':['歐陽心穎','陳柏熙','陳星如','陳韡匡','曾巧臻','周賢霖','周芷僖','陳思安','張曉嵐','張國棟','朱俊龍','朱汶迪','范譽衡','高顥峰','何芷慧','黃妤宸','楊侑謙','葛舜衡','關穎潼','梁善柔','梁弘健','馬芷禹','伍芷瑜','吳駿希','吳依恩','吳家盈','伍君傑','伍毅恆','潘梓琪','王柏朗','黃書涵','黃天成','溫正軒'],
+        '3C':['陳芷綾','陳天宥','陳玥澄','周卓泓','謝鈺婷','鄭宇埕','張詩會','蔡梓希','庄映霏','郭達濠','施宏澤','霍善兒','馮曉嵐','馮妙璇','高世彥','古婷茵','郭姿廷','林子軒','劉倩菲','梁竣宇','梁曉礽','梁維樂','劉古慧','羅淇聰','鮑梓瑜','鄺榆晴','黃秖澄','黃梓溢','王梓霖','黃灝軒','黃泓澔','伍芷晴','胡皓星'],
+        '3D':['曾浚峰','周子軒','鄭敬澧','張恩語','鍾雨彤','周嘉兒','霍進禧','馬愷彤','何卓楓','洪浚睿','楊宗昇','葉竣丞','余詠心','蔣思葉','江哲賢','黎浠妤','林浩森','劉卓陽','劉浩賢','李梓曦','李正儒','梁雅斯','林仲賢','雷卓藍','毛藴言','吳穎昕','柯進浩','冼泳堯','蘇永皓','黃澤斌','王皓楓','黃珮娜','王思瑜','蕭楚珞'],
+        '3E':['陳彥羲','鄭鈺凝','蔡昊倫','蔡柏浚','符皓喬','許柏翹','胡藝馨','黎政澔','林子穎','林晉賢','劉浠霖','李柏滶','李心瑤','梁婧琪','梁文俊','梁弘康','林俊諾','龍璟月','吳子琦','吳稀媛','魏文妍','蘇駿謙','蘇宇軒','譚澤翔','譚卓桐','杜智賢','余思潞','尹悅澄','王紫嫣','黃柏林','趙浩然','鄭子熙'],
+        '3F':['歐梓淇','曾芷柔','曾柏謙','方杺玥','黃柏皓','何梓桓','何俊宇','楊晨悅','關柏睿','林宥熙','林芯悠','林筱玲','劉韻嬟','李祉熙','李梓豪','李嘉浩','李洛怡','李潁蕎','梁子爵','梁曉林','梁皓軒','梁鳴峰','黎梓謙','李佳衡','羅詠荃','吳昊謙','施如詩','謝泓謙','黃焯楓','王圓韶','黃靖涵','黃淏','黃芯穎','胡衍睿'],
+        '4A':['陳志霖','陳明李','陳詠恩','張育霖','鍾晉一','高顥恩','葉思樂','鄺子麒','黎立仁','賴柏歌','林嘉汶','李聖己','李語軒','梁玥晴','林子軒','連曉琳','倫筱喬','龍政謙','盧芷瀅','伍柏濠','蕭寶賢','蕭穎浠','孫梓軒','余禧琳','黃梓軒','王芯穎','殷虹晴','袁俊愷','張以林','張子矜'],
+        '4B':['陳浩賢','陳彥諾','陳泓孝','周灝言','鄭霖希','詹沛熹','蔡沇錡','黃悠凡','柯宗廷','高晙銘','劉柏暚','李梓茵','梁妙晴','梁碩軒','梁玥禧','李依宸','羅芷萱','呂世泓','盧文諾','萬湉','孟六然','梅柏珩','吳澤亨','吳若玲','鮑曉盈','岑梓晴','鄧凱妍','杜靜姚','黃浚軒','黃彥婷','庄梓謙'],
+        '4C':['歐陽樂澄','蔡方睿','陳駿謙','陳忠耀','陳昊謙','陳愷樂','張可欣','蔡鍶甄','韓尚臻','黃慧芯','鄺子樂','黎文皓','李芊慧','羅君月','呂曉林','駱天朗','莫書怡','吳晞琳','吳昕蕎','吳翊曈','羅菲澄','鄧策軒','鄧卓猷','唐思睿','黃靖博','黃凱琪','黃愷琳','胡浠媱','楊禮謙','葉濠廷','鄭業熹'],
+        '4D':['陳柏翰','周睿澄','鄭淏謙','鄭言樂','張諾昕','方凱澄','郝一諾','何幸堯','許濬鏗','洪鈞澄','李焯盈','李俊澔','李承峻','李泳琳','梁依彤','梁彥熙','廖瀚森','雷穎妍','勞啟睿','麥浩楓','吳希瑜','布晞琳','施如心','蘇衍峰','袁天賜','黃子煊','胡肇舶','謝諾恆','徐子清','許敬和'],
+        '4E':['歐陽婧琳','陳熙元','陳喬惠','鄭宗謙','鍾羨榆','周旻靜','賈曉晴','蘇奕伃','何振瑋','何穎詩','蔣立葉','藍焯盈','李逸軒','李思諾','梁芷悠','梁浚彥','梁天朗','梁莃渝','羅承進','倫添翔','麥芯瑜','吳朗賢','潘欣琪','施洛希','司徒令菲','蘇柏晨','蘇健盈','孫顥誠','譚皓藍','曾懿臻','張沐宸'],
+        '4F':['歐栢言','陳莃桐','陳愷凝','陳栢僖','陳姵殷','周毅軒','鄭伊貽','張梓程','張瑋廷','張霖','朱傲晴','狄珉宇','馮健睿','高崎翔','高德明','郭禮謙','林泳熹','李柏熹','李昊頤','李欣桓','梁洛潼','梁弘浩','羅君亮','吳俊宇','魏敏喬','任梓頤','譚韻淇','鄧皓然','王瑋珽','黃詠熙','徐安瑜'],
+        '5A':['布愷盈','周思汶','蔡俊熹','鍾世澄','范煒佳','何芊妤','楊嵐曦','葉衍晉','梁焯謙','梁芷晴','梁芷柔','梁勇荇','梁文博','梁靖朗','李梓浩','廖妤睿','羅芷昕','龍浚賢','馬梓喬','文靖','文儆揚','吳芊穎','白雨澄','鮑梓滺','龐雅之','岑珺灝','施賢殷','冼鈺熙','蘇健茹','阮梓淇','黃梓信','張牧也'],
+        '5B':['歐芷盈','歐陽守航','謝睿莛','張芯瑜','趙熙昕','施惠然','馮妙儀','何仲言','何天瀅','許琇瑋','楊善晴','關億安','林澤宏','林芷潼','李思熹','李曉茵','李浩正','梁鉦琳','梁皓嘉','廖柏柔','呂世濠','莫千悠','吳振華','伍珀熹','施仲蕎','鄧睿峰','余雋永','黃卓麒','黃紫晴','黃思茹','張俊鳴'],
+        '5C':['陳浚賢','陳筠蕾','陳諾言','鄒樂柔','鄭卓瑩','朱梓瑜','鍾晴','馮振霆','馮瀚霖','馮奕龍','傅海鋒','關子茵','何芷穎','何昭姸','黎駿逸','林芊昕','林俊熙','林洛瑤','李浩僖','梁灝峰','梁綺桐','連千妤','陸皓朗','伍梓蕎','吳俊賢','岑政陽','岑駿禧','黃卓濠','黃熙廉','黃翌軒'],
+        '5D':['陳奕蓁','陳思頴','周澄','張卓錡','鍾澤希','迪孝渡','何芯睿','項詩雅','楊駿亨','鍾博瀚','郭昕潼','林柏宇','李曉澄','李樂潼','李廷譽','梁千霈','梁逸楠','梁珈頤','林暉淇','繆圓圓','蒙芷媃','吳浠頤','孫立珩','譚家竣','唐藹炫','杜慧婷','袁梓熙','王卓譽','黃博瑜','黃偉航'],
+        '5E':['陳賢馨','陳啓宙','陳悅圓','鄭鎧欣','陳思行','符皓程','何天蕊','何譽恆','楊茜婷','關躍宏','鄺頌楠','李心陶','李承澔','李倩榆','梁梓琪','李城熠','林暉淳','羅斯睿','繆思朗','吳梓琪','吳梓瑜','吳愷原','伍若慈','伍琛琛','吳沅瞳','潘柏昊','岑沛慈','施允熒','蕭溢騫','湯智謙','張雪珺'],
+        '5F':['歐愷兒','陳祉曦','陳思霖','程梓軒','張子晴','張曉朗','徐紫悠','馮浩霖','賀韋舜','許駿霖','楊靖綸','江栢然','林懿嘉','劉柏正','李芷滺','李俊霆','梁鉦楠','呂心兒','呂埦熒','吳梓誠','吳君諾','伍悅','施荻瀅','孫靖珩','譚尚恩','余詩靜','黃焯昱','王莞韶','黃柏濤','王詩晴','吳抒涵','蕭楚晴'],
+        '6A':['陳澤武','陳祉樺','陳梓維','陳玥玟','陳鈞文','張楚沂','蔡善凝','張鈺溋','馮頌凱','何樂恆','許子樂','許汶翰','黃巧翎','易迪信','楊心悠','郭子睿','黎諾瑤','李靖冰','梁梓駿','梁子浚','馬昭和','孟碧南','吳嘉盈','歐陽貝兒','潘天愉','蕭幗湣','譚卓言','譚家茵','王禮賢','黃穎怡','吳潁蕎'],
+        '6B':['歐泳淇','曹溢淇','陳嘉悅','周沚悠','鄭芷妍','鄭楚霖','陳俊熹','陳逸軒','蔡曉盈','蔡柏鎬','鍾穎芊','狄歆然','杜子蕎','任芷穎','楊晨曦','高汶芯','鄺韋霖','劉乙鏗','梁梓橦','梁韻儀','廖學賢','羅嘉曜','雷嘉茗','勞梓恩','吳仕暉','吳韋利','阮敏晴','王正朗','謝卓均','庄卓謙'],
+        '6C':['陳梓琳','陳司浚','陳予芊','周逸群','鄭鈺霖','鄭敬堯','詹皓鉦','鍾沛妤','鍾允晴','鍾巽瑜','蘇梓儒','何芷昕','洪浚豪','易乾峰','容子睿','高彥駿','郭芷如','林劍鋒','劉恩銘','李芊淘','梁心語','李浩銘','連曉萱','廖巧澄','盧芯妤','潘梓涵','蘇鼎睿','譚筱柔','黃政禧','黃筱靖','胡穎琳'],
+        '6D':['區柏豪','古卓賢','陳展瑤','曾加恩','鄭言藝','張睿嘉','張翱怡','蔡芷妍','曹凱瑤','馮梓瑜','傅偉庭','劉雋熙','劉珊妤','劉健業','李柏渝','梁浩鈞','梁珮芝','梁碩軒','羅唯槿','毛俊謙','歐陽芊語','石晉銘','譚詩姵','湯浩暉','唐穎沁','余芷瑩','黃浠喬','黃心悅','楊梓炫','楊茜而'],
+        '6E':['陳洛希','陳朗月','陳思潼','陳悅寧','鄭庭亨','韓昕諾','甘浩澤','郭心悅','林凱晴','藍正軒','劉錦龍','劉承熹','梁堯晴','李佩凌','林俊熹','廖心悅','羅承治','羅雪瑩','呂孝謙','馬梓舜','蒙逸軒','司徒雪怡','薛霈兒','蘇佩悅','譚諾琪','譚善揚','溫心悠','黃梓滔','王皓楊','蕭子鴻','容煒庭'],
+        '6F':['陳芊蘊','陳欣濠','鄭奕弘','鄭宇桐','程奕森','張梓萱','張嘉嘉','何昊霖','何昕熹','何昱言','楊梓軒','郭芷睿','賴愷瑜','林爔樂','劉承謙','劉乙鏘','凌曦','梁嗣劻','梁康澄','廖心悠','駱天佑','吳沛洳','區瑞君','潘曉銦','湯穎欣','謝兆騏','黃芷淇','黃宇軒','楊博然','鄭媛元','朱芸熙']
+    };
+
+    function getStudentList(grade, cls) {
+        return STUDENT_ROSTER[grade + cls] || [];
+    }
+
+    function populateNameDropdown() {
+        const grade = dom.userGrade.value;
+        const cls = dom.userClass.value;
+        const students = getStudentList(grade, cls);
+        const nameEl = dom.userName;
+        const prev = nameEl.value;
+        nameEl.innerHTML = '<option value="">選擇你的名字</option>';
+        students.forEach((name, i) => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            opt.dataset.seat = i + 1;
+            nameEl.appendChild(opt);
+        });
+        // "Other" option for teachers / testing
+        const otherOpt = document.createElement('option');
+        otherOpt.value = '__other__';
+        otherOpt.textContent = '✏️ 其他（自行輸入）';
+        nameEl.appendChild(otherOpt);
+        // Restore previous selection if still in list
+        if (prev && (students.includes(prev) || prev === '__other__')) nameEl.value = prev;
+        else { nameEl.value = ''; dom.userId.value = ''; hideCustomName(); }
+    }
+
+    function showCustomName() {
+        let inp = document.getElementById('customNameInput');
+        if (!inp) {
+            inp = document.createElement('input');
+            inp.type = 'text'; inp.id = 'customNameInput'; inp.placeholder = '輸入名字';
+            inp.autocomplete = 'off';
+            inp.style.cssText = 'background:transparent; border:none; outline:none; color:var(--text-dark); font-weight:800; width:100%; font-size:1rem; font-family:inherit; margin-top:6px;';
+            dom.userName.parentNode.appendChild(inp);
+            inp.addEventListener('focus', () => state.inputFocused = true);
+            inp.addEventListener('blur', () => state.inputFocused = false);
+        }
+        inp.style.display = ''; inp.focus();
+    }
+    function hideCustomName() {
+        const inp = document.getElementById('customNameInput');
+        if (inp) inp.style.display = 'none';
+    }
+    function getPlayerName() {
+        if (dom.userName.value === '__other__') {
+            const inp = document.getElementById('customNameInput');
+            return inp ? inp.value.trim() : '';
+        }
+        return dom.userName.value;
+    }
+
     let dom = {};
     let state = {};
     let audio = {};
@@ -430,7 +525,11 @@
 
     function saveSettings() {
         const s = {}; dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
-        s.lastMode = state.currentMode; localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
+        s.lastMode = state.currentMode;
+        s.savedName = dom.userName.value;
+        const customInp = document.getElementById('customNameInput');
+        if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
+        localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
     }
 
     function loadSavedSettings() {
@@ -441,6 +540,21 @@
             if (s) {
                 dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
                 if (s.lastMode && MODE_CONFIG[s.lastMode]) { state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode]; dom.modeCards.forEach(c => c.classList.remove('active')); document.querySelector(`.mode-card[data-mode="${s.lastMode}"]`)?.classList.add('active'); }
+                // Restore saved student name after populating dropdown
+                if (s.savedName) {
+                    populateNameDropdown();
+                    dom.userName.value = s.savedName;
+                    if (s.savedName === '__other__') {
+                        showCustomName();
+                        dom.userId.readOnly = false;
+                        const customInp = document.getElementById('customNameInput');
+                        if (customInp && s.savedCustomName) customInp.value = s.savedCustomName;
+                        if (s.userId) dom.userId.value = s.userId;
+                    } else {
+                        const sel = dom.userName.selectedOptions[0];
+                        if (sel && sel.dataset.seat) dom.userId.value = sel.dataset.seat;
+                    }
+                }
             }
         } catch (e) {
             console.error('Error loading settings:', e);
@@ -638,14 +752,15 @@
     function startGame() {
         audio.init(); 
         audio.warmUp();
-        if (!dom.userName.value.trim() || !dom.userId.value.trim()) {
-            dom.nameField.classList.toggle('error', !dom.userName.value.trim()); 
-            dom.idField.classList.toggle('error', !dom.userId.value.trim());
-            alert('❗ 請先填好姓名和座號才可以開始哦！');
+        const playerName = getPlayerName();
+        if (!playerName) {
+            dom.nameField.classList.add('error');
+            alert('❗ 請先選擇你的名字才可以開始哦！');
             return;
         }
+        dom.nameField.classList.remove('error');
         saveSettings();
-        state.currentUser = { name: dom.userName.value.trim(), grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value.trim() };
+        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
         dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
 
         state.gameActive = false; 
@@ -978,6 +1093,24 @@
             audio.init(); audio.playClick();
             const tbModeEl = document.getElementById('textbookMode');
             if (tbModeEl) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
+            populateNameDropdown();
+        });
+        dom.userClass.addEventListener('change', () => {
+            audio.init(); audio.playClick();
+            populateNameDropdown();
+        });
+        dom.userName.addEventListener('change', () => {
+            audio.init(); audio.playClick();
+            if (dom.userName.value === '__other__') {
+                showCustomName();
+                dom.userId.readOnly = false;
+                dom.userId.value = '';
+            } else {
+                hideCustomName();
+                dom.userId.readOnly = true;
+                const sel = dom.userName.selectedOptions[0];
+                dom.userId.value = (sel && sel.dataset.seat) ? sel.dataset.seat : '';
+            }
         });
         dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
         dom.modeCards.forEach(card => card.addEventListener('click', () => { audio.init(); audio.playClick('select'); dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
@@ -1005,7 +1138,7 @@
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
         const preventInput = () => state.inputFocused = true;
         const allowInput = () => state.inputFocused = false; 
-        [dom.userName, dom.userId].forEach(el => { el.addEventListener('focus', preventInput); el.addEventListener('blur', allowInput); });
+        [dom.userId].forEach(el => { el.addEventListener('focus', preventInput); el.addEventListener('blur', allowInput); });
         
         document.addEventListener('keydown', (e) => { 
             if (state.inputFocused) return; 
@@ -1039,6 +1172,8 @@
             dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; 
         }
         loadSavedSettings();
+        // Populate student name dropdown for current grade/class
+        populateNameDropdown();
         // Sync textbook mode to grade on first load if no saved settings override
         const tbModeEl = document.getElementById('textbookMode');
         if (tbModeEl && dom.userGrade) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); }
