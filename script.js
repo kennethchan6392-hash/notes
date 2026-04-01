@@ -149,6 +149,13 @@
     const onClefLoad = () => { if (state.currentNote && dom.ctx) drawStaff(); };
     clefImages.treble.onload = onClefLoad;
 
+    // Preload note head SVG images for whole and half notes
+    const noteImages = { whole: new Image(), half: new Image() };
+    noteImages.whole.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><g transform="rotate(-15, 40, 30)"><ellipse cx="40" cy="30" rx="36" ry="24" fill="#1E1E2F"/><ellipse cx="40" cy="30" rx="24" ry="10" fill="white" transform="rotate(45, 40, 30)"/></g></svg>');
+    noteImages.half.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><g transform="rotate(-15, 40, 30)"><ellipse cx="40" cy="30" rx="32" ry="22" fill="#1E1E2F"/><ellipse cx="40" cy="30" rx="18" ry="8" fill="white" transform="rotate(45, 40, 30)"/></g></svg>');
+    noteImages.whole.onload = onClefLoad;
+    noteImages.half.onload = onClefLoad;
+
     function initDOM() {
         dom = {
             screens: document.querySelectorAll('.screen'),
@@ -461,15 +468,27 @@
 
         const noteHeadStyleEl = document.getElementById('noteHeadStyle');
         const headStyle = noteHeadStyleEl ? noteHeadStyleEl.value : 'filled';
-        ctx.fillStyle = '#1E1E2F'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.ellipse(centerX, noteY, lineSpacing*0.65, lineSpacing*0.48, -0.35, 0, Math.PI*2);
-        if (headStyle === 'whole') ctx.stroke();
-        else {
-            if (headStyle === 'half') { ctx.fillStyle = 'white'; ctx.fill(); ctx.stroke(); } else ctx.fill();
-            ctx.beginPath();
+        if (headStyle === 'whole' && noteImages.whole.complete && noteImages.whole.naturalWidth > 0) {
+            const nh = lineSpacing * 1.15, nw = nh * (80 / 60);
+            ctx.drawImage(noteImages.whole, centerX - nw / 2, noteY - nh / 2, nw, nh);
+        } else if (headStyle === 'half' && noteImages.half.complete && noteImages.half.naturalWidth > 0) {
+            const nh = lineSpacing * 1.05, nw = nh * (80 / 60);
+            ctx.drawImage(noteImages.half, centerX - nw / 2, noteY - nh / 2, nw, nh);
+            ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; ctx.beginPath();
             if (noteY < middleLineY) { ctx.moveTo(centerX - lineSpacing*0.55, noteY + 2); ctx.lineTo(centerX - lineSpacing*0.55, noteY + lineSpacing*3.5); }
             else { ctx.moveTo(centerX + lineSpacing*0.55, noteY - 2); ctx.lineTo(centerX + lineSpacing*0.55, noteY - lineSpacing*3.5); }
             ctx.stroke();
+        } else {
+            ctx.fillStyle = '#1E1E2F'; ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.ellipse(centerX, noteY, lineSpacing*0.65, lineSpacing*0.48, -0.35, 0, Math.PI*2);
+            if (headStyle === 'whole') ctx.stroke();
+            else {
+                if (headStyle === 'half') { ctx.fillStyle = 'white'; ctx.fill(); ctx.stroke(); } else ctx.fill();
+                ctx.beginPath();
+                if (noteY < middleLineY) { ctx.moveTo(centerX - lineSpacing*0.55, noteY + 2); ctx.lineTo(centerX - lineSpacing*0.55, noteY + lineSpacing*3.5); }
+                else { ctx.moveTo(centerX + lineSpacing*0.55, noteY - 2); ctx.lineTo(centerX + lineSpacing*0.55, noteY - lineSpacing*3.5); }
+                ctx.stroke();
+            }
         }
 
         // Show correct answer highlight on staff when answered wrong or revealed
