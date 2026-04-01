@@ -29,12 +29,12 @@
     };
 
     const TEXTBOOK_CONFIG = {
-        1: { clef:['treble'], accidentalChance:0, noteRange:[2,9], ledgerAbove:false, ledgerBelow:false },
-        2: { clef:['treble'], accidentalChance:0, noteRange:[0,11], ledgerAbove:false, ledgerBelow:true },
-        3: { clef:['treble'], accidentalChance:0.1, noteRange:[0,12], ledgerAbove:true, ledgerBelow:true },
-        4: { clef:['treble'], accidentalChance:0.15, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
-        5: { clef:['treble'], accidentalChance:0.25, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true },
-        6: { clef:['treble'], accidentalChance:0.4, noteRange:[0,10], ledgerAbove:true, ledgerBelow:true }
+        1: { clef:['treble'], accidentalChance:0, noteRange:[0,4], ledgerAbove:false, ledgerBelow:false },
+        2: { clef:['treble'], accidentalChance:0, noteRange:[0,7], ledgerAbove:false, ledgerBelow:false },
+        3: { clef:['treble'], accidentalChance:0.1, noteRange:[0,9], ledgerAbove:false, ledgerBelow:false },
+        4: { clef:['treble'], accidentalChance:0.15, noteRange:[0,11], ledgerAbove:true, ledgerBelow:false },
+        5: { clef:['treble'], accidentalChance:0.25, noteRange:[0,12], ledgerAbove:true, ledgerBelow:true },
+        6: { clef:['treble'], accidentalChance:0.4, noteRange:[0,12], ledgerAbove:true, ledgerBelow:true }
     };
 
     const MAPS = {
