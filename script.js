@@ -141,6 +141,7 @@
     let dom = {};
     let state = {};
     let audio = {};
+    let noteBtnMap = new Map();
 
     // Preload clef SVG images using real music clef glyphs
     const clefImages = { treble: new Image() };
@@ -202,8 +203,30 @@
             rankModeFilter: document.getElementById('rankModeFilter'),
             reportGrid: document.getElementById('reportGrid'), 
             reportWeakness: document.getElementById('reportWeakness'), 
-            backToSetupBtn: document.getElementById('backToSetupBtn')
+            backToSetupBtn: document.getElementById('backToSetupBtn'),
+            // Cached settings elements for hot-path access
+            highlightLine: document.getElementById('highlightLine'),
+            noteHeadStyle: document.getElementById('noteHeadStyle'),
+            textbookMode: document.getElementById('textbookMode'),
+            clefTreble: document.getElementById('clefTreble'),
+            accidentalSharp: document.getElementById('accidentalSharp'),
+            accidentalFlat: document.getElementById('accidentalFlat'),
+            ledgerLineAbove: document.getElementById('ledgerLineAbove'),
+            ledgerLineBelow: document.getElementById('ledgerLineBelow'),
+            bgVolume: document.getElementById('bgVolume'),
+            sfxVolume: document.getElementById('sfxVolume'),
+            bgVolumeVal: document.getElementById('bgVolumeVal'),
+            sfxVolumeVal: document.getElementById('sfxVolumeVal'),
+            bgMusic: document.getElementById('bgMusic'),
+            reportHistory: document.getElementById('reportHistory'),
+            studentRankHint: document.getElementById('studentRankHint'),
+            viewRanksBtn: document.getElementById('viewRanksBtn'),
+            leaderboardLayout: document.querySelector('.leaderboard-layout'),
+            noteSoundOnly: document.getElementById('noteSoundOnly'),
+            countdownSound: document.getElementById('countdownSound')
         };
+        dom.scoreBadge = dom.scoreDisplay.closest('.stat-badge');
+        dom.comboBadge = dom.comboDisplay.closest('.stat-badge');
     }
 
     function initState() {
@@ -243,8 +266,8 @@
                 try { 
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
                     this.initialized = true;
-                    this._noteSoundOnlyEl = document.getElementById('noteSoundOnly');
-                    this._countdownSoundEl = document.getElementById('countdownSound');
+                    this._noteSoundOnlyEl = dom.noteSoundOnly;
+                    this._countdownSoundEl = dom.countdownSound;
                 } catch (e) { 
                     console.error('Audio context init error:', e);
                 } 
@@ -261,25 +284,22 @@
                 } catch(e) { /* ignore */ }
             },
             bgPlay() {
-                const el = document.getElementById('bgMusic');
-                if (!el) return;
-                const vol = parseInt(document.getElementById('bgVolume')?.value ?? 18);
-                el.volume = vol / 100;
-                if (this.enabled) el.play().catch(()=>{});
+                if (!dom.bgMusic) return;
+                const vol = parseInt(dom.bgVolume?.value ?? 18);
+                dom.bgMusic.volume = vol / 100;
+                if (this.enabled) dom.bgMusic.play().catch(()=>{});
             },
             bgStop() {
-                const el = document.getElementById('bgMusic');
-                if (!el) return;
-                el.pause();
-                el.currentTime = 0;
+                if (!dom.bgMusic) return;
+                dom.bgMusic.pause();
+                dom.bgMusic.currentTime = 0;
             },
             bgSetMute(muted) {
-                const el = document.getElementById('bgMusic');
-                if (!el) return;
-                if (muted) { el.pause(); } else { el.volume = parseInt(document.getElementById('bgVolume')?.value ?? 18) / 100; el.play().catch(()=>{}); }
+                if (!dom.bgMusic) return;
+                if (muted) { dom.bgMusic.pause(); } else { dom.bgMusic.volume = parseInt(dom.bgVolume?.value ?? 18) / 100; dom.bgMusic.play().catch(()=>{}); }
             },
             getSfxGain() {
-                const v = parseInt(document.getElementById('sfxVolume')?.value ?? 80);
+                const v = parseInt(dom.sfxVolume?.value ?? 80);
                 return v / 100;
             },
             playClick(type) {
@@ -447,7 +467,7 @@
 
         const noteY = baseY + state.currentNote.yFactor * lineSpacing;
         
-        const highlightLineEl = document.getElementById('highlightLine');
+        const highlightLineEl = dom.highlightLine;
         if (highlightLineEl && highlightLineEl.checked && !state.answered) {
             ctx.strokeStyle = 'rgba(6, 214, 160, 0.4)'; ctx.lineWidth = lineSpacing * 0.8;
             ctx.beginPath(); ctx.moveTo(centerX-35, noteY); ctx.lineTo(centerX+35, noteY); ctx.stroke();
@@ -466,8 +486,7 @@
             else drawFlat(ctx, accX, noteY, lineSpacing);
         }
 
-        const noteHeadStyleEl = document.getElementById('noteHeadStyle');
-        const headStyle = noteHeadStyleEl ? noteHeadStyleEl.value : 'filled';
+        const headStyle = dom.noteHeadStyle ? dom.noteHeadStyle.value : 'filled';
         if (headStyle === 'whole' && noteImages.whole.complete && noteImages.whole.naturalWidth > 0) {
             const nh = lineSpacing * 1.15, nw = nh * (80 / 60);
             ctx.drawImage(noteImages.whole, centerX - nw / 2, noteY - nh / 2, nw, nh);
@@ -523,18 +542,17 @@
     }
 
     function handleTextbookModeChange() {
-        const tbModeEl = document.getElementById('textbookMode');
-        const tbMode = tbModeEl ? tbModeEl.value : "0";
+        const tbMode = dom.textbookMode ? dom.textbookMode.value : "0";
         const groups = ['clefGroup', 'accidentalGroup', 'ledgerGroup'];
         if (tbMode !== "0") {
             groups.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('disabled-group'); });
             const cfg = TEXTBOOK_CONFIG[tbMode];
             if (cfg) {
-                const clefTrebleEl = document.getElementById('clefTreble'); if (clefTrebleEl) clefTrebleEl.checked = cfg.clef.includes('treble');
-                const accSharpEl = document.getElementById('accidentalSharp'); if (accSharpEl) accSharpEl.checked = cfg.accidentalChance > 0;
-                const accFlatEl = document.getElementById('accidentalFlat'); if (accFlatEl) accFlatEl.checked = cfg.accidentalChance > 0;
-                const ledgerAboveEl = document.getElementById('ledgerLineAbove'); if (ledgerAboveEl) ledgerAboveEl.checked = cfg.ledgerAbove;
-                const ledgerBelowEl = document.getElementById('ledgerLineBelow'); if (ledgerBelowEl) ledgerBelowEl.checked = cfg.ledgerBelow;
+                if (dom.clefTreble) dom.clefTreble.checked = cfg.clef.includes('treble');
+                if (dom.accidentalSharp) dom.accidentalSharp.checked = cfg.accidentalChance > 0;
+                if (dom.accidentalFlat) dom.accidentalFlat.checked = cfg.accidentalChance > 0;
+                if (dom.ledgerLineAbove) dom.ledgerLineAbove.checked = cfg.ledgerAbove;
+                if (dom.ledgerLineBelow) dom.ledgerLineBelow.checked = cfg.ledgerBelow;
             }
         } else {
             groups.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('disabled-group'); });
@@ -584,11 +602,8 @@
     function updateScoreboard() {
         dom.scoreDisplay.textContent = state.score;
         dom.comboDisplay.textContent = state.combo;
-        // Pop animation on score/combo change
-        const scoreBadge = dom.scoreDisplay.closest('.stat-badge');
-        const comboBadge = dom.comboDisplay.closest('.stat-badge');
-        if (scoreBadge) { scoreBadge.classList.remove('pop'); void scoreBadge.offsetWidth; scoreBadge.classList.add('pop'); }
-        if (comboBadge) { comboBadge.classList.remove('pop'); void comboBadge.offsetWidth; comboBadge.classList.add('pop'); }
+        if (dom.scoreBadge) { dom.scoreBadge.classList.remove('pop'); void dom.scoreBadge.offsetWidth; dom.scoreBadge.classList.add('pop'); }
+        if (dom.comboBadge) { dom.comboBadge.classList.remove('pop'); void dom.comboBadge.offsetWidth; dom.comboBadge.classList.add('pop'); }
     }
 
     function showComboBurst(combo) {
@@ -627,33 +642,27 @@
         setTimeout(() => el.remove(), 900);
     }
     
-    function enableGameControls(enabled) { 
-        document.querySelectorAll('.note-btn').forEach(btn => btn.disabled = !enabled || state.answered); 
-        dom.revealBtn.disabled = !enabled || state.answered; 
-        dom.skipBtn.disabled = !enabled || state.answered; 
-        dom.endBtn.disabled = !enabled; 
+    function enableGameControls(enabled) {
+        noteBtnMap.forEach(btn => btn.disabled = !enabled || state.answered);
+        dom.revealBtn.disabled = !enabled || state.answered;
+        dom.skipBtn.disabled = !enabled || state.answered;
+        dom.endBtn.disabled = !enabled;
     }
 
     function generateNote() {
-        const tbModeEl = document.getElementById('textbookMode');
-        const tbMode = tbModeEl ? tbModeEl.value : "0";
+        const tbMode = dom.textbookMode ? dom.textbookMode.value : "0";
         const config = TEXTBOOK_CONFIG[tbMode];
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
         if (config) { 
             clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow; 
         } else {
-            const clefTrebleEl = document.getElementById('clefTreble');
-            if(clefTrebleEl && clefTrebleEl.checked) clefOptions.push('treble');
+            if(dom.clefTreble && dom.clefTreble.checked) clefOptions.push('treble');
             if (!clefOptions.length) clefOptions = ['treble'];
-            const accSharpEl = document.getElementById('accidentalSharp');
-            const accFlatEl = document.getElementById('accidentalFlat');
-            accidentalChance = ((accSharpEl && accSharpEl.checked) || (accFlatEl && accFlatEl.checked)) ? 0.3 : 0;
+            accidentalChance = ((dom.accidentalSharp && dom.accidentalSharp.checked) || (dom.accidentalFlat && dom.accidentalFlat.checked)) ? 0.3 : 0;
             
-            const ledgerAboveEl = document.getElementById('ledgerLineAbove');
-            const ledgerBelowEl = document.getElementById('ledgerLineBelow');
-            allowAbove = ledgerAboveEl ? ledgerAboveEl.checked : true; 
-            allowBelow = ledgerBelowEl ? ledgerBelowEl.checked : true;
+            allowAbove = dom.ledgerLineAbove ? dom.ledgerLineAbove.checked : true; 
+            allowBelow = dom.ledgerLineBelow ? dom.ledgerLineBelow.checked : true;
             noteRange = allowBelow ? [0,10] : [2,10]; if (!allowAbove) noteRange[1] = 9; else noteRange[1] = 12;
         }
 
@@ -663,29 +672,28 @@
         let finalName = base.letter, accidental = null;
         if (Math.random() < accidentalChance) {
             const isSharp = Math.random() < 0.5;
-            const accSharpEl = document.getElementById('accidentalSharp');
-            const accFlatEl = document.getElementById('accidentalFlat');
-            if (isSharp && (accSharpEl && accSharpEl.checked) && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
-            else if (!isSharp && (accFlatEl && accFlatEl.checked) && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
+            if (isSharp && (dom.accidentalSharp && dom.accidentalSharp.checked) && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
+            else if (!isSharp && (dom.accidentalFlat && dom.accidentalFlat.checked) && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
         }
         return { ...base, clef, accidental, correctName: finalName, freqKey: finalName + base.octave };
     }
 
     function buildNoteButtons() {
         dom.notesGrid.innerHTML = '';
+        noteBtnMap.clear();
         const keys = { 'C':'1', 'D':'2', 'E':'3', 'F':'4', 'G':'5', 'A':'6', 'B':'7', 'C#':'Q', 'D#':'W', 'F#':'E', 'G#':'R', 'A#':'T', 'D♭':'A', 'E♭':'S', 'G♭':'D', 'A♭':'F', 'B♭':'G'};
         const buildRow = (notes, cls) => {
             const div = document.createElement('div'); div.className = 'note-row';
             notes.forEach(n => {
                 const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
-                btn.innerHTML = `${n}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n)); div.appendChild(btn);
+                btn.innerHTML = `${n}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n));
+                noteBtnMap.set(n, btn);
+                div.appendChild(btn);
             }); dom.notesGrid.appendChild(div);
         };
         buildRow(['C','D','E','F','G','A','B'], 'natural');
-        const accSharpEl = document.getElementById('accidentalSharp');
-        const accFlatEl = document.getElementById('accidentalFlat');
-        if (accSharpEl && accSharpEl.checked) buildRow(['C#','D#','F#','G#','A#'], 'sharp');
-        if (accFlatEl && accFlatEl.checked) buildRow(['D♭','E♭','G♭','A♭','B♭'], 'flat');
+        if (dom.accidentalSharp && dom.accidentalSharp.checked) buildRow(['C#','D#','F#','G#','A#'], 'sharp');
+        if (dom.accidentalFlat && dom.accidentalFlat.checked) buildRow(['D♭','E♭','G♭','A♭','B♭'], 'flat');
     }
 
     function handleAnswer(answer) {
@@ -696,7 +704,7 @@
             state.totalQuestions++;
             state.attemptedThisQuestion = true;
         }
-        const correct = answer === state.currentNote.correctName, btn = document.querySelector(`.note-btn[data-note="${answer}"]`);
+        const correct = answer === state.currentNote.correctName, btn = noteBtnMap.get(answer);
 
         if (correct) {
             state.answered = true; 
@@ -728,7 +736,7 @@
             state.answered = true; 
             state.wrongCount++; 
             state.showAnswerHighlight = true; drawStaff();
-            dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住它唔！`; 
+            dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住了嗎？`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
             setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
@@ -988,11 +996,11 @@
         
         generateReport(); 
         // Show history trend
-        const historyEl = document.getElementById('reportHistory');
-        if (historyEl) historyEl.innerHTML = getHistorySummary();
+        if (dom.reportHistory) dom.reportHistory.innerHTML = getHistorySummary();
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
-        document.querySelector('.leaderboard-layout').classList.remove('view-only');
+        dom.leaderboardLayout.classList.remove('view-only');
+        focusLeaderboardToCurrentStudent();
         loadRanks();
         switchScreen('screen-leaderboard');
     }
@@ -1035,6 +1043,27 @@
     function escHtml(str) {
         return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
+    function isCurrentUserRecord(item) {
+        const itemName = String(item?.name || '').trim();
+        const userName = String(state.currentUser?.name || '').trim();
+        const itemClass = String(item?.class || '');
+        const userClass = String(state.currentUser?.class || '');
+        const itemGrade = parseInt(item?.grade);
+        const userGrade = parseInt(state.currentUser?.grade);
+        if (!itemName || !userName) return false;
+        if (itemName !== userName || itemClass !== userClass || itemGrade !== userGrade) return false;
+        const userId = String(state.currentUser?.id || '').trim();
+        const itemId = String(item?.id || '').trim();
+        if (userId) return itemId === userId;
+        return true;
+    }
+    
+    function focusLeaderboardToCurrentStudent() {
+        if (!state.currentUser?.name) return;
+        if (dom.rankGradeFilter) dom.rankGradeFilter.value = String(state.currentUser.grade || 0);
+        if (dom.rankClassFilter) dom.rankClassFilter.value = String(state.currentUser.class || '0');
+        if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') dom.rankModeFilter.value = state.currentMode;
+    }
 
     function renderRanks() {
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
@@ -1050,12 +1079,27 @@
             seen.add(key);
             return true;
         });
+        const selfIndex = f.findIndex(isCurrentUserRecord);
+        if (dom.studentRankHint) {
+            if (state.currentUser && state.currentUser.name && fC !== '0' && fG !== 0 && selfIndex >= 0) {
+                const safeName = escHtml(state.currentUser.name);
+                const gradeTxt = `小${state.currentUser.grade}`;
+                const clsTxt = `${state.currentUser.class}班`;
+                const rankTxt = selfIndex + 1;
+                const outOfTop50 = selfIndex >= 50 ? '（未顯示於前50名）' : '';
+                dom.studentRankHint.innerHTML = `🎯 ${safeName} 同學（${gradeTxt}${clsTxt}）目前排第 <strong>${rankTxt}</strong> 名 ${outOfTop50}`;
+                dom.studentRankHint.style.display = '';
+            } else {
+                dom.studentRankHint.style.display = 'none';
+                dom.studentRankHint.innerHTML = '';
+            }
+        }
         if (!f.length) { 
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
             return; 
         }
         dom.rankList.innerHTML = f.slice(0, 50).map((item, i) => {
-            const isSelf = state.currentUser.name === item.name && state.currentUser.id === item.id;
+            const isSelf = isCurrentUserRecord(item);
             const cls = escHtml(item.class); const name = escHtml(item.name);
             const accuracy = parseInt(item.accuracy) || 0; const score = parseInt(item.score) || 0;
             return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''} ${isSelf?'self':''}">
@@ -1080,23 +1124,22 @@
         setTimeout(() => { audio.init(); audio.bgPlay(); }, 0);
 
         // Volume sliders
-        const bgVol = document.getElementById('bgVolume');
-        const sfxVol = document.getElementById('sfxVolume');
-        const bgValEl = document.getElementById('bgVolumeVal');
-        const sfxValEl = document.getElementById('sfxVolumeVal');
-        if (bgVol) bgVol.addEventListener('input', () => {
-            const v = bgVol.value;
-            if (bgValEl) bgValEl.textContent = v + '%';
-            const el = document.getElementById('bgMusic');
-            if (el) el.volume = v / 100;
+        if (dom.bgVolume) dom.bgVolume.addEventListener('input', () => {
+            const v = dom.bgVolume.value;
+            if (dom.bgVolumeVal) dom.bgVolumeVal.textContent = v + '%';
+            if (dom.bgMusic) dom.bgMusic.volume = v / 100;
             localStorage.setItem('bgVolume', v);
         });
-        if (sfxVol) sfxVol.addEventListener('input', () => {
-            if (sfxValEl) sfxValEl.textContent = sfxVol.value + '%';
-            localStorage.setItem('sfxVolume', sfxVol.value);
+        if (dom.sfxVolume) dom.sfxVolume.addEventListener('input', () => {
+            if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = dom.sfxVolume.value + '%';
+            localStorage.setItem('sfxVolume', dom.sfxVolume.value);
         });
 
-        window.addEventListener('resize', () => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } });
+        let _resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(_resizeTimer);
+            _resizeTimer = setTimeout(() => { if(state.gameActive || state.currentNote) { setupHDPI(); drawStaff(); } }, 100);
+        });
         // Handle orientation change on mobile (debounced resize)
         if (screen.orientation) {
             screen.orientation.addEventListener('change', () => {
@@ -1110,8 +1153,7 @@
         // Auto-select textbook level when grade changes
         dom.userGrade.addEventListener('change', () => {
             audio.init(); audio.playClick();
-            const tbModeEl = document.getElementById('textbookMode');
-            if (tbModeEl) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
+            if (dom.textbookMode) { dom.textbookMode.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
             populateNameDropdown();
         });
         dom.userClass.addEventListener('change', () => {
@@ -1140,13 +1182,13 @@
         dom.startBtn.addEventListener('click', startGame); 
         dom.endBtn.addEventListener('click', endGame); 
         dom.backToSetupBtn.addEventListener('click', () => { audio.playClick();
-            document.querySelector('.leaderboard-layout').classList.remove('view-only');
+            dom.leaderboardLayout.classList.remove('view-only');
             switchScreen('screen-setup'); 
         });
-        document.getElementById('viewRanksBtn')?.addEventListener('click', () => { audio.init(); audio.playClick();
-            document.querySelector('.leaderboard-layout').classList.add('view-only');
-            document.getElementById('reportGrid').innerHTML = '';
-            document.getElementById('reportWeakness').innerHTML = '';
+        dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
+            dom.leaderboardLayout.classList.add('view-only');
+            dom.reportGrid.innerHTML = '';
+            dom.reportWeakness.innerHTML = '';
             loadRanks();
             switchScreen('screen-leaderboard');
         });
@@ -1171,7 +1213,7 @@
             const note = { '1':'C', '2':'D', '3':'E', '4':'F', '5':'G', '6':'A', '7':'B', 'Q':'C#','W':'D#','E':'F#','R':'G#','T':'A#', 'A':'D♭','S':'E♭','D':'G♭','F':'A♭','G':'B♭' }[e.key.toUpperCase()]; 
             if (note) { 
                 e.preventDefault(); 
-                if (document.querySelector(`.note-btn[data-note="${note}"]`)) handleAnswer(note); 
+                if (noteBtnMap.has(note)) handleAnswer(note); 
             } else if (e.code === 'Space') { 
                 e.preventDefault(); 
                 dom.skipBtn.click(); 
@@ -1194,15 +1236,14 @@
         // Populate student name dropdown for current grade/class
         populateNameDropdown();
         // Sync textbook mode to grade on first load if no saved settings override
-        const tbModeEl = document.getElementById('textbookMode');
-        if (tbModeEl && dom.userGrade) { tbModeEl.value = dom.userGrade.value; handleTextbookModeChange(); }
+        if (dom.textbookMode && dom.userGrade) { dom.textbookMode.value = dom.userGrade.value; handleTextbookModeChange(); }
         toggleCheckboxAppearance(); 
         enableGameControls(false);
         // Restore volume slider values
         const savedBg = localStorage.getItem('bgVolume');
         const savedSfx = localStorage.getItem('sfxVolume');
-        if (savedBg) { const el = document.getElementById('bgVolume'); if (el) { el.value = savedBg; const v = document.getElementById('bgVolumeVal'); if (v) v.textContent = savedBg + '%'; } }
-        if (savedSfx) { const el = document.getElementById('sfxVolume'); if (el) { el.value = savedSfx; const v = document.getElementById('sfxVolumeVal'); if (v) v.textContent = savedSfx + '%'; } }
+        if (savedBg && dom.bgVolume) { dom.bgVolume.value = savedBg; if (dom.bgVolumeVal) dom.bgVolumeVal.textContent = savedBg + '%'; }
+        if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
         initEvents();
     });
 })();

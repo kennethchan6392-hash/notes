@@ -60,6 +60,7 @@ input { user-select: auto; }
         radial-gradient(ellipse 500px 500px at 85% 75%, rgba(255,101,163,0.08) 0%, transparent 70%),
         radial-gradient(ellipse 400px 400px at 50% 50%, rgba(0,166,237,0.06) 0%, transparent 70%);
     animation: glowPulse 12s ease-in-out infinite alternate;
+    will-change: opacity;
 }
 @keyframes glowPulse {
     0%   { opacity: 0.6; }
@@ -68,6 +69,7 @@ input { user-select: auto; }
 .bg-note {
     position: fixed; font-size: 10rem;
     z-index: 0; pointer-events: none; opacity: 0.18;
+    will-change: transform;
 }
 .note-1 { top: 6%; left: 4%; font-size: 12rem; color: #00A6ED; animation: floatA 20s infinite ease-in-out alternate; }
 .note-2 { top: 65%; right: 3%; font-size: 14rem; color: #FF65A3; animation: floatB 22s infinite ease-in-out alternate; animation-delay: -4s; }
@@ -110,9 +112,8 @@ input { user-select: auto; }
 }
 .screen.active { display: flex; }
 @keyframes screenEnter {
-    0%   { opacity: 0; transform: translateY(36px) scale(0.96); filter: blur(6px); }
-    60%  { opacity: 1; filter: blur(0px); }
-    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+    0%   { opacity: 0; transform: translateY(36px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .screen.active .card {
     animation: cardStagger 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -479,6 +480,18 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .rank-filter label { font-size: 0.75rem; font-weight: 900; color: var(--text-light); white-space: nowrap; }
 .rank-filter select { width: 100%; border: none; background: transparent; font-weight: 900; font-size: 0.85rem; outline: none; color: var(--primary-purple-dark); cursor: pointer; min-width: 0; }
 
+.student-rank-hint {
+    background: linear-gradient(135deg, #F0ECFF, #FAF8FF);
+    border: 2px solid rgba(139, 102, 255, 0.25);
+    border-radius: 14px;
+    padding: 10px 12px;
+    color: var(--primary-purple-dark);
+    font-weight: 900;
+    text-align: center;
+    font-size: 0.9rem;
+}
+.student-rank-hint strong { color: var(--primary-red-dark); font-size: 1.08em; }
+
 .rank-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
 .rank-list::-webkit-scrollbar { width: 7px; }
 .rank-list::-webkit-scrollbar-thumb { background: #CBD5FF; border-radius: 10px; }
@@ -550,6 +563,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .ranking-section { height: 420px; }
 }
 @media (max-width: 600px) {
+    body { background-attachment: scroll; }
     .game-title { font-size: 2.8rem; }
     .user-field { min-width: 100%; }
     .note-btn { width: 68px; height: 68px; font-size: 1.6rem; border-radius: 20px; }

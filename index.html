@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#8B66FF">
     <title>音符小精靈 · 睇譜認音小遊戲</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -189,6 +192,7 @@
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
                     <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>1分鐘挑戰</option><option value="noMiss">零失誤挑戰</option></select></div>
                 </div>
+                <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
                 <div class="rank-list" id="rankList">
                     <div style="text-align:center; padding:30px; color:var(--text-light); font-weight:800;">📡 載入中...</div>
                 </div>
