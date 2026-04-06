@@ -1,6 +1,10 @@
 import sys
+import os
 
-js = open('/Users/Kenneth/Desktop/notes/script.js').read()
+base = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(base, 'script.js')) as f:
+    js = f.read()
 opens = js.count('{')
 closes = js.count('}')
 print(f'JS braces: {opens} open, {closes} close, balance: {opens-closes}')
@@ -11,13 +15,15 @@ opens_b = js.count('[')
 closes_b = js.count(']')
 print(f'JS brackets: {opens_b} open, {closes_b} close, balance: {opens_b-closes_b}')
 
-css = open('/Users/Kenneth/Desktop/notes/style.css').read()
+with open(os.path.join(base, 'style.css')) as f:
+    css = f.read()
 opens_c = css.count('{')
 closes_c = css.count('}')
 print(f'CSS braces: {opens_c} open, {closes_c} close, balance: {opens_c-closes_c}')
 
 # Check HTML tag balance
-html = open('/Users/Kenneth/Desktop/notes/index.html').read()
+with open(os.path.join(base, 'index.html')) as f:
+    html = f.read()
 import re
 tags = re.findall(r'<(/?)(\w+)', html)
 stack = []
