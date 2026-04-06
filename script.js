@@ -684,7 +684,10 @@
     }
     
     function enableGameControls(enabled) {
-        noteBtnMap.forEach(btn => btn.disabled = !enabled || state.answered);
+        noteBtnMap.forEach(btn => {
+            const rowHidden = btn.closest('.note-row')?.style.display === 'none';
+            btn.disabled = rowHidden || !enabled || state.answered;
+        });
         dom.revealBtn.disabled = !enabled || state.answered;
         dom.skipBtn.disabled = !enabled || state.answered;
         dom.endBtn.disabled = !enabled;
@@ -785,10 +788,10 @@
             if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
             // Practice mode milestone
             if (state.modeConfig.type === 'practice') {
-                const correct = state.totalQuestions - state.wrongCount;
-                if (correct > 0 && correct % 20 === 0) {
-                    showComboBurst(correct); spawnConfetti(30);
-                    dom.messageBox.textContent = `🎯 已答對 ${correct} 題！你好棒！繼續加油！`;
+                const correctCount = state.totalQuestions - state.wrongCount;
+                if (correctCount > 0 && correctCount % 20 === 0) {
+                    showComboBurst(correctCount); spawnConfetti(30);
+                    dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
                 }
             }
             setTimeout(() => { if (btn) btn.classList.remove('correct', 'wrong'); if (state.gameActive) nextQuestion(); }, 500);
@@ -1347,7 +1350,7 @@
             const note = { '1':'C', '2':'D', '3':'E', '4':'F', '5':'G', '6':'A', '7':'B', 'Q':'C#','W':'D#','E':'F#','R':'G#','T':'A#', 'A':'D♭','S':'E♭','D':'G♭','F':'A♭','G':'B♭' }[e.key.toUpperCase()]; 
             if (note) { 
                 e.preventDefault(); 
-                if (noteBtnMap.has(note)) handleAnswer(note); 
+                const btn = noteBtnMap.get(note); if (btn && !btn.disabled) handleAnswer(note); 
             } else if (e.code === 'Space') { 
                 e.preventDefault(); 
                 dom.skipBtn.click(); 
