@@ -95,53 +95,59 @@
         const students = getStudentList(grade, cls);
         const nameEl = dom.userName;
         const prev = nameEl.value;
-        nameEl.innerHTML = '<option value="">選擇你的名字</option>';
+        const frag = document.createDocumentFragment();
+        const firstOpt = document.createElement('option');
+        firstOpt.value = ''; firstOpt.textContent = '選擇你的名字';
+        frag.appendChild(firstOpt);
         students.forEach((name, i) => {
             const opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;
             opt.dataset.seat = i + 1;
-            nameEl.appendChild(opt);
+            frag.appendChild(opt);
         });
-        // "Other" option for teachers / testing
         const otherOpt = document.createElement('option');
         otherOpt.value = '__other__';
         otherOpt.textContent = '✏️ 其他（自行輸入）';
-        nameEl.appendChild(otherOpt);
-        // Restore previous selection if still in list
+        frag.appendChild(otherOpt);
+        nameEl.innerHTML = '';
+        nameEl.appendChild(frag);
         if (prev && (students.includes(prev) || prev === '__other__')) nameEl.value = prev;
         else { nameEl.value = ''; dom.userId.value = ''; hideCustomName(); }
     }
 
     function showCustomName() {
-        let inp = document.getElementById('customNameInput');
-        if (!inp) {
-            inp = document.createElement('input');
+        if (!_customNameInput) {
+            const inp = document.createElement('input');
             inp.type = 'text'; inp.id = 'customNameInput'; inp.placeholder = '輸入名字';
             inp.autocomplete = 'off';
             inp.style.cssText = 'background:transparent; border:none; outline:none; color:var(--text-dark); font-weight:800; width:100%; font-size:1rem; font-family:inherit; margin-top:6px;';
             dom.userName.parentNode.appendChild(inp);
             inp.addEventListener('focus', () => state.inputFocused = true);
             inp.addEventListener('blur', () => state.inputFocused = false);
+            _customNameInput = inp;
         }
-        inp.style.display = ''; inp.focus();
+        _customNameInput.style.display = ''; _customNameInput.focus();
     }
     function hideCustomName() {
-        const inp = document.getElementById('customNameInput');
-        if (inp) inp.style.display = 'none';
+        if (_customNameInput) _customNameInput.style.display = 'none';
     }
     function getPlayerName() {
         if (dom.userName.value === '__other__') {
-            const inp = document.getElementById('customNameInput');
-            return inp ? inp.value.trim() : '';
+            return _customNameInput ? _customNameInput.value.trim() : '';
         }
         return dom.userName.value;
     }
 
+    let _customNameInput = null;
     let dom = {};
     let state = {};
     let audio = {};
     let noteBtnMap = new Map();
+    // Canvas offscreen cache for static staff lines + clef
+    let _staffCache = null;
+    // Note buttons: visibility-only after first build
+    let _noteRowsBuilt = false, _sharpRow = null, _flatRow = null;
 
     // Preload clef SVG images using real music clef glyphs
     const clefImages = { treble: new Image() };
@@ -195,6 +201,8 @@
             timeDisplay: document.getElementById('timeDisplay'), 
             scoreDisplay: document.getElementById('scoreDisplay'), 
             comboDisplay: document.getElementById('comboDisplay'),
+            practiceBadge: document.getElementById('practiceBadge'),
+            practiceCount: document.getElementById('practiceCount'),
             
             // Leaderboard
             rankList: document.getElementById('rankList'), 
@@ -223,10 +231,19 @@
             viewRanksBtn: document.getElementById('viewRanksBtn'),
             leaderboardLayout: document.querySelector('.leaderboard-layout'),
             noteSoundOnly: document.getElementById('noteSoundOnly'),
-            countdownSound: document.getElementById('countdownSound')
+            countdownSound: document.getElementById('countdownSound'),
+            clefGroup: document.getElementById('clefGroup'),
+            accidentalGroup: document.getElementById('accidentalGroup'),
+            ledgerGroup: document.getElementById('ledgerGroup'),
+            noteRangeGroup: document.getElementById('noteRangeGroup'),
+            noteRangeFrom: document.getElementById('noteRangeFrom'),
+            noteRangeTo: document.getElementById('noteRangeTo'),
+            checkboxItems: document.querySelectorAll('.checkbox-item')
         };
         dom.scoreBadge = dom.scoreDisplay.closest('.stat-badge');
         dom.comboBadge = dom.comboDisplay.closest('.stat-badge');
+        dom.modeCardMap = new Map([...dom.modeCards].map(c => [c.dataset.mode, c]));
+        dom.screenMap = new Map([...dom.screens].map(s => [s.id, s]));
     }
 
     function initState() {
@@ -250,7 +267,9 @@
             answerTimeList: [], 
             questionStartTime: 0,
             attemptedThisQuestion: false,
-            showAnswerHighlight: false
+            showAnswerHighlight: false,
+            slowNoteStats: {},
+            lastNoteKey: null
         };
     }
 
@@ -347,6 +366,7 @@
                 this.resume();
                 const g = this.getSfxGain();
                 if (this._noteSoundOnlyEl && this._noteSoundOnlyEl.checked && type !== 'countdown' && type !== 'timeup') return;
+                if (type === 'warning' && this._countdownSoundEl && !this._countdownSoundEl.checked) return;
                 const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
                 osc.connect(gain); 
                 gain.connect(this.ctx.destination); 
@@ -374,7 +394,6 @@
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime+0.3); 
                 }
                 else if(type==='warning'){ 
-                    if(this._countdownSoundEl && !this._countdownSoundEl.checked) return; 
                     osc.type='sine'; 
                     osc.frequency.value=1100; 
                     gain.gain.setValueAtTime(0.15*g, this.ctx.currentTime); 
@@ -391,7 +410,7 @@
     // ==========================================
     function switchScreen(screenId) {
         dom.screens.forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
+        dom.screenMap.get(screenId)?.classList.add('active');
         
         // 當切換到遊戲畫面時，需要重新計算 Canvas 的大小
         if (screenId === 'screen-game') {
@@ -416,6 +435,7 @@
         dom.ctx.scale(dpr, dpr);
         dom.canvas.logicalWidth = rect.width;
         dom.canvas.logicalHeight = rect.height;
+        _staffCache = null; // invalidate on resize
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
@@ -457,76 +477,85 @@
         const w = dom.canvas.logicalWidth, h = dom.canvas.logicalHeight, ctx = dom.ctx;
         if (!w || !h) return;
         ctx.clearRect(0, 0, w, h);
-        
-        const lineSpacing = w < 400 ? 18 : 22, baseY = h / 2 - (lineSpacing * 2), centerX = w / 2, middleLineY = baseY + 2*lineSpacing;
-        ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-        const startX = w < 400 ? 25 : 50;
-        
-        for(let i=0; i<5; i++) { ctx.beginPath(); ctx.moveTo(startX, baseY + i*lineSpacing); ctx.lineTo(w - startX, baseY + i*lineSpacing); ctx.stroke(); }
+
+        // ---- build / reuse offscreen cache for staff lines + clef ----
+        const dpr = window.devicePixelRatio || 1;
+        const clefLoaded = clefImages.treble.complete && clefImages.treble.naturalWidth > 0;
+        const ls = w < 400 ? 18 : 22;
+        if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded) {
+            const oc = document.createElement('canvas');
+            oc.width = w * dpr; oc.height = h * dpr;
+            const oc_ctx = oc.getContext('2d');
+            oc_ctx.scale(dpr, dpr);
+            const _baseY = h / 2 - (ls * 2), _startX = w < 400 ? 25 : 50;
+            oc_ctx.strokeStyle = '#1E1E2F'; oc_ctx.lineWidth = 2; oc_ctx.lineCap = 'round';
+            oc_ctx.beginPath();
+            for (let i = 0; i < 5; i++) { oc_ctx.moveTo(_startX, _baseY + i*ls); oc_ctx.lineTo(w - _startX, _baseY + i*ls); }
+            oc_ctx.stroke();
+            drawTrebleClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 3, ls);
+            _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, baseY: _baseY, startX: _startX };
+        }
+        ctx.drawImage(_staffCache.canvas, 0, 0, w, h);
+
+        const baseY = _staffCache.baseY, startX = _staffCache.startX;
+        const centerX = w / 2, middleLineY = baseY + 2 * ls;
+
         if (!state.currentNote) return;
 
-        const noteY = baseY + state.currentNote.yFactor * lineSpacing;
+        const noteY = baseY + state.currentNote.yFactor * ls;
         
         const highlightLineEl = dom.highlightLine;
         if (highlightLineEl && highlightLineEl.checked && !state.answered) {
-            ctx.strokeStyle = 'rgba(6, 214, 160, 0.4)'; ctx.lineWidth = lineSpacing * 0.8;
+            ctx.strokeStyle = 'rgba(6, 214, 160, 0.4)'; ctx.lineWidth = ls * 0.8;
             ctx.beginPath(); ctx.moveTo(centerX-35, noteY); ctx.lineTo(centerX+35, noteY); ctx.stroke();
         }
 
-        const clefX = startX + (w < 400 ? 25 : 35);
-        dom.clefBadge.textContent = '高音譜號'; drawTrebleClef(ctx, clefX, baseY + lineSpacing * 3, lineSpacing);
-
         ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; const lW = 24;
-        if (state.currentNote.yFactor > 4) for(let i=1; i<=Math.floor(state.currentNote.yFactor - 4); i++) { ctx.beginPath(); ctx.moveTo(centerX-lW, baseY + (4+i)*lineSpacing); ctx.lineTo(centerX+lW, baseY + (4+i)*lineSpacing); ctx.stroke(); }
-        if (state.currentNote.yFactor < 0) for(let i=1; i<=Math.floor(Math.abs(state.currentNote.yFactor)); i++) { ctx.beginPath(); ctx.moveTo(centerX-lW, baseY - i*lineSpacing); ctx.lineTo(centerX+lW, baseY - i*lineSpacing); ctx.stroke(); }
+        ctx.beginPath();
+        if (state.currentNote.yFactor > 4) for(let i=1; i<=Math.floor(state.currentNote.yFactor - 4); i++) { ctx.moveTo(centerX-lW, baseY + (4+i)*ls); ctx.lineTo(centerX+lW, baseY + (4+i)*ls); }
+        if (state.currentNote.yFactor < 0) for(let i=1; i<=Math.floor(Math.abs(state.currentNote.yFactor)); i++) { ctx.moveTo(centerX-lW, baseY - i*ls); ctx.lineTo(centerX+lW, baseY - i*ls); }
+        ctx.stroke();
 
         if (state.currentNote.accidental) { 
-            const accX = centerX - lineSpacing * 2.2;
-            if (state.currentNote.accidental === '#') drawSharp(ctx, accX, noteY, lineSpacing);
-            else drawFlat(ctx, accX, noteY, lineSpacing);
+            const accX = centerX - ls * 2.2;
+            if (state.currentNote.accidental === '#') drawSharp(ctx, accX, noteY, ls);
+            else drawFlat(ctx, accX, noteY, ls);
         }
 
         const headStyle = dom.noteHeadStyle ? dom.noteHeadStyle.value : 'filled';
         if (headStyle === 'whole' && noteImages.whole.complete && noteImages.whole.naturalWidth > 0) {
-            const nh = lineSpacing * 1.15, nw = nh * (80 / 60);
+            const nh = ls * 1.15, nw = nh * (80 / 60);
             ctx.drawImage(noteImages.whole, centerX - nw / 2, noteY - nh / 2, nw, nh);
         } else if (headStyle === 'half' && noteImages.half.complete && noteImages.half.naturalWidth > 0) {
-            const nh = lineSpacing * 1.05, nw = nh * (80 / 60);
+            const nh = ls * 1.05, nw = nh * (80 / 60);
             ctx.drawImage(noteImages.half, centerX - nw / 2, noteY - nh / 2, nw, nh);
             ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; ctx.beginPath();
-            if (noteY < middleLineY) { ctx.moveTo(centerX - lineSpacing*0.55, noteY + 2); ctx.lineTo(centerX - lineSpacing*0.55, noteY + lineSpacing*3.5); }
-            else { ctx.moveTo(centerX + lineSpacing*0.55, noteY - 2); ctx.lineTo(centerX + lineSpacing*0.55, noteY - lineSpacing*3.5); }
+            if (noteY < middleLineY) { ctx.moveTo(centerX - ls*0.55, noteY + 2); ctx.lineTo(centerX - ls*0.55, noteY + ls*3.5); }
+            else { ctx.moveTo(centerX + ls*0.55, noteY - 2); ctx.lineTo(centerX + ls*0.55, noteY - ls*3.5); }
             ctx.stroke();
         } else {
             ctx.fillStyle = '#1E1E2F'; ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.ellipse(centerX, noteY, lineSpacing*0.65, lineSpacing*0.48, -0.35, 0, Math.PI*2);
+            ctx.beginPath(); ctx.ellipse(centerX, noteY, ls*0.65, ls*0.48, -0.35, 0, Math.PI*2);
             if (headStyle === 'whole') ctx.stroke();
             else {
                 if (headStyle === 'half') { ctx.fillStyle = 'white'; ctx.fill(); ctx.stroke(); } else ctx.fill();
                 ctx.beginPath();
-                if (noteY < middleLineY) { ctx.moveTo(centerX - lineSpacing*0.55, noteY + 2); ctx.lineTo(centerX - lineSpacing*0.55, noteY + lineSpacing*3.5); }
-                else { ctx.moveTo(centerX + lineSpacing*0.55, noteY - 2); ctx.lineTo(centerX + lineSpacing*0.55, noteY - lineSpacing*3.5); }
+                if (noteY < middleLineY) { ctx.moveTo(centerX - ls*0.55, noteY + 2); ctx.lineTo(centerX - ls*0.55, noteY + ls*3.5); }
+                else { ctx.moveTo(centerX + ls*0.55, noteY - 2); ctx.lineTo(centerX + ls*0.55, noteY - ls*3.5); }
                 ctx.stroke();
             }
         }
 
-        // Show correct answer highlight on staff when answered wrong or revealed
         if (state.showAnswerHighlight) {
             ctx.save();
-            ctx.strokeStyle = '#FF4A6B';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([6, 4]);
-            ctx.beginPath();
-            ctx.arc(centerX, noteY, lineSpacing * 1.3, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.strokeStyle = '#FF4A6B'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
+            ctx.beginPath(); ctx.arc(centerX, noteY, ls * 1.3, 0, Math.PI * 2); ctx.stroke();
             ctx.setLineDash([]);
-            // Draw correct name label below/above the circle
             ctx.fillStyle = '#FF4A6B';
-            ctx.font = `bold ${Math.round(lineSpacing * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+            ctx.font = `bold ${Math.round(ls * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
-            const labelY = noteY > middleLineY ? noteY + lineSpacing * 1.6 : noteY - lineSpacing * 1.6;
-            ctx.fillText(state.currentNote.correctName, centerX, labelY);
+            ctx.fillText(state.currentNote.correctName, centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
             ctx.restore();
         }
     }
@@ -535,7 +564,7 @@
     // 遊戲主邏輯
     // ==========================================
     function toggleCheckboxAppearance() {
-        document.querySelectorAll('.checkbox-item').forEach(lbl => {
+        dom.checkboxItems.forEach(lbl => {
             const cb = lbl.querySelector('input');
             if(cb && cb.checked) lbl.classList.add('checked'); else lbl.classList.remove('checked');
         });
@@ -543,9 +572,9 @@
 
     function handleTextbookModeChange() {
         const tbMode = dom.textbookMode ? dom.textbookMode.value : "0";
-        const groups = ['clefGroup', 'accidentalGroup', 'ledgerGroup'];
+        const groups = [dom.clefGroup, dom.accidentalGroup, dom.ledgerGroup, dom.noteRangeGroup];
         if (tbMode !== "0") {
-            groups.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('disabled-group'); });
+            groups.forEach(el => { if (el) el.classList.add('disabled-group'); });
             const cfg = TEXTBOOK_CONFIG[tbMode];
             if (cfg) {
                 if (dom.clefTreble) dom.clefTreble.checked = cfg.clef.includes('treble');
@@ -553,9 +582,11 @@
                 if (dom.accidentalFlat) dom.accidentalFlat.checked = cfg.accidentalChance > 0;
                 if (dom.ledgerLineAbove) dom.ledgerLineAbove.checked = cfg.ledgerAbove;
                 if (dom.ledgerLineBelow) dom.ledgerLineBelow.checked = cfg.ledgerBelow;
+                if (dom.noteRangeFrom) dom.noteRangeFrom.value = String(cfg.noteRange[0]);
+                if (dom.noteRangeTo) dom.noteRangeTo.value = String(cfg.noteRange[1]);
             }
         } else {
-            groups.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('disabled-group'); });
+            groups.forEach(el => { if (el) el.classList.remove('disabled-group'); });
         }
         toggleCheckboxAppearance(); buildNoteButtons();
     }
@@ -564,7 +595,7 @@
         const s = {}; dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
         s.lastMode = state.currentMode;
         s.savedName = dom.userName.value;
-        const customInp = document.getElementById('customNameInput');
+        const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
         localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
     }
@@ -576,7 +607,7 @@
             const s = JSON.parse(stored);
             if (s) {
                 dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
-                if (s.lastMode && MODE_CONFIG[s.lastMode]) { state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode]; dom.modeCards.forEach(c => c.classList.remove('active')); document.querySelector(`.mode-card[data-mode="${s.lastMode}"]`)?.classList.add('active'); }
+                if (s.lastMode && MODE_CONFIG[s.lastMode]) { state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode]; dom.modeCards.forEach(c => c.classList.remove('active')); dom.modeCardMap.get(s.lastMode)?.classList.add('active'); }
                 // Restore saved student name after populating dropdown
                 if (s.savedName) {
                     populateNameDropdown();
@@ -584,8 +615,7 @@
                     if (s.savedName === '__other__') {
                         showCustomName();
                         dom.userId.readOnly = false;
-                        const customInp = document.getElementById('customNameInput');
-                        if (customInp && s.savedCustomName) customInp.value = s.savedCustomName;
+                        if (_customNameInput && s.savedCustomName) _customNameInput.value = s.savedCustomName;
                         if (s.userId) dom.userId.value = s.userId;
                     } else {
                         const sel = dom.userName.selectedOptions[0];
@@ -604,6 +634,13 @@
         dom.comboDisplay.textContent = state.combo;
         if (dom.scoreBadge) { dom.scoreBadge.classList.remove('pop'); void dom.scoreBadge.offsetWidth; dom.scoreBadge.classList.add('pop'); }
         if (dom.comboBadge) { dom.comboBadge.classList.remove('pop'); void dom.comboBadge.offsetWidth; dom.comboBadge.classList.add('pop'); }
+        if (dom.practiceBadge) {
+            const isPractice = state.modeConfig && state.modeConfig.type === 'practice';
+            dom.practiceBadge.style.display = isPractice ? '' : 'none';
+            if (isPractice && dom.practiceCount) {
+                dom.practiceCount.textContent = `${state.totalQuestions - state.wrongCount} / ${state.totalQuestions}`;
+            }
+        }
     }
 
     function showComboBurst(combo) {
@@ -616,6 +653,8 @@
 
     function spawnConfetti(count) {
         const colors = ['#FF65A3','#FFCB45','#00D28E','#00A6ED','#8B66FF','#FF8C42','#FF4A6B'];
+        const frag = document.createDocumentFragment();
+        const pieces = new Array(count);
         for (let i = 0; i < count; i++) {
             const piece = document.createElement('div');
             piece.className = 'confetti-piece';
@@ -627,9 +666,11 @@
             piece.style.width = (6 + Math.random() * 8) + 'px';
             piece.style.height = (6 + Math.random() * 8) + 'px';
             piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-            document.body.appendChild(piece);
-            setTimeout(() => piece.remove(), 1400);
+            pieces[i] = piece;
+            frag.appendChild(piece);
         }
+        document.body.appendChild(frag);
+        setTimeout(() => { for (let i = 0; i < pieces.length; i++) pieces[i].remove(); }, 1400);
     }
 
     function showScoreFloat(points, x, y) {
@@ -663,44 +704,65 @@
             
             allowAbove = dom.ledgerLineAbove ? dom.ledgerLineAbove.checked : true; 
             allowBelow = dom.ledgerLineBelow ? dom.ledgerLineBelow.checked : true;
-            noteRange = allowBelow ? [0,10] : [2,10]; if (!allowAbove) noteRange[1] = 9; else noteRange[1] = 12;
+            const rf = dom.noteRangeFrom ? parseInt(dom.noteRangeFrom.value) : 0;
+            const rt = dom.noteRangeTo ? parseInt(dom.noteRangeTo.value) : 12;
+            noteRange = [Math.min(rf, rt), Math.max(rf, rt)];
         }
 
         const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
         const maxIdx = Math.min(noteRange[1], MAPS[clef].length - 1);
-        const base = MAPS[clef][Math.floor(Math.random() * (maxIdx - noteRange[0] + 1)) + noteRange[0]];
+        const poolSize = maxIdx - noteRange[0] + 1;
+        const pickBase = () => MAPS[clef][Math.floor(Math.random() * poolSize) + noteRange[0]];
+        let base = pickBase();
+        // Anti-repeat: try once more if same base note as last question (only when pool > 1)
+        if (poolSize > 1 && base.letter + base.octave === state.lastNoteKey) base = pickBase();
+
         let finalName = base.letter, accidental = null;
         if (Math.random() < accidentalChance) {
             const isSharp = Math.random() < 0.5;
             if (isSharp && (dom.accidentalSharp && dom.accidentalSharp.checked) && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
             else if (!isSharp && (dom.accidentalFlat && dom.accidentalFlat.checked) && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
         }
-        return { ...base, clef, accidental, correctName: finalName, freqKey: finalName + base.octave };
+        const note = { ...base, clef, accidental, correctName: finalName, freqKey: finalName + base.octave };
+        state.lastNoteKey = base.letter + base.octave;
+        return note;
     }
 
     function buildNoteButtons() {
-        dom.notesGrid.innerHTML = '';
-        noteBtnMap.clear();
-        const keys = { 'C':'1', 'D':'2', 'E':'3', 'F':'4', 'G':'5', 'A':'6', 'B':'7', 'C#':'Q', 'D#':'W', 'F#':'E', 'G#':'R', 'A#':'T', 'D♭':'A', 'E♭':'S', 'G♭':'D', 'A♭':'F', 'B♭':'G'};
-        const buildRow = (notes, cls) => {
-            const div = document.createElement('div'); div.className = 'note-row';
-            notes.forEach(n => {
-                const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
-                btn.innerHTML = `${n}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n));
-                noteBtnMap.set(n, btn);
-                div.appendChild(btn);
-            }); dom.notesGrid.appendChild(div);
-        };
-        buildRow(['C','D','E','F','G','A','B'], 'natural');
-        if (dom.accidentalSharp && dom.accidentalSharp.checked) buildRow(['C#','D#','F#','G#','A#'], 'sharp');
-        if (dom.accidentalFlat && dom.accidentalFlat.checked) buildRow(['D♭','E♭','G♭','A♭','B♭'], 'flat');
+        const showSharp = dom.accidentalSharp && dom.accidentalSharp.checked;
+        const showFlat  = dom.accidentalFlat  && dom.accidentalFlat.checked;
+
+        if (!_noteRowsBuilt) {
+            dom.notesGrid.innerHTML = '';
+            noteBtnMap.clear();
+            const keys = { 'C':'1', 'D':'2', 'E':'3', 'F':'4', 'G':'5', 'A':'6', 'B':'7', 'C#':'Q', 'D#':'W', 'F#':'E', 'G#':'R', 'A#':'T', 'D♭':'A', 'E♭':'S', 'G♭':'D', 'A♭':'F', 'B♭':'G'};
+            const gridFrag = document.createDocumentFragment();
+            const buildRow = (notes, cls) => {
+                const div = document.createElement('div'); div.className = 'note-row';
+                notes.forEach(n => {
+                    const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
+                    btn.innerHTML = `${n}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n));
+                    noteBtnMap.set(n, btn);
+                    div.appendChild(btn);
+                }); return div;
+            };
+            gridFrag.appendChild(buildRow(['C','D','E','F','G','A','B'], 'natural'));
+            _sharpRow = buildRow(['C#','D#','F#','G#','A#'], 'sharp'); gridFrag.appendChild(_sharpRow);
+            _flatRow  = buildRow(['D♭','E♭','G♭','A♭','B♭'], 'flat');  gridFrag.appendChild(_flatRow);
+            dom.notesGrid.appendChild(gridFrag);
+            _noteRowsBuilt = true;
+        }
+        if (_sharpRow) _sharpRow.style.display = showSharp ? '' : 'none';
+        if (_flatRow)  _flatRow.style.display  = showFlat  ? '' : 'none';
     }
 
     function handleAnswer(answer) {
         if (!state.gameActive || state.answered) return;
-        // Only record time and count questions on the first attempt
-        if (!state.attemptedThisQuestion) {
-            state.answerTimeList.push((Date.now() - state.questionStartTime) / 1000);
+        // Capture first-attempt flag and elapsed before setting attemptedThisQuestion
+        const isFirstAttempt = !state.attemptedThisQuestion;
+        const elapsed = Date.now() - state.questionStartTime;
+        if (isFirstAttempt) {
+            state.answerTimeList.push(elapsed / 1000);
             state.totalQuestions++;
             state.attemptedThisQuestion = true;
         }
@@ -710,6 +772,10 @@
             state.answered = true; 
             state.combo++; 
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+            // Track slow-correct: first attempt correct but took > 4 seconds
+            if (isFirstAttempt && elapsed > 4000) {
+                state.slowNoteStats[state.currentNote.correctName] = (state.slowNoteStats[state.currentNote.correctName] || 0) + 1;
+            }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
             if (pts) state.score += pts;
             dom.messageBox.textContent = `✅ 答對了！這個是 ${state.currentNote.correctName} ✨ 得分：${state.score}`; 
@@ -800,6 +866,8 @@
         state.answered = false; 
         state.wrongNoteStats = {}; 
         state.answerTimeList = [];
+        state.slowNoteStats = {};
+        state.lastNoteKey = null;
         state.attemptedThisQuestion = false;
         if (state.timer) { clearInterval(state.timer); state.timer = null; }
         
@@ -881,9 +949,12 @@
         // Speed trend
         let speedTrend = '';
         if (state.answerTimeList.length >= 6) {
-            const half = Math.floor(state.answerTimeList.length / 2);
-            const firstHalf = state.answerTimeList.slice(0, half).reduce((a,b)=>a+b,0) / half;
-            const secondHalf = state.answerTimeList.slice(half).reduce((a,b)=>a+b,0) / (state.answerTimeList.length - half);
+            const list = state.answerTimeList, len = list.length, half = len >> 1;
+            let s1 = 0, s2 = 0;
+            for (let i = 0; i < half; i++) s1 += list[i];
+            for (let i = half; i < len; i++) s2 += list[i];
+            const firstHalf = s1 / half;
+            const secondHalf = s2 / (len - half);
             if (secondHalf > firstHalf * 1.3) speedTrend = '<li>⚠️ 後半段反應變慢，可能有少少攰，記得休息</li>';
             else if (secondHalf < firstHalf * 0.8) speedTrend = '<li>🚀 愈做愈快，進步明顯！</li>';
         }
@@ -894,6 +965,15 @@
         if (speedTrend) analysis += speedTrend;
         analysis += '</ul>';
         dom.reportWeakness.innerHTML = `<div>要加油練習的音符：</div>${analysis}`;
+
+        // Slow-correct notes section
+        const slowSorted = Object.entries(state.slowNoteStats).sort((a,b) => b[1] - a[1]);
+        if (slowSorted.length) {
+            let slowHtml = '<div class="history-summary" style="margin-top:8px;"><strong>🐢 答得較慢的音符（>4秒）：</strong><ul style="margin-left:20px; margin-top:6px;">';
+            slowHtml += slowSorted.slice(0, 3).map(([k,v]) => `<li><strong>${k}</strong>：慢了 ${v} 次</li>`).join('');
+            slowHtml += '</ul></div>';
+            dom.reportWeakness.innerHTML += slowHtml;
+        }
 
         // Save to history
         saveHistory(accuracy, avg);
@@ -1116,6 +1196,43 @@
         }).join('');
     }
 
+    function initTutorial() {
+        const modal = document.getElementById('tutorialModal');
+        if (!modal) return;
+        const dots  = modal.querySelectorAll('.tut-dot');
+        const slides = modal.querySelectorAll('.tut-slide');
+        const prevBtn = document.getElementById('tutPrev');
+        const nextBtn = document.getElementById('tutNext');
+        const pageLabel = document.getElementById('tutPage');
+        let current = 0;
+        const total = slides.length;
+
+        function goTo(n) {
+            slides[current].classList.remove('active');
+            dots[current].classList.remove('active');
+            current = n;
+            slides[current].classList.add('active');
+            dots[current].classList.add('active');
+            prevBtn.disabled = current === 0;
+            const isLast = current === total - 1;
+            nextBtn.textContent = isLast ? '✓ 完成' : '下一頁 ▶';
+            nextBtn.className = 'tut-btn' + (isLast ? ' finish' : '');
+            pageLabel.textContent = `${current + 1} / ${total}`;
+        }
+
+        document.getElementById('tutorialBtn').addEventListener('click', () => {
+            goTo(0);
+            modal.style.display = 'flex';
+            audio.init();
+        });
+        document.getElementById('tutClose').addEventListener('click', () => { modal.style.display = 'none'; });
+        modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.style.display !== 'none') modal.style.display = 'none'; });
+        prevBtn.addEventListener('click', () => { if (current > 0) goTo(current - 1); });
+        nextBtn.addEventListener('click', () => { if (current < total - 1) goTo(current + 1); else modal.style.display = 'none'; });
+        dots.forEach((dot, i) => dot.addEventListener('click', () => goTo(i)));
+    }
+
     function initEvents() {
         // Pre-warm audio on first user interaction (unlocks AudioContext on iOS/Safari)
         const warmOnce = () => { audio.init(); audio.warmUp(); audio.bgPlay(); document.removeEventListener('pointerdown', warmOnce); };
@@ -1178,6 +1295,23 @@
         
         dom.settingsToggleBtn.addEventListener('click', () => { audio.init(); audio.playClick(); dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
         dom.inputs.forEach(el => el.addEventListener('change', () => { audio.init(); audio.playClick(); if (el.id === 'textbookMode') handleTextbookModeChange(); toggleCheckboxAppearance(); saveSettings(); if (el.id.startsWith('clef') || el.id.startsWith('accidental')) { buildNoteButtons(); enableGameControls(false); } }));
+        // Note range interlock: keep from <= to
+        if (dom.noteRangeFrom && dom.noteRangeTo) {
+            dom.noteRangeFrom.addEventListener('change', () => {
+                audio.init(); audio.playClick();
+                if (parseInt(dom.noteRangeFrom.value) >= parseInt(dom.noteRangeTo.value)) {
+                    dom.noteRangeTo.value = String(Math.min(parseInt(dom.noteRangeFrom.value) + 1, 12));
+                }
+                saveSettings(); enableGameControls(false);
+            });
+            dom.noteRangeTo.addEventListener('change', () => {
+                audio.init(); audio.playClick();
+                if (parseInt(dom.noteRangeTo.value) <= parseInt(dom.noteRangeFrom.value)) {
+                    dom.noteRangeFrom.value = String(Math.max(parseInt(dom.noteRangeTo.value) - 1, 0));
+                }
+                saveSettings(); enableGameControls(false);
+            });
+        }
         
         dom.startBtn.addEventListener('click', startGame); 
         dom.endBtn.addEventListener('click', endGame); 
@@ -1193,7 +1327,7 @@
             switchScreen('screen-leaderboard');
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); dom.messageBox.textContent = `💡 答案是：${state.currentNote.correctName}，記住了嗎？`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2000); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
         
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
@@ -1245,5 +1379,6 @@
         if (savedBg && dom.bgVolume) { dom.bgVolume.value = savedBg; if (dom.bgVolumeVal) dom.bgVolumeVal.textContent = savedBg + '%'; }
         if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
         initEvents();
+        initTutorial();
     });
 })();

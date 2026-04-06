@@ -14,7 +14,7 @@
     <!-- 背景裝飾 -->
     <div class="bg-dots"></div>
     <!-- 背景飄動音符 -->
-    <div class="bg-note note-1">🎵</div><div class="bg-note note-2">🎼</div><div class="bg-note note-3">♪</div><div class="bg-note note-4">♫</div><div class="bg-note note-5">🎶</div><div class="bg-note note-6">🎹</div>
+    <div class="bg-note note-1" aria-hidden="true">🎵</div><div class="bg-note note-2" aria-hidden="true">🎼</div><div class="bg-note note-3" aria-hidden="true">♪</div><div class="bg-note note-4" aria-hidden="true">♫</div><div class="bg-note note-5" aria-hidden="true">🎶</div><div class="bg-note note-6" aria-hidden="true">🎹</div>
     <button class="sound-toggle" id="soundToggle" title="音效開關">🔊</button>
 
     <!-- ===================================== -->
@@ -43,7 +43,7 @@
                         <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
                     </select>
                 </div>
-                <div class="user-field" id="idField"><label>🔢</label><input type="number" id="userId" placeholder="座號" readonly></div>
+                <div class="user-field" id="idField"><label>🔢</label><input type="number" id="userId" placeholder="座號" readonly><button class="btn-tutorial-mini" id="tutorialBtn" title="遊戲說明">📖 遊戲說明</button></div>
             </div>
         </div>
 
@@ -84,6 +84,40 @@
                         <div class="checkbox-group">
                             <label class="checkbox-item checked"><input type="checkbox" id="ledgerLineAbove" checked> 上加線</label>
                             <label class="checkbox-item checked"><input type="checkbox" id="ledgerLineBelow" checked> 下加線</label>
+                        </div>
+                    </div>
+                    <div class="settings-group" id="noteRangeGroup">
+                        <label class="group-title">🎯 音域範圍</label>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <select class="settings-select" id="noteRangeFrom" style="flex:1; min-width:90px;">
+                                <option value="0">C4 (Do)</option>
+                                <option value="1">D4 (Re)</option>
+                                <option value="2">E4 (Mi)</option>
+                                <option value="3">F4 (Fa)</option>
+                                <option value="4">G4 (Sol)</option>
+                                <option value="5">A4 (La)</option>
+                                <option value="6">B4 (Si)</option>
+                                <option value="7">C5 (Do)</option>
+                                <option value="8">D5 (Re)</option>
+                                <option value="9">E5 (Mi)</option>
+                                <option value="10">F5 (Fa)</option>
+                                <option value="11">G5 (Sol)</option>
+                            </select>
+                            <span style="font-weight:900; color:var(--text-light); font-size:0.85rem;">至</span>
+                            <select class="settings-select" id="noteRangeTo" style="flex:1; min-width:90px;">
+                                <option value="1">D4 (Re)</option>
+                                <option value="2">E4 (Mi)</option>
+                                <option value="3">F4 (Fa)</option>
+                                <option value="4">G4 (Sol)</option>
+                                <option value="5">A4 (La)</option>
+                                <option value="6">B4 (Si)</option>
+                                <option value="7">C5 (Do)</option>
+                                <option value="8">D5 (Re)</option>
+                                <option value="9">E5 (Mi)</option>
+                                <option value="10">F5 (Fa)</option>
+                                <option value="11">G5 (Sol)</option>
+                                <option value="12" selected>A5 (La)</option>
+                            </select>
                         </div>
                     </div>
                     <div class="settings-group">
@@ -146,6 +180,7 @@
                     <div class="stat-badge time-badge">⏱️ <span id="timeDisplay">--</span></div>
                     <div class="stat-badge score-badge">💯 <span id="scoreDisplay">0</span></div>
                     <div class="stat-badge combo-badge">🔥 <span id="comboDisplay">0</span></div>
+                    <div class="stat-badge practice-badge" id="practiceBadge" style="display:none;">📝 <span id="practiceCount">0/0</span></div>
                 </div>
             </div>
         </div>
@@ -202,7 +237,68 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <audio id="bgMusic" src="tastic-groove.mp3" loop preload="auto"></audio>
+    <!-- ===================================== -->
+    <!-- 遊戲說明教學 Modal                    -->
+    <!-- ===================================== -->
+    <div id="tutorialModal" class="tutorial-modal" role="dialog" aria-modal="true" aria-label="遊戲說明教學" style="display:none">
+        <div class="tutorial-box">
+            <div class="tut-header">
+                <div class="tut-stepper" id="tutDots">
+                    <span class="tut-dot active"></span>
+                    <span class="tut-dot"></span>
+                    <span class="tut-dot"></span>
+                </div>
+                <button class="tut-close" id="tutClose" aria-label="關閉教學">✕</button>
+            </div>
+
+            <div id="tutSlidesWrap">
+
+                <!-- Slide 0: 五線譜與鍵盤對照 -->
+                <div class="tut-slide active">
+                    <h3 class="tut-title">🎹 五線譜與鍵盤音符對照</h3>
+                    <a class="tut-img-wrap" href="img/tut-score-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                        <img src="img/tut-score-1.jpg" alt="五線譜與鍵盤音符對照表" class="tut-img" loading="lazy" decoding="async">
+                        <span class="tut-img-hint">🔍 點擊放大</span>
+                    </a>
+                    <p class="tut-text">五線譜每個位置對應琴鍵上一個音。圖中彩色音符由低到高：<strong>Do Re Mi Fa Sol La Si</strong>（英文 <strong>C D E F G A B</strong>）。超出五條線就用<strong>加線</strong>延伸。</p>
+                </div>
+
+                <!-- Slide 1: 認識音符位置 -->
+                <div class="tut-slide">
+                    <h3 class="tut-title">📖 認識高音譜號音符位置</h3>
+                    <a class="tut-img-wrap" href="img/tut-notes-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                        <img src="img/tut-notes-1.jpg" alt="高音譜號音符位置讀譜練習表" class="tut-img" loading="lazy" decoding="async">
+                        <span class="tut-img-hint">🔍 點擊放大</span>
+                    </a>
+                    <p class="tut-text">圖右方「音名對照表」：意大利語 Do/Re… = 英語 C/D… = 日語 ハ/ニ…。下方「おんぷクイズ」的題型同我哋遊戲一樣——睇譜認音，多做多快！</p>
+                </div>
+
+                <!-- Slide 2: 點樣玩 -->
+                <div class="tut-slide">
+                    <h3 class="tut-title">🎮 點樣玩遊戲？</h3>
+                    <div class="tut-visual tut-steps-visual">
+                        <ol class="tut-steps">
+                            <li style="background:#FFF0F8; border-left:4px solid #FF65A3;">👀 <strong>睇住</strong>五線譜上出現嘅音符</li>
+                            <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎹 <strong>快快按</strong>下正確的音名按鈕（如 C、D、F# …）</li>
+                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">🔥 答對有分！<strong>連續答對</strong>有連擊獎勵加分 💯</li>
+                            <li style="background:#F3EEFF; border-left:4px solid #8B66FF;">💡 唔確定可以按「<strong>看答案</strong>」學習，或「<strong>跳過</strong>」換題</li>
+                            <li style="background:#EEFAF6; border-left:4px solid #00B89F;">🏆 挑戰模式完成後可上傳<strong>排行榜</strong>，同班競技！</li>
+                        </ol>
+                    </div>
+                    <p class="tut-text">🔑 口訣：<strong>Do=C　Re=D　Mi=E　Fa=F　Sol=G　La=A　Si=B</strong>　多練多快 🎵</p>
+                </div>
+
+            </div><!-- end tutSlidesWrap -->
+
+            <div class="tut-nav">
+                <button class="tut-btn" id="tutPrev" disabled>◀ 上一頁</button>
+                <span class="tut-page" id="tutPage">1 / 3</span>
+                <button class="tut-btn" id="tutNext">下一頁 ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+    <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

@@ -26,6 +26,7 @@ body {
     background-size: 300% 300%;
     background-attachment: fixed;
     animation: gradientDrift 25s ease infinite;
+    will-change: background-position;
     min-height: 100vh; min-height: 100dvh;
     display: flex; justify-content: center; align-items: flex-start;
     font-family: 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', sans-serif;
@@ -107,7 +108,7 @@ input { user-select: auto; }
 /* ===== 三段式獨立介面架構 ===== */
 .screen {
     display: none; width: 100%; max-width: 920px; flex-direction: column;
-    gap: 12px; position: relative; z-index: 1;
+    gap: 12px; position: relative; z-index: 1; contain: layout style;
     animation: screenEnter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .screen.active { display: flex; }
@@ -711,8 +712,152 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .clef-badge { top: 6px; right: 6px; padding: 4px 10px; font-size: 0.75rem; }
 }
 
-/* ===== iPhone safe area padding (notch / home indicator) ===== */
+/* ===== 遊戲說明教學 Modal ===== */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tutorial-modal {
+    position: fixed; inset: 0; background: rgba(20, 14, 38, 0.78);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9000; padding: 14px;
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.2s ease;
+    contain: layout paint;
+}
+.tutorial-box {
+    background: #fff; border-radius: 26px; width: 100%; max-width: 580px;
+    padding: 20px 20px 16px; position: relative;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.30);
+    max-height: calc(100dvh - 28px); overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+    animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tut-header {
+    display: flex; align-items: center; justify-content: space-between;
+}
+.tut-stepper {
+    display: flex; gap: 9px; align-items: center;
+}
+.tut-dot {
+    width: 11px; height: 11px; border-radius: 50%; background: #e0daf5;
+    cursor: pointer; transition: background 0.2s, transform 0.2s;
+}
+.tut-dot.active { background: #8B66FF; transform: scale(1.4); }
+.tut-close {
+    background: #f0eef8; border: none; border-radius: 50%;
+    width: 34px; height: 34px; font-size: 0.9rem; cursor: pointer;
+    color: #555; font-weight: 900; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s;
+}
+.tut-close:hover { background: #e0dcf0; }
+.tut-slide { display: none; flex-direction: column; gap: 10px; }
+.tut-slide.active { display: flex; }
+.tut-title {
+    font-size: 1.1rem; font-weight: 900; color: #2d2a3e; margin: 0;
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+}
+/* Image slides */
+.tut-img-wrap {
+    display: block; position: relative; border-radius: 14px; overflow: hidden;
+    background: #f5f3fc; cursor: zoom-in; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    text-decoration: none;
+}
+.tut-img {
+    width: 100%; display: block;
+    max-height: 290px; object-fit: contain; object-position: top;
+    border-radius: 14px;
+}
+.tut-img-hint {
+    position: absolute; bottom: 8px; right: 10px;
+    background: rgba(30,20,50,0.58); color: #fff;
+    font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+    font-family: 'Nunito', sans-serif; pointer-events: none;
+}
+.tut-text {
+    font-size: 0.88rem; color: #444; line-height: 1.75; margin: 0;
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+}
+.tut-text strong { color: #2d2a3e; }
+/* Steps slide */
+.tut-visual { background: #faf9ff; border-radius: 14px; padding: 10px 10px; }
+.tut-steps-visual { padding: 8px 10px; }
+.tut-steps {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 7px;
+}
+.tut-steps li {
+    padding: 9px 13px; border-radius: 10px;
+    font-weight: 600; font-size: 0.88rem; font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+    line-height: 1.45;
+}
+/* Nav */
+.tut-nav {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding-top: 2px;
+}
+.tut-btn {
+    background: #8B66FF; color: #fff; border: none; border-radius: 14px;
+    padding: 10px 20px; font-weight: 900; font-size: 0.9rem; cursor: pointer;
+    font-family: 'Nunito', sans-serif; transition: background 0.15s, transform 0.1s;
+    min-width: 106px;
+}
+.tut-btn:hover:not(:disabled) { background: #7A54EE; transform: translateY(-1px); }
+.tut-btn:active:not(:disabled) { transform: translateY(0); }
+.tut-btn:disabled { background: #e8e6f0; color: #b0a8c8; cursor: default; }
+.tut-btn.finish { background: #00B89F; }
+.tut-btn.finish:hover:not(:disabled) { background: #009980; }
+.tut-page { font-size: 0.85rem; color: #9b8fc0; font-weight: 800; font-family: 'Nunito', sans-serif; }
+/* Tutorial trigger button (full width, below start btn) */
+.btn-tutorial {
+    display: block; width: 100%; max-width: 420px; margin: 0 auto;
+    background: linear-gradient(135deg, #B388FF 0%, #8B66FF 100%);
+    color: #fff; border: none; border-radius: 20px;
+    padding: 16px 28px; font-size: 1.25rem; font-weight: 900; letter-spacing: 0.02em;
+    cursor: pointer; font-family: 'Nunito', sans-serif;
+    box-shadow: 0 6px 18px rgba(139,102,255,0.40);
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+.btn-tutorial:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(139,102,255,0.50); }
+.btn-tutorial:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(139,102,255,0.35); }
+/* Mini tutorial badge inside idField */
+.btn-tutorial-mini {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #B388FF 0%, #8B66FF 100%);
+    color: #fff; border: none; border-radius: 20px;
+    padding: 4px 10px; font-size: 0.72rem; font-weight: 900;
+    cursor: pointer; font-family: 'Nunito', sans-serif;
+    box-shadow: 0 3px 8px rgba(139,102,255,0.35);
+    transition: filter 0.15s, transform 0.1s;
+    white-space: nowrap; line-height: 1.4;
+}
+.btn-tutorial-mini:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-tutorial-mini:active { transform: translateY(0); }
 @supports (padding: env(safe-area-inset-bottom)) {
     .sound-toggle { bottom: calc(22px + env(safe-area-inset-bottom, 0px)); right: calc(22px + env(safe-area-inset-right, 0px)); }
     .btn-start { margin-bottom: env(safe-area-inset-bottom, 0px); }
+}
+
+/* ===== Touch devices: disable sticky hover states ===== */
+@media (hover: none) {
+    .note-btn:hover:not(:disabled) { transform: none; filter: none; }
+    .mode-card:hover { transform: none; box-shadow: 0 5px 0 #E8EDFF; border-color: #E8EDFF; }
+    .card:hover { box-shadow: var(--shadow-md), 0 0 0 2px rgba(255,255,255,0.7) inset; }
+    .btn-start:hover { transform: none; box-shadow: 0 7px 0 #D96A20, var(--highlight-inner); }
+    .btn-action:hover:not(:disabled) { transform: none; background: white; color: var(--text-light); box-shadow: 0 4px 0 #E8EDFF; }
+    .btn-view-ranks:hover { transform: none; box-shadow: 0 5px 0 rgba(139,102,255,0.35), var(--highlight-inner); }
+    .btn-restart-large:hover { transform: none; box-shadow: 0 7px 0 #4A1ECC, var(--highlight-inner); }
+    .btn-tutorial:hover { transform: none; filter: none; box-shadow: 0 6px 18px rgba(139,102,255,0.40); }
+    .btn-tutorial-mini:hover { filter: none; transform: none; }
+    .rank-item:hover { transform: none; box-shadow: none; }
+    .report-item:hover { transform: none; box-shadow: none; }
+    .checkbox-item:hover { transform: none; border-color: transparent; color: var(--text-light); }
+    .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
+    .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
+    .tut-close:hover { background: #f0eef8; }
 }
