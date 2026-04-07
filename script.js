@@ -1434,21 +1434,4 @@
         const storedSound = localStorage.getItem('musicGameSoundEnabled'); 
         if (storedSound !== null) { 
             audio.enabled = storedSound === 'true'; 
-            dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; 
-        }
-        loadSavedSettings();
-        // Populate student name dropdown for current grade/class
-        populateNameDropdown();
-        // Sync textbook mode to grade on first load if no saved settings override
-        if (dom.textbookMode && dom.userGrade) { dom.textbookMode.value = dom.userGrade.value; handleTextbookModeChange(); }
-        toggleCheckboxAppearance(); 
-        enableGameControls(false);
-        // Restore volume slider values
-        const savedBg = localStorage.getItem('bgVolume');
-        const savedSfx = localStorage.getItem('sfxVolume');
-        if (savedBg && dom.bgVolume) { dom.bgVolume.value = savedBg; if (dom.bgVolumeVal) dom.bgVolumeVal.textContent = savedBg + '%'; }
-        if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
-        initEvents();
-        initTutorial();
-    });
-})();
+            dom.soundToggle.textContent = audio.enabled ? '🔊' : '�
