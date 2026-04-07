@@ -37,6 +37,9 @@
         6: { clef:['treble'], accidentalChance:0.4, noteRange:[0,12], ledgerAbove:true, ledgerBelow:true }
     };
 
+    const SOLFEGE = {C:'Do',D:'Re',E:'Mi',F:'Fa',G:'Sol',A:'La',B:'Si'};
+    const noteSol = n => { const b = SOLFEGE[n.letter]; if (!b) return ''; return b + (n.accidental==='#'?'♯':n.accidental==='♭'?'♭':''); };
+
     const MAPS = {
         treble: [{letter:'C',octave:4,yFactor:5},{letter:'D',octave:4,yFactor:4.5},{letter:'E',octave:4,yFactor:4},{letter:'F',octave:4,yFactor:3.5},{letter:'G',octave:4,yFactor:3},{letter:'A',octave:4,yFactor:2.5},{letter:'B',octave:4,yFactor:2},{letter:'C',octave:5,yFactor:1.5},{letter:'D',octave:5,yFactor:1},{letter:'E',octave:5,yFactor:0.5},{letter:'F',octave:5,yFactor:0},{letter:'G',octave:5,yFactor:-0.5},{letter:'A',octave:5,yFactor:-1}],
         bass:   [{letter:'G',octave:2,yFactor:4},{letter:'A',octave:2,yFactor:3.5},{letter:'B',octave:2,yFactor:3},{letter:'C',octave:3,yFactor:2.5},{letter:'D',octave:3,yFactor:2},{letter:'E',octave:3,yFactor:1.5},{letter:'F',octave:3,yFactor:1},{letter:'G',octave:3,yFactor:0.5},{letter:'A',octave:3,yFactor:0},{letter:'B',octave:3,yFactor:-0.5},{letter:'C',octave:4,yFactor:-1}],
@@ -463,7 +466,7 @@
     function drawSharp(ctx, x, y, ls) {
         ctx.save();
         ctx.fillStyle = '#1E1E2F';
-        ctx.font = `900 ${Math.round(ls * 1.3)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
+        ctx.font = `900 ${Math.round(ls * 1.6)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
         ctx.fillText('\u266F', x, y);
@@ -584,7 +587,7 @@
             ctx.font = `bold ${Math.round(ls * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
-            ctx.fillText(state.currentNote.correctName, centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
+            const _solLabel = noteSol(state.currentNote); ctx.fillText(state.currentNote.correctName + (_solLabel ? ' = ' + _solLabel : ''), centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
             ctx.restore();
         }
     }
@@ -777,7 +780,7 @@
                 const div = document.createElement('div'); div.className = 'note-row';
                 notes.forEach(n => {
                     const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
-                    btn.innerHTML = `${n}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n));
+                    const sol = SOLFEGE[n]; btn.innerHTML = `${n}${sol?`<span class="note-sol">${sol}</span>`:''}<span class="key-hint">${keys[n]}</span>`; btn.addEventListener('click', () => handleAnswer(n));
                     noteBtnMap.set(n, btn);
                     div.appendChild(btn);
                 }); return div;
@@ -814,7 +817,7 @@
             }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
             if (pts) state.score += pts;
-            dom.messageBox.textContent = `✅ 答對了！這個是 ${state.currentNote.correctName} ✨ 得分：${state.score}`; 
+            const _sol = noteSol(state.currentNote); dom.messageBox.textContent = `✅ 答對了！${state.currentNote.correctName}${_sol?' = '+_sol:''} ✨ 得分：${state.score}`; 
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
@@ -838,7 +841,7 @@
             state.answered = true; 
             state.wrongCount++; 
             state.showAnswerHighlight = true; drawStaff();
-            dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}，記住了嗎？`; 
+            const _sol2 = noteSol(state.currentNote); dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}，記住了嗎？`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
             setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
@@ -1370,6 +1373,10 @@
             dom.leaderboardLayout.classList.remove('view-only');
             switchScreen('screen-setup'); 
         });
+        document.getElementById('rankBackBtn')?.addEventListener('click', () => { audio.init(); audio.playClick();
+            dom.leaderboardLayout.classList.remove('view-only');
+            switchScreen('screen-setup');
+        });
         dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
             dom.leaderboardLayout.classList.add('view-only');
             dom.reportGrid.innerHTML = '';
@@ -1378,7 +1385,7 @@
             switchScreen('screen-leaderboard');
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
         
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
