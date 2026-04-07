@@ -889,4 +889,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .report-item:hover { transform: none; box-shadow: none; }
     .checkbox-item:hover { transform: none; border-color: transparent; color: var(--text-light); }
     .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
-    .tut-btn.fi
+    .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
+    .tut-close:hover { background: #f0eef8; }
+    .diff-btn:hover { transform: none; border-color: #E8EDFF; color: var(--text-light); box-shadow: 0 3px 0 #E8EDFF; }
+}
