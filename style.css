@@ -550,6 +550,10 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .leaderboard-layout.view-only { grid-template-columns: 1fr; }
 .leaderboard-layout.view-only .ranking-section { height: 70vh; }
 
+/* 練習模式結算 — 隱藏排行榜欄 */
+.leaderboard-layout.practice-end .ranking-section { display: none; }
+.leaderboard-layout.practice-end { grid-template-columns: 1fr; max-width: 560px; margin: 0 auto; }
+
 .btn-view-ranks {
     background: white; color: var(--primary-purple-dark); font-weight: 900; font-size: 1rem;
     border: 2.5px solid var(--primary-purple); padding: 14px 24px; border-radius: 50px;
@@ -885,7 +889,4 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .report-item:hover { transform: none; box-shadow: none; }
     .checkbox-item:hover { transform: none; border-color: transparent; color: var(--text-light); }
     .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
-    .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
-    .tut-close:hover { background: #f0eef8; }
-    .diff-btn:hover { transform: none; border-color: #E8EDFF; color: var(--text-light); box-shadow: 0 3px 0 #E8EDFF; }
-}
+    .tut-btn.fi

@@ -817,7 +817,7 @@
             }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
             if (pts) state.score += pts;
-            const _sol = noteSol(state.currentNote); dom.messageBox.textContent = `✅ 答對了！${state.currentNote.correctName}${_sol?' = '+_sol:''} ✨ 得分：${state.score}`; 
+            const _sol = noteSol(state.currentNote); const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : ''; dom.messageBox.textContent = `✅ 答對了！${state.currentNote.correctName}${_sol?' = '+_sol:''}${_secs} ✨ 得分：${state.score}`; 
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
@@ -841,7 +841,7 @@
             state.answered = true; 
             state.wrongCount++; 
             state.showAnswerHighlight = true; drawStaff();
-            const _sol2 = noteSol(state.currentNote); dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}，記住了嗎？`; 
+            const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}${_secs2}，記住了嗎？`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
             setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
@@ -894,6 +894,7 @@
         saveSettings();
         state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
         dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
+        dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
 
         state.gameActive = false; 
         state.timeLeft = state.modeConfig.duration; 
@@ -1119,8 +1120,16 @@
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
         dom.leaderboardLayout.classList.remove('view-only');
-        focusLeaderboardToCurrentStudent();
-        loadRanks();
+        const isPracticeEnd = state.modeConfig.type === 'practice';
+        if (isPracticeEnd) {
+            dom.leaderboardLayout.classList.add('practice-end');
+        } else {
+            dom.leaderboardLayout.classList.remove('practice-end');
+            focusLeaderboardToCurrentStudent();
+            loadRanks();
+        }
+        const reportTitleEl = document.querySelector('.report-title');
+        if (reportTitleEl) reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
         switchScreen('screen-leaderboard');
     }
 
@@ -1409,6 +1418,9 @@
             } else if (e.code === 'Space') { 
                 e.preventDefault(); 
                 dom.skipBtn.click(); 
+            } else if (e.key.toUpperCase() === 'H') { 
+                e.preventDefault(); 
+                if (!dom.revealBtn.disabled) dom.revealBtn.click(); 
             } 
         });
     }
