@@ -383,22 +383,22 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .note-btn .key-hint { position: absolute; bottom: 5px; font-size: 0.65rem; font-weight: 900; background: rgba(0,0,0,0.1); padding: 1px 5px; border-radius: 5px; letter-spacing: 0; }
 .note-sol { display: block; font-size: 0.58rem; font-weight: 900; opacity: 0.65; line-height: 1.2; }
 .note-btn.natural {
-    background: linear-gradient(175deg, #fffef6 0%, #f5edce 100%);
-    color: #2a1f00;
-    border: 1.5px solid #d4c47a;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.13), inset 0 -3px 0 #c9a800;
+    background: linear-gradient(145deg, #FFD966, #FFCB45);
+    color: var(--text-dark);
+    border: 1.5px solid var(--primary-yellow-dark);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1), inset 0 -3px 0 var(--primary-yellow-dark);
 }
 .note-btn.sharp {
-    background: linear-gradient(175deg, #3a2a55 0%, #1e1232 100%);
-    color: #f0e6ff; width: 62px; height: 72px;
-    border: 1.5px solid #5a3d8a;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.28), inset 0 -3px 0 #120b22;
+    background: linear-gradient(145deg, #FF80BB, #FF65A3);
+    color: white; width: 62px; height: 72px;
+    border: 1.5px solid var(--primary-pink-dark);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 -3px 0 var(--primary-pink-dark);
 }
 .note-btn.flat {
-    background: linear-gradient(175deg, #1a2a4a 0%, #0d1a35 100%);
-    color: #d0e8ff; width: 62px; height: 72px;
-    border: 1.5px solid #2a4a80;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.28), inset 0 -3px 0 #060e1f;
+    background: linear-gradient(145deg, #33BFFF, #00A6ED);
+    color: white; width: 62px; height: 72px;
+    border: 1.5px solid var(--primary-blue-dark);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 -3px 0 var(--primary-blue-dark);
 }
 .note-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.07); }
 .note-btn:active:not(:disabled) { transform: translateY(2px); filter: brightness(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.12), inset 0 -1px 0 rgba(0,0,0,0.10) !important; }
@@ -894,4 +894,16 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .mode-card:hover { transform: none; box-shadow: 0 5px 0 #E8EDFF; border-color: #E8EDFF; }
     .card:hover { box-shadow: var(--shadow-md), 0 0 0 2px rgba(255,255,255,0.7) inset; }
     .btn-start:hover { transform: none; box-shadow: 0 7px 0 #D96A20, var(--highlight-inner); }
-    .btn-action:hover:not(:disabled) { transform: none; background: whit
+    .btn-action:hover:not(:disabled) { transform: none; background: white; color: var(--text-light); box-shadow: 0 4px 0 #E8EDFF; }
+    .btn-view-ranks:hover { transform: none; box-shadow: 0 5px 0 rgba(139,102,255,0.35), var(--highlight-inner); }
+    .btn-restart-large:hover { transform: none; box-shadow: 0 7px 0 #4A1ECC, var(--highlight-inner); }
+    .btn-tutorial:hover { transform: none; filter: none; box-shadow: 0 6px 18px rgba(139,102,255,0.40); }
+    .btn-tutorial-mini:hover { filter: none; transform: none; }
+    .rank-item:hover { transform: none; box-shadow: none; }
+    .report-item:hover { transform: none; box-shadow: none; }
+    .checkbox-item:hover { transform: none; border-color: transparent; color: var(--text-light); }
+    .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
+    .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
+    .tut-close:hover { background: #f0eef8; }
+    .diff-btn:hover { transform: none; border-color: #E8EDFF; color: var(--text-light); box-shadow: 0 3px 0 #E8EDFF; }
+}

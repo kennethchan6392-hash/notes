@@ -926,7 +926,7 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            dom.messageBox.textContent = `� ${state.modeConfig.name} — 開始囉！加油！`; 
+            dom.messageBox.textContent = `🎵 ${state.modeConfig.name} — 開始囉！加油！`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -1379,11 +1379,11 @@
         dom.startBtn.addEventListener('click', startGame); 
         dom.endBtn.addEventListener('click', endGame); 
         dom.backToSetupBtn.addEventListener('click', () => { audio.playClick();
-            dom.leaderboardLayout.classList.remove('view-only');
+            dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
             switchScreen('screen-setup'); 
         });
         document.getElementById('rankBackBtn')?.addEventListener('click', () => { audio.init(); audio.playClick();
-            dom.leaderboardLayout.classList.remove('view-only');
+            dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
             switchScreen('screen-setup');
         });
         dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
