@@ -458,7 +458,7 @@
 
 
     function drawSharp(ctx, x, y, ls) {
-        ctx.save(); ctx.translate(x, y); const s = ls / 10; ctx.scale(s, s);
+        ctx.save(); ctx.translate(x, y); const s = ls / 14; ctx.scale(s, s);
         ctx.strokeStyle = '#1E1E2F'; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.lineWidth = 1.5; ctx.moveTo(-2, -12); ctx.lineTo(-2, 12); ctx.moveTo(3, -12); ctx.lineTo(3, 12); ctx.stroke();
         ctx.beginPath(); ctx.lineWidth = 3; ctx.moveTo(-6, -2); ctx.lineTo(7, -6); ctx.moveTo(-6, 6); ctx.lineTo(7, 2); ctx.stroke();
@@ -517,7 +517,7 @@
         ctx.stroke();
 
         if (state.currentNote.accidental) { 
-            const accX = centerX - ls * 2.2;
+            const accX = centerX - ls * 1.7;
             if (state.currentNote.accidental === '#') drawSharp(ctx, accX, noteY, ls);
             else drawFlat(ctx, accX, noteY, ls);
         }

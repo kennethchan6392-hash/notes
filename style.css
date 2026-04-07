@@ -843,6 +843,12 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .btn-start { margin-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
+/* ===== Desktop: 縮細五線譜白色區域 + 介面垂直居中 ===== */
+@media (min-width: 900px) and (pointer: fine) {
+    body { align-items: center; }
+    .staff-container { min-height: 168px; max-height: 192px; padding: 10px 14px; }
+}
+
 /* ===== Touch devices: disable sticky hover states ===== */
 @media (hover: none) {
     .note-btn:hover:not(:disabled) { transform: none; filter: none; }
