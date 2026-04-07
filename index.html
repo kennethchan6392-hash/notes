@@ -69,7 +69,8 @@
                     <div class="settings-group" id="clefGroup">
                         <label class="group-title">📝 練習譜號</label>
                         <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="clefTreble" checked> 高音</label>
+                            <label class="checkbox-item checked"><input type="checkbox" id="clefTreble" checked> 高音譜號</label>
+                            <label class="checkbox-item" id="clefBassLabel"><input type="checkbox" id="clefBass"> 低音譜號</label>
                         </div>
                     </div>
                     <div class="settings-group" id="accidentalGroup">
@@ -161,6 +162,17 @@
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
                 <div class="mode-icon">🔥</div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">錯一題就結束！</div>
+            </div>
+        </div>
+
+        <div class="practice-diff-row" id="practiceDiffRow">
+            <span class="practice-diff-label">⚡ 練習難度</span>
+            <div class="practice-diff-btns">
+                <button class="diff-btn" data-diff="1">🌿 初學</button>
+                <button class="diff-btn" data-diff="2">⭐ 初級</button>
+                <button class="diff-btn active" data-diff="3">⭐⭐ 中級</button>
+                <button class="diff-btn" data-diff="4">⭐⭐⭐ 進階</button>
+                <button class="diff-btn" data-diff="5">🔥 全力</button>
             </div>
         </div>
 

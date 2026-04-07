@@ -39,8 +39,7 @@
 
     const MAPS = {
         treble: [{letter:'C',octave:4,yFactor:5},{letter:'D',octave:4,yFactor:4.5},{letter:'E',octave:4,yFactor:4},{letter:'F',octave:4,yFactor:3.5},{letter:'G',octave:4,yFactor:3},{letter:'A',octave:4,yFactor:2.5},{letter:'B',octave:4,yFactor:2},{letter:'C',octave:5,yFactor:1.5},{letter:'D',octave:5,yFactor:1},{letter:'E',octave:5,yFactor:0.5},{letter:'F',octave:5,yFactor:0},{letter:'G',octave:5,yFactor:-0.5},{letter:'A',octave:5,yFactor:-1}],
-
-
+        bass:   [{letter:'G',octave:2,yFactor:4},{letter:'A',octave:2,yFactor:3.5},{letter:'B',octave:2,yFactor:3},{letter:'C',octave:3,yFactor:2.5},{letter:'D',octave:3,yFactor:2},{letter:'E',octave:3,yFactor:1.5},{letter:'F',octave:3,yFactor:1},{letter:'G',octave:3,yFactor:0.5},{letter:'A',octave:3,yFactor:0},{letter:'B',octave:3,yFactor:-0.5},{letter:'C',octave:4,yFactor:-1}],
     };
 
     // ==========================================
@@ -150,11 +149,13 @@
     let _noteRowsBuilt = false, _sharpRow = null, _flatRow = null;
 
     // Preload clef SVG images using real music clef glyphs
-    const clefImages = { treble: new Image() };
+    const clefImages = { treble: new Image(), bass: new Image() };
     clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 300"><text x="60" y="230" text-anchor="middle" font-size="250" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄞</text></svg>');
+    clefImages.bass.src  = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><text x="4" y="95" font-size="110" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄢</text></svg>');
     // Redraw staff when clef image finishes loading
     const onClefLoad = () => { if (state.currentNote && dom.ctx) drawStaff(); };
     clefImages.treble.onload = onClefLoad;
+    clefImages.bass.onload  = onClefLoad;
 
     // Preload note head SVG images for whole and half notes
     const noteImages = { whole: new Image(), half: new Image() };
@@ -238,6 +239,8 @@
             noteRangeGroup: document.getElementById('noteRangeGroup'),
             noteRangeFrom: document.getElementById('noteRangeFrom'),
             noteRangeTo: document.getElementById('noteRangeTo'),
+            clefBass: document.getElementById('clefBass'),
+            practiceDiffRow: document.getElementById('practiceDiffRow'),
             checkboxItems: document.querySelectorAll('.checkbox-item')
         };
         dom.scoreBadge = dom.scoreDisplay.closest('.stat-badge');
@@ -458,10 +461,30 @@
 
 
     function drawSharp(ctx, x, y, ls) {
-        ctx.save(); ctx.translate(x, y); const s = ls / 14; ctx.scale(s, s);
-        ctx.strokeStyle = '#1E1E2F'; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.lineWidth = 1.5; ctx.moveTo(-2, -12); ctx.lineTo(-2, 12); ctx.moveTo(3, -12); ctx.lineTo(3, 12); ctx.stroke();
-        ctx.beginPath(); ctx.lineWidth = 3; ctx.moveTo(-6, -2); ctx.lineTo(7, -6); ctx.moveTo(-6, 6); ctx.lineTo(7, 2); ctx.stroke();
+        ctx.save();
+        ctx.fillStyle = '#1E1E2F';
+        ctx.font = `900 ${Math.round(ls * 1.3)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u266F', x, y);
+        ctx.restore();
+    }
+
+    function drawBassClef(ctx, x, y, ls) {
+        // y = F3 line (4th line from bottom = yFactor 1)
+        const img = clefImages.bass;
+        const imgH = ls * 4.5;
+        const imgW = imgH * (100 / 120);
+        if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, x - imgW * 0.12, y - imgH * 0.38, imgW, imgH);
+            return;
+        }
+        ctx.save();
+        ctx.fillStyle = '#1E1E2F';
+        ctx.font = `${Math.round(ls * 4.2)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillText('\uD834\uDD22', x - ls * 0.2, y + ls * 0.6);
         ctx.restore();
     }
 
@@ -480,9 +503,10 @@
 
         // ---- build / reuse offscreen cache for staff lines + clef ----
         const dpr = window.devicePixelRatio || 1;
-        const clefLoaded = clefImages.treble.complete && clefImages.treble.naturalWidth > 0;
+        const currentClef = state.currentNote ? state.currentNote.clef : 'treble';
+        const clefLoaded = clefImages[currentClef]?.complete && clefImages[currentClef]?.naturalWidth > 0;
         const ls = w < 400 ? 18 : 22;
-        if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded) {
+        if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded || _staffCache.clef !== currentClef) {
             const oc = document.createElement('canvas');
             oc.width = w * dpr; oc.height = h * dpr;
             const oc_ctx = oc.getContext('2d');
@@ -492,10 +516,15 @@
             oc_ctx.beginPath();
             for (let i = 0; i < 5; i++) { oc_ctx.moveTo(_startX, _baseY + i*ls); oc_ctx.lineTo(w - _startX, _baseY + i*ls); }
             oc_ctx.stroke();
-            drawTrebleClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 3, ls);
-            _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, baseY: _baseY, startX: _startX };
+            if (currentClef === 'bass') {
+                drawBassClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 1, ls);
+            } else {
+                drawTrebleClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 3, ls);
+            }
+            _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, clef: currentClef, baseY: _baseY, startX: _startX };
         }
         ctx.drawImage(_staffCache.canvas, 0, 0, w, h);
+        if (dom.clefBadge) dom.clefBadge.textContent = currentClef === 'bass' ? '低音譜號' : '高音譜號';
 
         const baseY = _staffCache.baseY, startX = _staffCache.startX;
         const centerX = w / 2, middleLineY = baseY + 2 * ls;
@@ -578,6 +607,7 @@
             const cfg = TEXTBOOK_CONFIG[tbMode];
             if (cfg) {
                 if (dom.clefTreble) dom.clefTreble.checked = cfg.clef.includes('treble');
+                if (dom.clefBass)   dom.clefBass.checked   = false; // textbook configs are treble-only
                 if (dom.accidentalSharp) dom.accidentalSharp.checked = cfg.accidentalChance > 0;
                 if (dom.accidentalFlat) dom.accidentalFlat.checked = cfg.accidentalChance > 0;
                 if (dom.ledgerLineAbove) dom.ledgerLineAbove.checked = cfg.ledgerAbove;
@@ -702,6 +732,7 @@
             clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow; 
         } else {
             if(dom.clefTreble && dom.clefTreble.checked) clefOptions.push('treble');
+            if(dom.clefBass   && dom.clefBass.checked)   clefOptions.push('bass');
             if (!clefOptions.length) clefOptions = ['treble'];
             accidentalChance = ((dom.accidentalSharp && dom.accidentalSharp.checked) || (dom.accidentalFlat && dom.accidentalFlat.checked)) ? 0.3 : 0;
             
@@ -713,9 +744,11 @@
         }
 
         const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
-        const maxIdx = Math.min(noteRange[1], MAPS[clef].length - 1);
-        const poolSize = maxIdx - noteRange[0] + 1;
-        const pickBase = () => MAPS[clef][Math.floor(Math.random() * poolSize) + noteRange[0]];
+        // Bass clef uses its full range; range pickers are treble-only
+        const effRange = clef === 'bass' ? [0, MAPS.bass.length - 1] : noteRange;
+        const maxIdx = Math.min(effRange[1], MAPS[clef].length - 1);
+        const poolSize = maxIdx - effRange[0] + 1;
+        const pickBase = () => MAPS[clef][Math.floor(Math.random() * poolSize) + effRange[0]];
         let base = pickBase();
         // Anti-repeat: try once more if same base note as last question (only when pool > 1)
         if (poolSize > 1 && base.letter + base.octave === state.lastNoteKey) base = pickBase();
@@ -796,7 +829,7 @@
             }
             setTimeout(() => { if (btn) btn.classList.remove('correct', 'wrong'); if (state.gameActive) nextQuestion(); }, 500);
         } else {
-            const clefLabel = '高音';
+            const clefLabel = state.currentNote.clef === 'bass' ? '低音' : '高音';
             const statKey = `${state.currentNote.correctName} (${clefLabel})`;
             state.wrongNoteStats[statKey] = (state.wrongNoteStats[statKey]||0) + 1; 
             state.combo = 0; 
@@ -942,7 +975,7 @@
         Object.entries(state.wrongNoteStats).forEach(([k]) => {
             const noteName = k.split(' (')[0].replace('#','').replace('♭','');
             const clefName = k.match(/\((.+)\)/)?.[1] || '';
-            const clefKey = clefName === '高音' ? 'treble' : null;
+            const clefKey = clefName === '高音' ? 'treble' : clefName === '低音' ? 'bass' : null;
             if (clefKey && MAPS[clefKey]) {
                 const noteInfo = MAPS[clefKey].find(n => n.letter === noteName);
                 if (noteInfo && (noteInfo.yFactor > 4 || noteInfo.yFactor < 0)) ledgerErrors += state.wrongNoteStats[k];
@@ -1295,6 +1328,21 @@
         });
         dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
         dom.modeCards.forEach(card => card.addEventListener('click', () => { audio.init(); audio.playClick('select'); dom.modeCards.forEach(c => c.classList.remove('active')); card.classList.add('active'); state.currentMode = card.dataset.mode; state.modeConfig = MODE_CONFIG[state.currentMode]; saveSettings(); }));
+
+        // Practice difficulty selector
+        dom.modeCards.forEach(card => card.addEventListener('click', () => {
+            if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = card.dataset.mode === 'practice' ? '' : 'none';
+        }));
+        const diffBtns = document.querySelectorAll('.diff-btn');
+        const DIFF_TO_TB = {'1':'1','2':'2','3':'3','4':'5','5':'6'};
+        diffBtns.forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            diffBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (dom.textbookMode) { dom.textbookMode.value = DIFF_TO_TB[btn.dataset.diff]; handleTextbookModeChange(); saveSettings(); }
+        }));
+        if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = state.currentMode === 'practice' ? '' : 'none';
+        { const tbToDiff = {'1':'1','2':'2','3':'3','4':'3','5':'4','6':'5'}; const d = tbToDiff[dom.textbookMode?.value] || '3'; diffBtns.forEach(b => b.classList.toggle('active', b.dataset.diff === d)); }
         
         dom.settingsToggleBtn.addEventListener('click', () => { audio.init(); audio.playClick(); dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
         dom.inputs.forEach(el => el.addEventListener('change', () => { audio.init(); audio.playClick(); if (el.id === 'textbookMode') handleTextbookModeChange(); toggleCheckboxAppearance(); saveSettings(); if (el.id.startsWith('clef') || el.id.startsWith('accidental')) { buildNoteButtons(); enableGameControls(false); } }));

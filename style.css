@@ -558,7 +558,27 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .btn-view-ranks:hover { background: var(--bg-light); transform: translateY(-2px); box-shadow: 0 7px 0 rgba(139,102,255,0.35); }
 .btn-view-ranks:active { transform: translateY(5px); box-shadow: 0 0 0 transparent; }
 
-/* 響應式 */
+/* ===== 練習難度快速選擇器 ===== */
+.practice-diff-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+    padding: 2px 0;
+}
+.practice-diff-label { font-weight: 900; font-size: 0.95rem; color: var(--text-light); white-space: nowrap; }
+.practice-diff-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.diff-btn {
+    background: white; border: 2.5px solid #E8EDFF; color: var(--text-light);
+    padding: 8px 14px; border-radius: 50px; cursor: pointer;
+    font-weight: 900; font-size: 0.88rem; transition: all 0.2s;
+    box-shadow: 0 3px 0 #E8EDFF; font-family: inherit;
+}
+.diff-btn:hover { border-color: var(--primary-green); color: var(--primary-green-dark); transform: translateY(-2px); box-shadow: 0 5px 0 rgba(0,210,142,0.2); }
+.diff-btn.active {
+    background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+    border-color: transparent; color: white;
+    box-shadow: 0 4px 12px rgba(0,210,142,0.35); transform: translateY(-2px);
+}
+
+/* ===== 響應式 ===== */
 @media (max-width: 900px) {
     .leaderboard-layout { grid-template-columns: 1fr; }
     .ranking-section { height: 420px; }
@@ -866,4 +886,5 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
     .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
     .tut-close:hover { background: #f0eef8; }
+    .diff-btn:hover { transform: none; border-color: #E8EDFF; color: var(--text-light); box-shadow: 0 3px 0 #E8EDFF; }
 }
