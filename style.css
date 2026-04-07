@@ -368,43 +368,53 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
 
-/* 鍵盤按鈕 */
-.notes-grid { display: flex; flex-direction: column; gap: 8px; }
-.note-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+/* 鍵盤按鈕 — piano key redesign */
+.notes-grid { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.note-row { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
 .note-btn {
-    border: none; border-radius: 24px; width: 80px; height: 80px;
-    font-size: 2rem; font-weight: 900; cursor: pointer; transition: all 0.15s;
+    border: none; border-radius: 14px; width: 72px; height: 88px;
+    font-size: 1.75rem; font-weight: 900; cursor: pointer; transition: transform 0.1s, filter 0.1s, background 0.15s;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    letter-spacing: 0;
+    letter-spacing: 0; gap: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12), inset 0 -3px 0 rgba(0,0,0,0.12);
+    padding-bottom: 22px;
 }
-.note-btn .key-hint { position: absolute; bottom: 6px; font-size: 0.7rem; font-weight: 900; background: rgba(0,0,0,0.15); padding: 2px 6px; border-radius: 6px; }
-.note-sol { display: block; font-size: 0.62rem; font-weight: 800; opacity: 0.82; line-height: 1; margin-top: 2px; }
+.note-btn .key-hint { position: absolute; bottom: 5px; font-size: 0.65rem; font-weight: 900; background: rgba(0,0,0,0.1); padding: 1px 5px; border-radius: 5px; letter-spacing: 0; }
+.note-sol { display: block; font-size: 0.58rem; font-weight: 900; opacity: 0.65; line-height: 1.2; }
 .note-btn.natural {
-    background: linear-gradient(145deg, #FFD966, #FFCB45);
-    color: var(--text-dark); box-shadow: 0 9px 0 var(--primary-yellow-dark), var(--highlight-inner);
+    background: linear-gradient(175deg, #fffef6 0%, #f5edce 100%);
+    color: #2a1f00;
+    border: 1.5px solid #d4c47a;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.13), inset 0 -3px 0 #c9a800;
 }
 .note-btn.sharp {
-    background: linear-gradient(145deg, #FF80BB, #FF65A3);
-    color: white; box-shadow: 0 9px 0 var(--primary-pink-dark), var(--highlight-inner);
+    background: linear-gradient(175deg, #3a2a55 0%, #1e1232 100%);
+    color: #f0e6ff; width: 62px; height: 72px;
+    border: 1.5px solid #5a3d8a;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.28), inset 0 -3px 0 #120b22;
 }
 .note-btn.flat {
-    background: linear-gradient(145deg, #33BFFF, #00A6ED);
-    color: white; box-shadow: 0 9px 0 var(--primary-blue-dark), var(--highlight-inner);
+    background: linear-gradient(175deg, #1a2a4a 0%, #0d1a35 100%);
+    color: #d0e8ff; width: 62px; height: 72px;
+    border: 1.5px solid #2a4a80;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.28), inset 0 -3px 0 #060e1f;
 }
-.note-btn:hover:not(:disabled) { transform: translateY(-4px) scale(1.09); filter: brightness(1.06); }
-.note-btn:active:not(:disabled) { transform: translateY(9px); box-shadow: 0 0px 0 transparent; filter: brightness(0.92); }
-.note-btn:disabled { opacity: 0.45; filter: grayscale(0.6); box-shadow: 0 3px 0 rgba(0,0,0,0.08); transform: translateY(3px); cursor: not-allowed; }
+.note-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.07); }
+.note-btn:active:not(:disabled) { transform: translateY(2px); filter: brightness(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.12), inset 0 -1px 0 rgba(0,0,0,0.10) !important; }
+.note-btn:disabled { opacity: 0.4; filter: grayscale(0.5); cursor: not-allowed; transform: none; }
 .note-btn.correct {
     background: linear-gradient(145deg, #2EE8A8, #00D28E) !important;
-    color: white !important; transform: scale(1.18) translateY(2px) !important;
-    box-shadow: 0 5px 0 var(--primary-green-dark), 0 8px 24px rgba(0,210,142,0.45) !important; z-index: 10;
+    color: white !important; border-color: #00b87a !important;
+    transform: scale(1.1) translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0,210,142,0.45), inset 0 -3px 0 #007a52 !important; z-index: 10;
     animation: correctPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-@keyframes correctPop { 0% { transform: scale(0.8) translateY(2px); } 60% { transform: scale(1.25) translateY(2px); } 100% { transform: scale(1.18) translateY(2px); } }
+@keyframes correctPop { 0% { transform: scale(0.8); } 60% { transform: scale(1.15) translateY(-2px); } 100% { transform: scale(1.1) translateY(-2px); } }
 .note-btn.wrong {
     background: linear-gradient(145deg, #FF6B87, #FF4A6B) !important;
-    color: white !important; box-shadow: 0 5px 0 var(--primary-red-dark) !important; animation: shake 0.3s;
+    color: white !important; border-color: #cc1f40 !important;
+    box-shadow: 0 4px 14px rgba(255,74,107,0.4), inset 0 -3px 0 #991535 !important; animation: shake 0.3s;
 }
 
 /* 控制列 */
@@ -592,7 +602,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     body { background-attachment: scroll; }
     .game-title { font-size: 2.8rem; }
     .user-field { min-width: 100%; }
-    .note-btn { width: 68px; height: 68px; font-size: 1.6rem; border-radius: 20px; }
+    .note-btn { width: 60px; height: 76px; font-size: 1.5rem; border-radius: 12px; padding-bottom: 18px; }
+    .note-btn.sharp, .note-btn.flat { width: 52px; height: 62px; }
     .note-btn .key-hint { display: none; }
     .staff-container { padding: 10px 14px; min-height: 170px; }
     .report-grid { grid-template-columns: 1fr; }
@@ -652,8 +663,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 @media (min-width: 768px) and (max-width: 1024px) {
     body { padding: 2vh 24px; }
     .screen { max-width: 800px; }
-    .note-btn { width: 90px; height: 90px; font-size: 2.2rem; }
-    .note-row { gap: 14px; }
+    .note-btn { width: 82px; height: 100px; font-size: 2rem; }
+    .note-btn.sharp, .note-btn.flat { width: 68px; height: 80px; }
+    .note-row { gap: 6px; }
     .staff-container { min-height: 220px; padding: 18px 24px; }
     .mode-cards { grid-template-columns: repeat(3, 1fr); }
     .leaderboard-layout { grid-template-columns: 1.2fr 1fr; }
@@ -680,7 +692,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .progress-area { min-width: 100%; gap: 6px; }
     .stat-badge { padding: 5px 8px; font-size: 0.85rem; min-width: 60px; }
     .staff-container { padding: 8px 10px; min-height: 150px; }
-    .note-btn { width: 58px; height: 58px; font-size: 1.35rem; border-radius: 18px; }
+    .note-btn { width: 50px; height: 66px; font-size: 1.25rem; border-radius: 10px; padding-bottom: 16px; }
+    .note-btn.sharp, .note-btn.flat { width: 42px; height: 54px; }
     .notes-grid { gap: 6px; }
     .note-row { gap: 6px; }
     .message-box { font-size: 0.9rem; padding: 8px; min-height: 36px; }
@@ -727,7 +740,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .action-row {
         grid-column: 1 / -1;
     }
-    .note-btn { width: 52px; height: 52px; font-size: 1.2rem; }
+    .note-btn { width: 44px; height: 56px; font-size: 1.1rem; padding-bottom: 12px; }
+    .note-btn.sharp, .note-btn.flat { width: 38px; height: 46px; }
     .note-row { gap: 5px; }
     .stat-badge { padding: 4px 8px; font-size: 0.8rem; min-width: 56px; }
     .progress-bar { height: 12px; }
@@ -880,16 +894,4 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .mode-card:hover { transform: none; box-shadow: 0 5px 0 #E8EDFF; border-color: #E8EDFF; }
     .card:hover { box-shadow: var(--shadow-md), 0 0 0 2px rgba(255,255,255,0.7) inset; }
     .btn-start:hover { transform: none; box-shadow: 0 7px 0 #D96A20, var(--highlight-inner); }
-    .btn-action:hover:not(:disabled) { transform: none; background: white; color: var(--text-light); box-shadow: 0 4px 0 #E8EDFF; }
-    .btn-view-ranks:hover { transform: none; box-shadow: 0 5px 0 rgba(139,102,255,0.35), var(--highlight-inner); }
-    .btn-restart-large:hover { transform: none; box-shadow: 0 7px 0 #4A1ECC, var(--highlight-inner); }
-    .btn-tutorial:hover { transform: none; filter: none; box-shadow: 0 6px 18px rgba(139,102,255,0.40); }
-    .btn-tutorial-mini:hover { filter: none; transform: none; }
-    .rank-item:hover { transform: none; box-shadow: none; }
-    .report-item:hover { transform: none; box-shadow: none; }
-    .checkbox-item:hover { transform: none; border-color: transparent; color: var(--text-light); }
-    .tut-btn:hover:not(:disabled) { transform: none; background: #8B66FF; }
-    .tut-btn.finish:hover:not(:disabled) { background: #00B89F; }
-    .tut-close:hover { background: #f0eef8; }
-    .diff-btn:hover { transform: none; border-color: #E8EDFF; color: var(--text-light); box-shadow: 0 3px 0 #E8EDFF; }
-}
+    .btn-action:hover:not(:disabled) { transform: none; background: whit
