@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#8B66FF">
-    <title>音符小精靈 · 睇譜認音小遊戲</title>
+    <title>音符小精靈 · 互動音樂學習站</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
@@ -18,11 +18,75 @@
     <button class="sound-toggle" id="soundToggle" title="音效開關">🔊</button>
 
     <!-- ===================================== -->
+    <!-- 介面零：遊戲大廳 (Hub Screen)         -->
+    <!-- ===================================== -->
+    <div id="screen-hub" class="screen active">
+        <h1 class="game-title">🎵 音符小精靈</h1>
+        <div class="game-subtitle">互動音樂學習站 · 小一至小六</div>
+
+        <div class="card hub-login-card">
+            <div class="hub-login-title">� 先告訴我你係邊位同學</div>
+            <div class="hub-login-row">
+                <div class="hub-field">
+                    <label>年級</label>
+                    <select id="hubGrade">
+                        <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                        <option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option>
+                    </select>
+                </div>
+                <div class="hub-field">
+                    <label>班別</label>
+                    <select id="hubClass">
+                        <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
+                        <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
+                    </select>
+                </div>
+                <div class="hub-field hub-field-name" id="hubNameField">
+                    <label>姓名</label>
+                    <select id="hubName"><option value="">選擇你的名字</option></select>
+                </div>
+                <div class="hub-field">
+                    <label>座號</label>
+                    <input id="hubSeat" type="text" readonly placeholder="--">
+                </div>
+            </div>
+            <div class="hub-player-badge" id="hubPlayerBadge">✅ <span id="hubPlayerBadgeText">已選擇玩家</span></div>
+        </div>
+
+        <div class="hub-games-grid">
+            <div class="hub-game-card hub-game1" id="enterGame1">
+                <div class="hub-game-tag">遊戲一</div>
+                <div class="hub-game-icon">🎵</div>
+                <div class="hub-game-name">音名辨別</div>
+                <div class="hub-game-desc">睇五線譜認音名<br>快速反應拿高分</div>
+                <div class="hub-game-btn">立即挑戰 ▶</div>
+            </div>
+            <div class="hub-game-card hub-game2" id="enterGame2">
+                <div class="hub-game-tag">遊戲二</div>
+                <div class="hub-game-icon">🥁</div>
+                <div class="hub-game-name">節奏挑戰</div>
+                <div class="hub-game-desc">辨別音符時值拍子<br>連中得連擊加分</div>
+                <div class="hub-game-btn">立即挑戰 ▶</div>
+            </div>
+            <div class="hub-game-card hub-game3" id="enterGame3">
+                <div class="hub-game-tag">遊戲三</div>
+                <div class="hub-game-icon">📖</div>
+                <div class="hub-game-name">音樂術語</div>
+                <div class="hub-game-desc">認識音樂術語記號<br>搶快作答得獎勵分</div>
+                <div class="hub-game-btn">立即挑戰 ▶</div>
+            </div>
+        </div>
+
+        <button class="btn-view-ranks" id="hubViewRanksBtn">🏆 查看排行榜</button>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 介面一：大廳與設定 (Setup Screen) -->
     <!-- ===================================== -->
-    <div id="screen-setup" class="screen active">
+    <div id="screen-setup" class="screen">
+        <button class="btn-back-hub" id="backToHubFromSetup">← 返回大廳</button>
         <div>
-            <h1 class="game-title">音符小精靈 · 睇譜認音小遊戲</h1>
+            <h1 class="game-title">🎵 音名辨別遊戲</h1>
             <div class="game-subtitle">邊玩邊學 認識音符</div>
         </div>
 
@@ -235,18 +299,119 @@
             <div class="ranking-section">
                 <h2 class="rank-title">🏆 排行榜</h2>
                 <div class="rank-filters">
+                    <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名辨別</option><option value="game2">二：節奏挑戰</option><option value="game3">三：音樂術語</option></select></div>
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option><option value="E">E班</option><option value="F">F班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
-                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>1分鐘挑戰</option><option value="noMiss">零失誤挑戰</option></select></div>
+                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>1分鐘挑戰</option><option value="noMiss">零失誤挑戰</option><option value="challenge">挑戰模式</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
                 <div class="rank-list" id="rankList">
                     <div style="text-align:center; padding:30px; color:var(--text-light); font-weight:800;">📡 載入中...</div>
                 </div>
                 <div style="text-align:center; font-size:0.8rem; color:#888;">排名即時更新 📡</div>
-                <button class="btn-restart-large" id="rankBackBtn" style="margin-top:8px;">🔙 返回主頁</button>
+                <button class="btn-restart-large" id="rankBackBtn" style="margin-top:8px;">🏠 返回大廳</button>
             </div>
             
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲二：節奏挑戰 (Game 2)               -->
+    <!-- ===================================== -->
+    <div id="screen-game2" class="screen">
+        <div class="card" style="padding:10px 16px;">
+            <div class="game-header-bar">
+                <div class="user-badge" id="g2User">👋 準備中...</div>
+                <div class="progress-area">
+                    <div class="stat-badge">📊 <span id="g2Progress">0/10</span></div>
+                    <div class="stat-badge score-badge">💯 <span id="g2Score">0</span></div>
+                    <div class="stat-badge combo-badge">🔥 <span id="g2Combo">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="card quiz-card" id="g2QuizCard">
+            <div class="quiz-qnum" id="g2QNum">第 1 題 / 共 10 題</div>
+            <div class="quiz-progress-track"><div class="quiz-progress-fill" id="g2ProgressFill" style="width:0%"></div></div>
+            <div class="quiz-question" id="g2Question">載入中...</div>
+            <div class="quiz-visual" id="g2Visual"></div>
+            <div class="quiz-options" id="g2Options"></div>
+        </div>
+        <div class="message-box" id="g2Message">🥁 準備好就點選答案！</div>
+        <div class="action-row">
+            <button class="btn-action" id="g2BackBtn">🔙 返回大廳</button>
+        </div>
+    </div>
+
+    <div id="screen-game2-result" class="screen">
+        <div class="leaderboard-layout">
+            <div class="report-section">
+                <h2 class="report-title">🥁 節奏挑戰完成！</h2>
+                <div class="report-grid" id="g2ReportGrid"></div>
+                <div class="weakness-box" id="g2Weakness"></div>
+                <button class="btn-restart-large" id="g2PlayAgain">🔄 再挑戰一次！</button>
+                <button class="btn-restart-large" id="g2BackToHub" style="margin-top:8px;">🏠 返回大廳</button>
+            </div>
+            <div class="ranking-section">
+                <h2 class="rank-title">🏆 節奏挑戰排行榜</h2>
+                <div class="rank-filters">
+                    <div class="rank-filter"><label>班別</label><select id="g2RankClass"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option><option value="E">E班</option><option value="F">F班</option></select></div>
+                    <div class="rank-filter"><label>年級</label><select id="g2RankGrade"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
+                </div>
+                <div class="student-rank-hint" id="g2RankHint" style="display:none;"></div>
+                <div class="rank-list" id="g2RankList"><div style="text-align:center;padding:30px;color:var(--text-light);font-weight:800;">📡 載入中...</div></div>
+                <div style="text-align:center;font-size:0.8rem;color:#888;">排名即時更新 📡</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲三：音樂術語 (Game 3)               -->
+    <!-- ===================================== -->
+    <div id="screen-game3" class="screen">
+        <div class="card" style="padding:10px 16px;">
+            <div class="game-header-bar">
+                <div class="user-badge" id="g3User">👋 準備中...</div>
+                <div class="progress-area">
+                    <div class="stat-badge">📊 <span id="g3Progress">0/10</span></div>
+                    <div class="stat-badge score-badge">💯 <span id="g3Score">0</span></div>
+                    <div class="stat-badge combo-badge">🔥 <span id="g3Combo">0</span></div>
+                    <div class="stat-badge time-badge">⏱️ <span id="g3Timer">--</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="card quiz-card" id="g3QuizCard">
+            <div class="quiz-qnum" id="g3QNum">第 1 題 / 共 10 題</div>
+            <div class="quiz-progress-track"><div class="quiz-progress-fill" id="g3ProgressFill" style="width:0%"></div></div>
+            <div class="quiz-timer-track"><div class="quiz-timer-fill" id="g3TimerFill" style="width:100%"></div></div>
+            <div class="quiz-question" id="g3Question">載入中...</div>
+            <div class="quiz-visual" id="g3Visual"></div>
+            <div class="quiz-options" id="g3Options"></div>
+        </div>
+        <div class="message-box" id="g3Message">📖 準備好就點選答案！</div>
+        <div class="action-row">
+            <button class="btn-action" id="g3BackBtn">🔙 返回大廳</button>
+        </div>
+    </div>
+
+    <div id="screen-game3-result" class="screen">
+        <div class="leaderboard-layout">
+            <div class="report-section">
+                <h2 class="report-title">📖 音樂術語完成！</h2>
+                <div class="report-grid" id="g3ReportGrid"></div>
+                <div class="weakness-box" id="g3Weakness"></div>
+                <button class="btn-restart-large" id="g3PlayAgain">🔄 再挑戰一次！</button>
+                <button class="btn-restart-large" id="g3BackToHub" style="margin-top:8px;">🏠 返回大廳</button>
+            </div>
+            <div class="ranking-section">
+                <h2 class="rank-title">🏆 音樂術語排行榜</h2>
+                <div class="rank-filters">
+                    <div class="rank-filter"><label>班別</label><select id="g3RankClass"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option><option value="E">E班</option><option value="F">F班</option></select></div>
+                    <div class="rank-filter"><label>年級</label><select id="g3RankGrade"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
+                </div>
+                <div class="student-rank-hint" id="g3RankHint" style="display:none;"></div>
+                <div class="rank-list" id="g3RankList"><div style="text-align:center;padding:30px;color:var(--text-light);font-weight:800;">📡 載入中...</div></div>
+                <div style="text-align:center;font-size:0.8rem;color:#888;">排名即時更新 📡</div>
+            </div>
         </div>
     </div>
 

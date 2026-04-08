@@ -1194,6 +1194,8 @@
     }
 
     function renderRanks() {
+        const gf = document.getElementById('rankGameFilter');
+        if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         let f = state.allRanks.filter(r => r.mode === fM); 
         if (fC !== '0') f = f.filter(r => r.class === fC); 
@@ -1380,16 +1382,18 @@
         dom.endBtn.addEventListener('click', endGame); 
         dom.backToSetupBtn.addEventListener('click', () => { audio.playClick();
             dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
-            switchScreen('screen-setup'); 
+            switchScreen('screen-hub');
         });
         document.getElementById('rankBackBtn')?.addEventListener('click', () => { audio.init(); audio.playClick();
             dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
-            switchScreen('screen-setup');
+            switchScreen('screen-hub');
         });
         dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
             dom.leaderboardLayout.classList.add('view-only');
             dom.reportGrid.innerHTML = '';
             dom.reportWeakness.innerHTML = '';
+            const gf = document.getElementById('rankGameFilter');
+            if (gf) { gf.value = 'game1'; const mfRow = dom.rankModeFilter?.closest?.('.rank-filter'); if (mfRow) mfRow.style.display = ''; }
             loadRanks();
             switchScreen('screen-leaderboard');
         });
@@ -1397,6 +1401,12 @@
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
         
+        document.getElementById('rankGameFilter')?.addEventListener('change', () => {
+            const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+            if (mfRow) mfRow.style.display = document.getElementById('rankGameFilter').value === 'game1' ? '' : 'none';
+            renderRanks();
+        });
+
         [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
         const preventInput = () => state.inputFocused = true;
         const allowInput = () => state.inputFocused = false; 
@@ -1450,5 +1460,517 @@
         if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
         initEvents();
         initTutorial();
+        initHub();
     });
+
+    // ==========================================
+    // 🏠 Hub — 大廳共用登入 & 導航
+    // ==========================================
+    function initHub() {
+        const hubGrade = document.getElementById('hubGrade');
+        const hubClass = document.getElementById('hubClass');
+        const hubName  = document.getElementById('hubName');
+        const hubSeat  = document.getElementById('hubSeat');
+        const hubNameField = document.getElementById('hubNameField');
+
+        function populateHub() {
+            const grade = hubGrade.value, cls = hubClass.value;
+            const students = getStudentList(grade, cls);
+            const prev = hubName.value;
+            const frag = document.createDocumentFragment();
+            const first = document.createElement('option');
+            first.value = ''; first.textContent = '選擇你的名字';
+            frag.appendChild(first);
+            students.forEach((n, i) => {
+                const o = document.createElement('option');
+                o.value = n; o.textContent = n; o.dataset.seat = i + 1;
+                frag.appendChild(o);
+            });
+            hubName.innerHTML = ''; hubName.appendChild(frag);
+            if (prev && students.includes(prev)) { hubName.value = prev; }
+            else { hubName.value = ''; hubSeat.value = ''; }
+        }
+
+        function syncFromHub() {
+            // Mirror hub values → game-1 (existing) fields
+            if (dom.userGrade) dom.userGrade.value = hubGrade.value;
+            if (dom.userClass) dom.userClass.value = hubClass.value;
+            populateNameDropdown();
+            if (dom.userName && hubName.value) dom.userName.value = hubName.value;
+            if (dom.userId && hubSeat.value) dom.userId.value = hubSeat.value;
+        }
+
+        hubGrade.addEventListener('change', () => { populateHub(); });
+        hubClass.addEventListener('change', () => { populateHub(); });
+        hubName.addEventListener('change', () => {
+            const sel = hubName.selectedOptions[0];
+            hubSeat.value = (sel && sel.dataset.seat) ? sel.dataset.seat : '';
+            // Show/hide player badge
+            const badge = document.getElementById('hubPlayerBadge');
+            const badgeText = document.getElementById('hubPlayerBadgeText');
+            const loginCard = document.querySelector('.hub-login-card');
+            if (hubName.value && badge && badgeText) {
+                badgeText.textContent = `${hubGrade.options[hubGrade.selectedIndex].text} ${hubClass.value}班 · ${hubName.value} 同學`;
+                badge.classList.add('show');
+                if (loginCard) loginCard.classList.add('player-selected');
+            } else if (badge) {
+                badge.classList.remove('show');
+                if (loginCard) loginCard.classList.remove('player-selected');
+            }
+        });
+
+        populateHub();
+
+        // Grade/class default from saved Game-1 settings
+        const saved = localStorage.getItem('musicGameSettingsV4');
+        if (saved) {
+            try {
+                const s = JSON.parse(saved);
+                if (s.userGrade) hubGrade.value = s.userGrade;
+                if (s.userClass) hubClass.value = s.userClass;
+                populateHub();
+                if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+            } catch(e) {}
+        }
+
+        function getHubUser() {
+            return { name: hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
+        }
+
+        function requireHubLogin(nameFieldEl) {
+            if (!hubName.value) {
+                if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
+                alert('❗ 請先選擇你的名字才可以進入遊戲！');
+                return false;
+            }
+            return true;
+        }
+
+        // Game 1 entry — sync hub → setup then show setup
+        document.getElementById('enterGame1').addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            // Auto-sync grade textbook level
+            if (dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
+            switchScreen('screen-setup');
+        });
+
+        document.getElementById('enterGame2').addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            startGame2(getHubUser());
+        });
+
+        document.getElementById('enterGame3').addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            startGame3(getHubUser());
+        });
+
+        document.getElementById('hubViewRanksBtn').addEventListener('click', () => {
+            dom.leaderboardLayout.classList.add('view-only');
+            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
+            const gf = document.getElementById('rankGameFilter');
+            if (gf) gf.value = 'game1';
+            const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+            if (mfRow) mfRow.style.display = '';
+            loadRanks();
+            switchScreen('screen-leaderboard');
+        });
+
+        document.getElementById('backToHubFromSetup').addEventListener('click', () => {
+            switchScreen('screen-hub');
+        });
+    }
+
+    // ==========================================
+    // renderRanksForGame — Game 2/3 shared ranks
+    // ==========================================
+    function renderRanksForGame(gameKey) {
+        const data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
+        data.sort((a,b) => (b.score||0) - (a.score||0));
+        const seen = new Set();
+        const deduped = data.filter(r => {
+            const k = `${r.name}|${r.grade}|${r.class}|${r.seat}`;
+            if (seen.has(k)) return false; seen.add(k); return true;
+        });
+        if (!dom.rankList) return;
+        if (!deduped.length) { dom.rankList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-weight:800;">暫時未有紀錄，做第一個挑戰者！🚀</div>'; return; }
+        dom.rankList.innerHTML = deduped.slice(0, 50).map((item, i) => {
+            const cls = escHtml(item.class||''); const name = escHtml(item.name||'');
+            const score = item.score || 0; const acc = item.accuracy || 0;
+            return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''}">
+                <div class="rank-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'}</div>
+                <div class="rank-name">
+                    <span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag rank-class-tag">${cls}班</span><span class="rank-tag" style="background:#CBD5E1;color:#333;">${acc}% 正確</span></div>
+                </div>
+                <div class="rank-score">${score}</div></div>`;
+        }).join('');
+    }
+
+    function saveLocalRank(gameKey, user, score, accuracy, maxCombo) {
+        try {
+            const all = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
+            const idx = all.findIndex(r => r.name === user.name && r.class === user.class && r.grade === user.grade);
+            if (idx >= 0) { if (score > (all[idx].score || 0)) { all[idx].score = score; all[idx].accuracy = accuracy; all[idx].maxCombo = maxCombo; } }
+            else all.push({ name: user.name, grade: user.grade, class: user.class, seat: user.seat, score, accuracy, maxCombo });
+            localStorage.setItem('musicGameRanks_' + gameKey, JSON.stringify(all));
+        } catch(e) {}
+    }
+
+    // ==========================================
+    // 🥁 Game 2 — 節奏挑戰遊戲
+    // ==========================================
+    const RHYTHM_BANK = {
+        // Format: { label, symbol, beats }
+        // Grade 1-2: basic quarter / half / whole
+        easy: [
+            { q: '以下節奏組合共有多少拍？', sym: '♩ ♩ ♩ ♩', ans: 4, opts: [3,4,5,6] },
+            { q: '以下節奏組合共有多少拍？', sym: '♩ ♩ 𝅗𝅥', ans: 4, opts: [3,4,5,6] },
+            { q: '以下節奏組合共有多少拍？', sym: '𝅗𝅥 𝅗𝅥', ans: 4, opts: [3,4,5,6] },
+            { q: '以下節奏組合共有多少拍？', sym: '♩ ♩ ♩', ans: 3, opts: [2,3,4,5] },
+            { q: '一個二分音符（𝅗𝅥）等於多少拍？', sym: '𝅗𝅥 = ?', ans: 2, opts: [1,2,3,4] },
+            { q: '一個四分音符（♩）等於多少拍？', sym: '♩ = ?', ans: 1, opts: [1,2,3,4] },
+            { q: '一個全音符（𝅝）等於多少拍？', sym: '𝅝 = ?', ans: 4, opts: [2,3,4,6] },
+            { q: '3/4 拍子每小節有多少拍？', sym: '3/4', ans: 3, opts: [2,3,4,6] },
+            { q: '4/4 拍子每小節有多少拍？', sym: '4/4', ans: 4, opts: [2,3,4,6] },
+            { q: '2/4 拍子每小節有多少拍？', sym: '2/4', ans: 2, opts: [2,3,4,6] },
+        ],
+        // Grade 3-4: dotted / eighth
+        medium: [
+            { q: '一個附點二分音符（𝅗𝅥.）等於多少拍？', sym: '𝅗𝅥. = ?', ans: 3, opts: [2,3,4,5] },
+            { q: '一個八分音符（♪）等於多少拍？', sym: '♪ = ?', ans: 0.5, opts: [0.5,1,1.5,2], optLabels:['½','1','1½','2'] },
+            { q: '♪ ♪ ♪ ♪ 共多少拍？', sym: '♪ ♪ ♪ ♪', ans: 2, opts: [1,2,3,4] },
+            { q: '♩. ♪ 在 2/4 拍子裏佔多少小節？', sym: '♩. ♪', ans: 1, opts: [1,2,3,4] },
+            { q: '𝅗𝅥 ♩ 共多少拍？', sym: '𝅗𝅥 ♩', ans: 3, opts: [2,3,4,5] },
+            { q: '♩ ♪ ♪ ♩ 共多少拍？', sym: '♩ ♪ ♪ ♩', ans: 4, opts: [3,4,5,6] },
+            { q: '以下哪個是半拍音符？', sym: '♩  𝅗𝅥  ♪  𝅝', ans: '♪', opts: ['♩','𝅗𝅥','♪','𝅝'], isText: true },
+            { q: '一個附點四分音符（♩.）等於多少拍？', sym: '♩. = ?', ans: 1.5, opts: [1,1.5,2,2.5], optLabels:['1','1½','2','2½'] },
+            { q: '3/4 拍子的「以一」是哪種音符？', sym: '3/4', ans: '四分音符', opts: ['八分音符','四分音符','二分音符','全音符'], isText: true },
+            { q: '♩ ♩ ♪ ♪ ♩ 共多少拍？', sym: '♩ ♩ ♪ ♪ ♩', ans: 4, opts: [3,4,5,6] },
+        ],
+        // Grade 5-6: semiquaver / compound
+        hard: [
+            { q: '一個十六分音符（𝅘𝅥𝅯）等於多少拍？', sym: '𝅘𝅥𝅯 = ?', ans: 0.25, opts: [0.25,0.5,1,2], optLabels:['¼','½','1','2'] },
+            { q: '𝅘𝅥𝅯 𝅘𝅥𝅯 𝅘𝅥𝅯 𝅘𝅥𝅯 共多少拍？', sym: '𝅘𝅥𝅯 𝅘𝅥𝅯 𝅘𝅥𝅯 𝅘𝅥𝅯', ans: 1, opts: [0.5,1,2,4] },
+            { q: '♪. 𝅘𝅥𝅯 共多少拍？', sym: '♪. 𝅘𝅥𝅯', ans: 1, opts: [0.5,1,1.5,2] },
+            { q: '6/8 拍子每小節有多少八分音符？', sym: '6/8', ans: 6, opts: [3,4,6,8] },
+            { q: '6/8 拍子的主拍是哪種音符？', sym: '6/8', ans: '附點四分音符', opts: ['四分音符','二分音符','附點四分音符','八分音符'], isText: true },
+            { q: '♩ ♪. 𝅘𝅥𝅯 ♩ 共多少拍？', sym: '♩ ♪. 𝅘𝅥𝅯 ♩', ans: 4, opts: [3,4,5,6] },
+            { q: '𝅝 ♪ ♪ 共多少拍？', sym: '𝅝 ♪ ♪', ans: 5, opts: [4,5,6,7] },
+            { q: '以下哪個節奏在 4/4 裏佔一整小節？', sym: '?', ans: '𝅝', opts: ['♩ ♩ ♩','𝅗𝅥 𝅗𝅥 ♩','𝅝','♩. ♪ ♩'], isText: true },
+            { q: '一個附點全音符（𝅝.）等於多少拍？', sym: '𝅝. = ?', ans: 6, opts: [4,5,6,7] },
+            { q: '切分音是指重拍放在哪裏？', sym: '切分', ans: '弱拍', opts: ['強拍','弱拍','第一拍','第三拍'], isText: true },
+        ]
+    };
+
+    const RHYTHM_GRADE_BANK = { 1:'easy',2:'easy',3:'medium',4:'medium',5:'hard',6:'hard' };
+
+    let g2State = {};
+
+    function startGame2(user) {
+        g2State = { user, score: 0, combo: 0, maxCombo: 0, qIdx: 0, wrong: 0, questions: [] };
+        audio.init(); audio.warmUp();
+
+        // Pick bank by grade
+        const bankKey = RHYTHM_GRADE_BANK[user.grade] || 'medium';
+        const pool = RHYTHM_BANK[bankKey].slice();
+        // Shuffle
+        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+        g2State.questions = pool.slice(0, 10);
+
+        document.getElementById('g2User').textContent = `👋 ${user.name} 同學 — 節奏挑戰`;
+        document.getElementById('g2BackBtn').onclick = () => switchScreen('screen-hub');
+        switchScreen('screen-game2');
+        renderG2Question();
+    }
+
+    function renderG2Question() {
+        const { questions, qIdx } = g2State;
+        if (qIdx >= questions.length) { endGame2(); return; }
+        const q = questions[qIdx];
+        document.getElementById('g2Progress').textContent = `${qIdx+1}/10`;
+        document.getElementById('g2Score').textContent = g2State.score;
+        document.getElementById('g2Combo').textContent = g2State.combo;
+        document.getElementById('g2QNum').textContent = `第 ${qIdx+1} 題 / 共 10 題`;
+        const pct = (qIdx / questions.length) * 100;
+        const pfill = document.getElementById('g2ProgressFill');
+        if (pfill) pfill.style.width = pct + '%';
+        document.getElementById('g2Question').textContent = q.q;
+        document.getElementById('g2Visual').innerHTML = `<div class="term-display" style="font-size:2rem;">${escHtml(q.sym)}</div>`;
+        document.getElementById('g2Message').textContent = '🥁 請選擇正確答案！';
+        document.getElementById('g2Message').className = 'message-box';
+
+        const optEl = document.getElementById('g2Options');
+        optEl.innerHTML = '';
+        const opts = q.opts.slice();
+        const labels = q.optLabels || opts.map(String);
+        opts.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt-btn';
+            btn.textContent = q.isText ? opt : labels[i];
+            btn.addEventListener('click', () => handleG2Answer(opt, q.ans, btn));
+            optEl.appendChild(btn);
+        });
+    }
+
+    function handleG2Answer(chosen, correct, btn) {
+        const isCorrect = String(chosen) === String(correct);
+        document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+        const msgEl = document.getElementById('g2Message');
+        if (isCorrect) {
+            btn.classList.add('correct');
+            g2State.combo++;
+            if (g2State.combo > g2State.maxCombo) g2State.maxCombo = g2State.combo;
+            let pts = 10;
+            if (g2State.combo >= 5) pts += 10;
+            else if (g2State.combo >= 3) pts += 5;
+            g2State.score += pts;
+            audio.playEffect && audio.playEffect('countdown');
+            msgEl.textContent = `✅ 答對！+${pts} 分 🎉`;
+            msgEl.className = 'message-box correct';
+        } else {
+            btn.classList.add('wrong');
+            // Highlight correct btn
+            document.querySelectorAll('.quiz-opt-btn').forEach(b => { if (String(b.textContent) === String(correct)) b.classList.add('correct'); });
+            g2State.combo = 0; g2State.wrong++;
+            audio.playEffect && audio.playEffect('wrong');
+            msgEl.textContent = `❌ 答錯了！正確答案是 ${correct}`;
+            msgEl.className = 'message-box wrong';
+        }
+        document.getElementById('g2Score').textContent = g2State.score;
+        document.getElementById('g2Combo').textContent = g2State.combo;
+        g2State.qIdx++;
+        setTimeout(() => renderG2Question(), 1400);
+    }
+
+    function endGame2() {
+        const { user, score, wrong, maxCombo, questions } = g2State;
+        const correct = questions.length - wrong;
+        // All-correct bonus
+        let finalScore = score;
+        if (wrong === 0) finalScore += 30;
+        g2State.score = finalScore;
+        const accuracy = Math.round((correct / questions.length) * 100);
+        saveLocalRank('game2', user, finalScore, accuracy, maxCombo);
+
+        document.getElementById('g2ReportGrid').innerHTML = `
+            <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${questions.length}</div></div>
+            <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
+            <div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div>
+            <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
+            <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>`;
+        document.getElementById('g2Weakness').innerHTML = wrong === 0
+            ? '<div>🌟 全部答對！你係節奏小達人！🎉</div>'
+            : `<div>繼續練習加油！正確 ${correct}/${questions.length} 題。</div>`;
+
+        // Render local rank list
+        renderLocalRankList('game2', 'g2RankList', user);
+        document.getElementById('g2RankClass').addEventListener('change', () => renderLocalRankList('game2','g2RankList', user));
+        document.getElementById('g2RankGrade').addEventListener('change', () => renderLocalRankList('game2','g2RankList', user));
+        document.getElementById('g2PlayAgain').onclick = () => startGame2(user);
+        document.getElementById('g2BackToHub').onclick = () => switchScreen('screen-hub');
+        switchScreen('screen-game2-result');
+    }
+
+    function renderLocalRankList(gameKey, listId, currentUser) {
+        const listEl = document.getElementById(listId);
+        if (!listEl) return;
+        const clsEl = document.getElementById(gameKey === 'game2' ? 'g2RankClass' : 'g3RankClass');
+        const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : 'g3RankGrade');
+        let data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
+        if (clsEl && clsEl.value !== '0') data = data.filter(r => r.class === clsEl.value);
+        if (gradeEl && parseInt(gradeEl.value) !== 0) data = data.filter(r => parseInt(r.grade) === parseInt(gradeEl.value));
+        data.sort((a,b) => (b.score||0) - (a.score||0));
+        if (!data.length) { listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-light);font-weight:800;">暫時未有紀錄🚀</div>'; return; }
+        listEl.innerHTML = data.slice(0,50).map((item,i) => {
+            const isSelf = item.name === (currentUser && currentUser.name) && item.class === (currentUser && currentUser.class);
+            return `<div class="rank-item ${i===0?'first':i===1?'second':i===2?'third':''} ${isSelf?'self':''}">
+                <div class="rank-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'}</div>
+                <div class="rank-name"><span class="rank-student-name">${escHtml(item.name||'')}</span>
+                <div class="rank-badges"><span class="rank-tag rank-class-tag">${escHtml(item.class||'')}班</span>${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">我</span>':''}<span class="rank-tag" style="background:#CBD5E1;color:#333;">${item.accuracy||0}% 正確</span></div></div>
+                <div class="rank-score">${item.score||0}</div></div>`;
+        }).join('');
+    }
+
+    // ==========================================
+    // 📖 Game 3 — 音樂術語辨識遊戲
+    // ==========================================
+    const TERMS_BANK = {
+        easy: [
+            { q: '「f」代表甚麼？', sym: 'f', ans: '強', opts: ['強','弱','中強','中弱'] },
+            { q: '「p」代表甚麼？', sym: 'p', ans: '弱', opts: ['強','弱','中強','中弱'] },
+            { q: '「mf」代表甚麼？', sym: 'mf', ans: '中強', opts: ['強','弱','中強','漸強'] },
+            { q: '「mp」代表甚麼？', sym: 'mp', ans: '中弱', opts: ['強','弱','中強','中弱'] },
+            { q: '「ff」代表甚麼？', sym: 'ff', ans: '很強', opts: ['很強','很弱','中強','漸強'] },
+            { q: '「pp」代表甚麼？', sym: 'pp', ans: '很弱', opts: ['很強','很弱','中強','漸弱'] },
+            { q: '「cresc.」代表甚麼？', sym: 'cresc.', ans: '漸強', opts: ['漸強','漸弱','漸快','漸慢'] },
+            { q: '「decresc.」代表甚麼？', sym: 'decresc.', ans: '漸弱', opts: ['漸強','漸弱','漸快','漸慢'] },
+            { q: '「Forte」是甚麼意思？', sym: 'Forte', ans: '強', opts: ['強','弱','快','慢'] },
+            { q: '「Piano」（力度）是甚麼意思？', sym: 'Piano', ans: '弱', opts: ['強','弱','快','慢'] },
+        ],
+        medium: [
+            { q: '「Andante」是甚麼速度？', sym: 'Andante', ans: '行板（中慢速）', opts: ['行板（中慢速）','急板（很快）','柔板（很慢）','小行板（稍慢）'] },
+            { q: '「Allegro」是甚麼速度？', sym: 'Allegro', ans: '快板', opts: ['快板','行板','柔板','慢板'] },
+            { q: '「Adagio」是甚麼速度？', sym: 'Adagio', ans: '柔板（很慢）', opts: ['行板（中慢速）','快板','柔板（很慢）','急板'] },
+            { q: '「Moderato」是甚麼速度？', sym: 'Moderato', ans: '中板', opts: ['快板','中板','柔板','行板'] },
+            { q: '「staccato」（·）代表甚麼？', sym: '·', ans: '斷奏', opts: ['連奏','斷奏','強奏','漸弱'] },
+            { q: '「legato」代表甚麼？', sym: 'legato', ans: '連奏', opts: ['連奏','斷奏','強奏','漸弱'] },
+            { q: '調號「1個升號」是哪個大調？', sym: '♯', ans: 'G大調', opts: ['C大調','G大調','D大調','F大調'] },
+            { q: '調號「1個降號」是哪個大調？', sym: '♭', ans: 'F大調', opts: ['C大調','G大調','D大調','F大調'] },
+            { q: '「accent」（>）是甚麼意思？', sym: '>', ans: '重音', opts: ['重音','強音','斷奏','漸強'] },
+            { q: '「sfz」代表甚麼？', sym: 'sfz', ans: '突強', opts: ['突強','漸強','強','中強'] },
+        ],
+        hard: [
+            { q: '「調號 2 個升號」是哪個大調？', sym: '♯♯', ans: 'D大調', opts: ['D大調','A大調','E大調','G大調'] },
+            { q: '「調號 2 個降號」是哪個大調？', sym: '♭♭', ans: 'B♭大調', opts: ['B♭大調','E♭大調','A♭大調','F大調'] },
+            { q: '「Presto」是甚麼速度？', sym: 'Presto', ans: '急板（極快）', opts: ['行板','快板','急板（極快）','慢板'] },
+            { q: '「Largo」是甚麼速度？', sym: 'Largo', ans: '廣板（極慢）', opts: ['廣板（極慢）','行板','中板','快板'] },
+            { q: '「Da Capo（D.C.）」代表甚麼？', sym: 'D.C.', ans: '從頭再奏', opts: ['從頭再奏','從記號重奏','跳至結尾','速度加快'] },
+            { q: '「Dal Segno（D.S.）」代表甚麼？', sym: 'D.S.', ans: '從記號重奏', opts: ['從頭再奏','從記號重奏','跳至結尾','速度減慢'] },
+            { q: '「Fine」代表甚麼？', sym: 'Fine', ans: '樂曲結束', opts: ['樂曲結束','從頭再奏','漸弱','反覆記號'] },
+            { q: '「調號 3 個升號」是哪個大調？', sym: '♯♯♯', ans: 'A大調', opts: ['A大調','E大調','B大調','D大調'] },
+            { q: '「Ritardando（rit.）」代表甚麼？', sym: 'rit.', ans: '漸慢', opts: ['漸慢','漸快','漸強','漸弱'] },
+            { q: '「Accelerando（accel.）」代表甚麼？', sym: 'accel.', ans: '漸快', opts: ['漸慢','漸快','漸強','漸弱'] },
+        ]
+    };
+
+    const TERMS_GRADE_BANK = { 1:'easy',2:'easy',3:'medium',4:'medium',5:'hard',6:'hard' };
+
+    let g3State = {};
+    let g3TimerHandle = null;
+
+    function startGame3(user) {
+        g3State = { user, score: 0, combo: 0, maxCombo: 0, qIdx: 0, wrong: 0, questions: [], timePerQ: 15, timeLeft: 15 };
+        if (g3TimerHandle) clearInterval(g3TimerHandle);
+        audio.init(); audio.warmUp();
+
+        const bankKey = TERMS_GRADE_BANK[user.grade] || 'medium';
+        const pool = TERMS_BANK[bankKey].slice();
+        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+        g3State.questions = pool.slice(0, 10);
+
+        document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 音樂術語`;
+        document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
+        switchScreen('screen-game3');
+        renderG3Question();
+    }
+
+    function renderG3Question() {
+        if (g3TimerHandle) clearInterval(g3TimerHandle);
+        const { questions, qIdx, timePerQ } = g3State;
+        if (qIdx >= questions.length) { endGame3(); return; }
+        const q = questions[qIdx];
+        document.getElementById('g3Progress').textContent = `${qIdx+1}/10`;
+        document.getElementById('g3Score').textContent = g3State.score;
+        document.getElementById('g3Combo').textContent = g3State.combo;
+        document.getElementById('g3QNum').textContent = `第 ${qIdx+1} 題 / 共 10 題`;
+        const g3pct = (qIdx / questions.length) * 100;
+        const g3pfill = document.getElementById('g3ProgressFill');
+        if (g3pfill) g3pfill.style.width = g3pct + '%';
+        document.getElementById('g3Question').textContent = q.q;
+        document.getElementById('g3Visual').innerHTML = `<div class="term-display term-italic">${escHtml(q.sym)}</div>`;
+        document.getElementById('g3Message').textContent = '📖 快速選出正確答案！';
+        document.getElementById('g3Message').className = 'message-box';
+
+        // Timer bar
+        const g3timerFill = document.getElementById('g3TimerFill');
+        if (g3timerFill) { g3timerFill.style.width = '100%'; g3timerFill.classList.remove('urgent'); }
+        // Timer
+        g3State.timeLeft = timePerQ;
+        const timerEl = document.getElementById('g3Timer');
+        const updateTimer = () => {
+            timerEl.textContent = g3State.timeLeft + 's';
+            const pct = (g3State.timeLeft / timePerQ) * 100;
+            if (g3timerFill) { g3timerFill.style.width = pct + '%'; if (g3State.timeLeft <= 5) g3timerFill.classList.add('urgent'); else g3timerFill.classList.remove('urgent'); }
+            if (g3State.timeLeft <= 5) timerEl.style.color = 'var(--primary-red)'; else timerEl.style.color = '';
+        };
+        updateTimer();
+        g3TimerHandle = setInterval(() => {
+            g3State.timeLeft--;
+            updateTimer();
+            if (g3State.timeLeft <= 0) {
+                clearInterval(g3TimerHandle);
+                document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+                g3State.combo = 0; g3State.wrong++;
+                const msgEl = document.getElementById('g3Message');
+                msgEl.textContent = `⏰ 時間到！正確答案是「${q.ans}」`;
+                msgEl.className = 'message-box wrong';
+                audio.playEffect && audio.playEffect('wrong');
+                g3State.qIdx++;
+                setTimeout(() => renderG3Question(), 1600);
+            }
+        }, 1000);
+
+        const optEl = document.getElementById('g3Options');
+        optEl.innerHTML = '';
+        q.opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt-btn';
+            btn.textContent = opt;
+            btn.addEventListener('click', () => handleG3Answer(opt, q.ans, btn, q));
+            optEl.appendChild(btn);
+        });
+    }
+
+    function handleG3Answer(chosen, correct, btn, q) {
+        if (g3TimerHandle) clearInterval(g3TimerHandle);
+        const isCorrect = chosen === correct;
+        document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+        const msgEl = document.getElementById('g3Message');
+        if (isCorrect) {
+            btn.classList.add('correct');
+            g3State.combo++;
+            if (g3State.combo > g3State.maxCombo) g3State.maxCombo = g3State.combo;
+            let pts = 10;
+            if (g3State.timeLeft >= 10) pts += 3; // fast bonus
+            if (g3State.combo >= 5) pts += 10;
+            g3State.score += pts;
+            audio.playEffect && audio.playEffect('countdown');
+            msgEl.textContent = `✅ 答對！+${pts} 分${g3State.timeLeft >= 10 ? ' ⚡ 快速加分！' : ''}`;
+            msgEl.className = 'message-box correct';
+        } else {
+            btn.classList.add('wrong');
+            document.querySelectorAll('.quiz-opt-btn').forEach(b => { if (b.textContent === correct) b.classList.add('correct'); });
+            g3State.combo = 0; g3State.wrong++;
+            audio.playEffect && audio.playEffect('wrong');
+            msgEl.textContent = `❌ 答錯！正確答案是「${correct}」`;
+            msgEl.className = 'message-box wrong';
+        }
+        document.getElementById('g3Score').textContent = g3State.score;
+        document.getElementById('g3Combo').textContent = g3State.combo;
+        g3State.qIdx++;
+        setTimeout(() => renderG3Question(), 1400);
+    }
+
+    function endGame3() {
+        if (g3TimerHandle) clearInterval(g3TimerHandle);
+        const { user, score, wrong, maxCombo, questions } = g3State;
+        const correct = questions.length - wrong;
+        let finalScore = score;
+        if (wrong === 0) finalScore += 20; // all correct bonus
+        g3State.score = finalScore;
+        const accuracy = Math.round((correct / questions.length) * 100);
+        saveLocalRank('game3', user, finalScore, accuracy, maxCombo);
+
+        document.getElementById('g3ReportGrid').innerHTML = `
+            <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${questions.length}</div></div>
+            <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
+            <div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div>
+            <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
+            <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>`;
+        document.getElementById('g3Weakness').innerHTML = wrong === 0
+            ? '<div>🌟 全部答對！你係音樂術語小專家！🎉</div>'
+            : `<div>繼續練習加油！正確 ${correct}/${questions.length} 題。</div>`;
+
+        renderLocalRankList('game3', 'g3RankList', user);
+        document.getElementById('g3RankClass').addEventListener('change', () => renderLocalRankList('game3','g3RankList', user));
+        document.getElementById('g3RankGrade').addEventListener('change', () => renderLocalRankList('game3','g3RankList', user));
+        document.getElementById('g3PlayAgain').onclick = () => startGame3(user);
+        document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-hub');
+        switchScreen('screen-game3-result');
+    }
+
 })();
+
+
+
