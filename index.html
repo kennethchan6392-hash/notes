@@ -25,7 +25,11 @@
             <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案 & 音量設定">👤</button>
             <span class="hub-corner-hint">檔案&設定</span>
         </div>
-        <h1 class="game-title">🎵 音符小精靈</h1>
+        <div class="hub-corner-actions hub-corner-left">
+            <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊">👥</button>
+            <button class="hub-social-corner-btn" id="hubChatBtn" title="聊天室">💬</button>
+        </div>
+        <h1 class="game-title"><span class="title-icon">🎵</span> 音符小精靈</h1>
         <div class="game-subtitle">互動音樂學習站 · 小一至小六</div>
 
         <div class="card hub-login-card">
@@ -60,21 +64,48 @@
         <div class="hub-games-grid">
             <div class="hub-game-card hub-game1" id="enterGame1">
                 <div class="hub-game-tag">遊戲一</div>
-                <div class="hub-game-icon">🎵</div>
+                <div class="hub-game-illust illust-1">
+                    <div class="illust-bg"></div>
+                    <div class="illust-icon">🎵</div>
+                    <div class="illust-deco d1">♪</div>
+                    <div class="illust-deco d2">♯</div>
+                    <div class="illust-deco d3">♭</div>
+                    <div class="illust-staff">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
                 <div class="hub-game-name">音名辨別</div>
                 <div class="hub-game-desc">睇五線譜認音名<br>快速反應拿高分</div>
                 <div class="hub-game-btn">立即挑戰 ▶</div>
             </div>
             <div class="hub-game-card hub-game2" id="enterGame2">
                 <div class="hub-game-tag">遊戲二</div>
-                <div class="hub-game-icon">🥁</div>
+                <div class="hub-game-illust illust-2">
+                    <div class="illust-bg"></div>
+                    <div class="illust-icon">🥁</div>
+                    <div class="illust-deco d1">🎶</div>
+                    <div class="illust-deco d2">♩</div>
+                    <div class="illust-deco d3">♬</div>
+                    <div class="illust-beats">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
                 <div class="hub-game-name">節奏卡打擊</div>
                 <div class="hub-game-desc">看清節奏卡<br>跟住節拍器打拍子</div>
                 <div class="hub-game-btn">立即挑戰 ▶</div>
             </div>
             <div class="hub-game-card hub-game3" id="enterGame3">
                 <div class="hub-game-tag">遊戲三</div>
-                <div class="hub-game-icon">📖</div>
+                <div class="hub-game-illust illust-3">
+                    <div class="illust-bg"></div>
+                    <div class="illust-icon">📖</div>
+                    <div class="illust-deco d1">𝄞</div>
+                    <div class="illust-deco d2">𝆑</div>
+                    <div class="illust-deco d3">𝆏</div>
+                    <div class="illust-sparkle">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
                 <div class="hub-game-name">音樂術語</div>
                 <div class="hub-game-desc">認識音樂術語記號<br>搶快作答得獎勵分</div>
                 <div class="hub-game-btn">立即挑戰 ▶</div>
@@ -164,6 +195,87 @@
     </div>
 
     <!-- ===================================== -->
+    <!-- 同學名冊 (Classmates Directory)       -->
+    <!-- ===================================== -->
+    <div id="screen-classmates" class="screen">
+        <button class="btn-back-hub" id="classmatesBackBtn">← 返回大廳</button>
+        <h2 class="social-title">👥 同學名冊</h2>
+        <div class="social-subtitle">查看同班同學的音樂檔案</div>
+
+        <div class="classmate-filters">
+            <div class="hub-field" style="flex:1;min-width:80px;">
+                <label>年級</label>
+                <select id="cmGrade">
+                    <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                    <option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option>
+                </select>
+            </div>
+            <div class="hub-field" style="flex:1;min-width:80px;">
+                <label>班別</label>
+                <select id="cmClass">
+                    <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
+                    <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="classmate-list" id="classmateList"></div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 查看他人檔案 (View Other Profile)     -->
+    <!-- ===================================== -->
+    <div id="screen-view-profile" class="screen">
+        <button class="btn-back-hub" id="viewProfileBackBtn">← 返回名冊</button>
+        <div class="vp-header">
+            <div class="vp-avatar" id="vpAvatar">🎵</div>
+            <div class="vp-info">
+                <div class="vp-name" id="vpName">同學名稱</div>
+                <div class="vp-sig" id="vpSig">尚未設定簽名</div>
+                <div class="vp-meta" id="vpMeta"></div>
+            </div>
+        </div>
+        <div class="vp-level-bar">
+            <div class="vp-level-badge" id="vpLevel">Lv.1</div>
+            <div class="profile-exp-track"><div class="profile-exp-fill" id="vpExpFill" style="width:0%"></div></div>
+        </div>
+        <div class="vp-stats-grid" id="vpStatsGrid">
+            <div class="profile-stat"><div class="profile-stat-val" id="vpTotalPlayed">0</div><div class="profile-stat-label">遊戲次數</div></div>
+            <div class="profile-stat"><div class="profile-stat-val" id="vpCleared">0</div><div class="profile-stat-label">通關次數</div></div>
+            <div class="profile-stat"><div class="profile-stat-val" id="vpTotalScore">0</div><div class="profile-stat-label">總分數</div></div>
+            <div class="profile-stat"><div class="profile-stat-val" id="vpMaxCombo">0</div><div class="profile-stat-label">最高連擊</div></div>
+        </div>
+        <div class="vp-game-bests">
+            <div class="profile-section-title">🎮 最高分</div>
+            <div class="profile-game-best"><span class="pgb-icon">🎵</span><span class="pgb-name">音名辨別</span><span class="pgb-score" id="vpGame1">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏卡打擊</span><span class="pgb-score" id="vpGame2">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-score" id="vpGame3">---</span></div>
+        </div>
+        <button class="btn-action vp-chat-btn" id="vpChatBtn">💬 傳送訊息</button>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 聊天室 (Chat Screen)                  -->
+    <!-- ===================================== -->
+    <div id="screen-chat" class="screen">
+        <button class="btn-back-hub" id="chatBackBtn">← 返回</button>
+        <h2 class="social-title">💬 訊息</h2>
+        <div class="chat-tabs">
+            <button class="chat-tab active" data-tab="class">🏫 班級聊天室</button>
+            <button class="chat-tab" data-tab="dm">📨 私人訊息</button>
+        </div>
+        <div class="chat-panel" id="chatPanel">
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-empty">選擇聊天室開始對話 💭</div>
+            </div>
+            <div class="chat-input-row">
+                <input type="text" class="chat-input" id="chatInput" maxlength="100" placeholder="輸入訊息...">
+                <button class="chat-send-btn" id="chatSendBtn">送出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 介面一：大廳與設定 (Setup Screen) -->
     <!-- ===================================== -->
     <div id="screen-setup" class="screen">
@@ -195,100 +307,7 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="settings-header" id="settingsToggleBtn">
-                <span>⚙️ 自訂練習設定</span>
-                <span id="settingsArrow">▼ 展開</span>
-            </div>
-            <div class="settings-content" id="settingsContent">
-                <div class="settings-group" style="background:#FFF9E6; border-color:#F4BA42; margin-bottom:16px;">
-                    <label class="group-title">📚 跟住課本進度練習（選擇後自動調整下面設定）</label>
-                    <select class="settings-select" id="textbookMode">
-                        <option value="0">自由設定</option>
-                        <option value="1">小一：高音譜 Do Re Mi（無加線）</option>
-                        <option value="2">小二：高音譜全部音（有下加線）</option>
-                        <option value="3">小三：高音譜 + 少少升號</option>
-                        <option value="4">小四：高音譜 + 升降號</option>
-                        <option value="5">小五：高音譜 + 更多升降號</option>
-                        <option value="6">小六：全部難度大挑戰</option>
-                    </select>
-                </div>
-                <div class="settings-grid">
-                    <div class="settings-group" id="clefGroup">
-                        <label class="group-title">📝 練習譜號</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="clefTreble" checked> 高音譜號</label>
-                            <label class="checkbox-item" id="clefBassLabel"><input type="checkbox" id="clefBass"> 低音譜號</label>
-                        </div>
-                    </div>
-                    <div class="settings-group" id="accidentalGroup">
-                        <label class="group-title">🎵 升降號</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="accidentalSharp" checked> 升號(#)</label>
-                            <label class="checkbox-item checked"><input type="checkbox" id="accidentalFlat" checked> 降號(♭)</label>
-                        </div>
-                    </div>
-                    <div class="settings-group" id="ledgerGroup">
-                        <label class="group-title">📏 加線</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="ledgerLineAbove" checked> 上加線</label>
-                            <label class="checkbox-item checked"><input type="checkbox" id="ledgerLineBelow" checked> 下加線</label>
-                        </div>
-                    </div>
-                    <div class="settings-group" id="noteRangeGroup">
-                        <label class="group-title">🎯 音域範圍</label>
-                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <select class="settings-select" id="noteRangeFrom" style="flex:1; min-width:90px;">
-                                <option value="0">C4 (Do)</option>
-                                <option value="1">D4 (Re)</option>
-                                <option value="2">E4 (Mi)</option>
-                                <option value="3">F4 (Fa)</option>
-                                <option value="4">G4 (Sol)</option>
-                                <option value="5">A4 (La)</option>
-                                <option value="6">B4 (Si)</option>
-                                <option value="7">C5 (Do)</option>
-                                <option value="8">D5 (Re)</option>
-                                <option value="9">E5 (Mi)</option>
-                                <option value="10">F5 (Fa)</option>
-                                <option value="11">G5 (Sol)</option>
-                            </select>
-                            <span style="font-weight:900; color:var(--text-light); font-size:0.85rem;">至</span>
-                            <select class="settings-select" id="noteRangeTo" style="flex:1; min-width:90px;">
-                                <option value="1">D4 (Re)</option>
-                                <option value="2">E4 (Mi)</option>
-                                <option value="3">F4 (Fa)</option>
-                                <option value="4">G4 (Sol)</option>
-                                <option value="5">A4 (La)</option>
-                                <option value="6">B4 (Si)</option>
-                                <option value="7">C5 (Do)</option>
-                                <option value="8">D5 (Re)</option>
-                                <option value="9">E5 (Mi)</option>
-                                <option value="10">F5 (Fa)</option>
-                                <option value="11">G5 (Sol)</option>
-                                <option value="12" selected>A5 (La)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="settings-group">
-                        <label class="group-title">🎹 音符外觀</label>
-                        <select class="settings-select" id="noteHeadStyle" style="margin-bottom:8px;">
-                            <option value="filled">實心 (四分音符)</option>
-                            <option value="whole">空心 (全音符)</option>
-                            <option value="half">帶桿空心 (二分音符)</option>
-                        </select>
-                        <div class="checkbox-group">
-                            <label class="checkbox-item checked"><input type="checkbox" id="highlightLine" checked> 顯示輔助線</label>
-                        </div>
-                    </div>
-                    <div class="settings-group">
-                        <div class="checkbox-group" style="margin-top:4px;">
-                            <label class="checkbox-item"><input type="checkbox" id="noteSoundOnly"> 只播音高</label>
-                            <label class="checkbox-item checked"><input type="checkbox" id="countdownSound" checked> 按鈕音效</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Custom settings removed — difficulty is controlled by practice diff buttons / challenge mode -->
 
         <div class="mode-cards" id="modeCards">
             <div class="mode-card practice active" data-mode="practice">
@@ -727,6 +746,7 @@
         </div>
         <div class="message-box" id="g3Message">📖 準備好就點選答案！</div>
         <div class="action-row">
+            <button class="btn-action" id="g3EndBtn">🏁 結束遊戲</button>
             <button class="btn-action" id="g3BackBtn">🔙 返回大廳</button>
         </div>
     </div>
@@ -770,107 +790,4 @@
             <button class="study-tab" data-cat="articulation">🎵 奏法</button>
             <button class="study-tab" data-cat="keysig">🔑 調號</button>
             <button class="study-tab" data-cat="form">🔁 記號</button>
-            <button class="study-tab" data-cat="expression">🎭 情緒</button>
-        </div>
-
-        <!-- Grade filter -->
-        <div class="study-grade-filter">
-            <span class="study-grade-label">年級篩選：</span>
-            <button class="study-grade-btn active" data-grade="0">全部</button>
-            <button class="study-grade-btn" data-grade="1">小一</button>
-            <button class="study-grade-btn" data-grade="2">小二</button>
-            <button class="study-grade-btn" data-grade="3">小三</button>
-            <button class="study-grade-btn" data-grade="4">小四</button>
-            <button class="study-grade-btn" data-grade="5">小五</button>
-            <button class="study-grade-btn" data-grade="6">小六</button>
-        </div>
-
-        <!-- Terms grid -->
-        <div class="study-terms-grid" id="g3TermsGrid"></div>
-
-        <button class="btn-start" id="g3StudyStartBtn">🚀 返回設定，開始挑戰！</button>
-    </div>
-
-    <!-- ===================================== -->
-    <!-- 遊戲說明教學 Modal                    -->
-    <!-- ===================================== -->
-    <div id="tutorialModal" class="tutorial-modal" role="dialog" aria-modal="true" aria-label="遊戲說明教學" style="display:none">
-        <div class="tutorial-box">
-            <div class="tut-header">
-                <div class="tut-stepper" id="tutDots">
-                    <span class="tut-dot active"></span>
-                    <span class="tut-dot"></span>
-                    <span class="tut-dot"></span>
-                </div>
-                <button class="tut-close" id="tutClose" aria-label="關閉教學">✕</button>
-            </div>
-
-            <div id="tutSlidesWrap">
-
-                <!-- Slide 0: 五線譜與鍵盤對照 -->
-                <div class="tut-slide active">
-                    <h3 class="tut-title">🎹 五線譜與鍵盤音符對照</h3>
-                    <a class="tut-img-wrap" href="img/tut-score-1.jpg" target="_blank" rel="noopener" title="點擊放大">
-                        <img src="img/tut-score-1.jpg" alt="五線譜與鍵盤音符對照表" class="tut-img" loading="lazy" decoding="async">
-                        <span class="tut-img-hint">🔍 點擊放大</span>
-                    </a>
-                    <p class="tut-text">五線譜每個位置對應琴鍵上一個音。圖中彩色音符由低到高：<strong>Do Re Mi Fa Sol La Si</strong>（英文 <strong>C D E F G A B</strong>）。超出五條線就用<strong>加線</strong>延伸。</p>
-                </div>
-
-                <!-- Slide 1: 認識音符位置 -->
-                <div class="tut-slide">
-                    <h3 class="tut-title">📖 認識高音譜號音符位置</h3>
-                    <a class="tut-img-wrap" href="img/tut-notes-1.jpg" target="_blank" rel="noopener" title="點擊放大">
-                        <img src="img/tut-notes-1.jpg" alt="高音譜號音符位置讀譜練習表" class="tut-img" loading="lazy" decoding="async">
-                        <span class="tut-img-hint">🔍 點擊放大</span>
-                    </a>
-                    <p class="tut-text">圖右方「音名對照表」：意大利語 Do/Re… = 英語 C/D… = 日語 ハ/ニ…。下方「おんぷクイズ」的題型同我哋遊戲一樣——睇譜認音，多做多快！</p>
-                </div>
-
-                <!-- Slide 2: 點樣玩 -->
-                <div class="tut-slide">
-                    <h3 class="tut-title">🎮 點樣玩遊戲？</h3>
-                    <div class="tut-visual tut-steps-visual">
-                        <ol class="tut-steps">
-                            <li style="background:#FFF0F8; border-left:4px solid #FF65A3;">👀 <strong>睇住</strong>五線譜上出現嘅音符</li>
-                            <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎹 <strong>快快按</strong>下正確的音名按鈕（如 C、D、F# …）</li>
-                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">🔥 答對有分！<strong>連續答對</strong>有連擊獎勵加分 💯</li>
-                            <li style="background:#F3EEFF; border-left:4px solid #8B66FF;">💡 唔確定可以按「<strong>聽&amp;看答案</strong>」學習，或「<strong>跳過</strong>」換題</li>
-                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">⌨️ 鍵盤快捷鍵：<strong>1-7</strong> 按自然音，<strong>H</strong> 聆聽答案，<strong>空格</strong> 跳過</li>
-                            <li style="background:#EEFAF6; border-left:4px solid #00B89F;">🏆 挑戰模式完成後可上傳<strong>排行榜</strong>，同班競技！</li>
-                        </ol>
-                    </div>
-                    <p class="tut-text">🔑 口訣：<strong>Do=C　Re=D　Mi=E　Fa=F　Sol=G　La=A　Si=B</strong>　多練多快 🎵</p>
-                </div>
-
-            </div><!-- end tutSlidesWrap -->
-
-            <div class="tut-nav">
-                <button class="tut-btn" id="tutPrev" disabled>◀ 上一頁</button>
-                <span class="tut-page" id="tutPage">1 / 3</span>
-                <button class="tut-btn" id="tutNext">下一頁 ▶</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===================================== -->
-    <!-- 教學圖片 Lightbox Modal               -->
-    <!-- ===================================== -->
-    <div id="imgLightbox" class="img-lightbox" style="display:none;" role="dialog" aria-modal="true" aria-label="教學圖表">
-        <div class="img-lightbox-backdrop" id="imgLightboxBackdrop"></div>
-        <div class="img-lightbox-box">
-            <div class="img-lightbox-header">
-                <span class="img-lightbox-title" id="imgLightboxTitle">📋 音符節奏圖表</span>
-                <button class="img-lightbox-close" id="imgLightboxClose" aria-label="關閉">✕</button>
-            </div>
-            <div class="img-lightbox-body">
-                <img id="imgLightboxImg" src="" alt="教學圖表" class="img-lightbox-img">
-            </div>
-            <div class="img-lightbox-hint">🔍 可以縮放/拖動圖片查看細節</div>
-        </div>
-    </div>
-
-    <script src="script.js" defer></script>
-    <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
-</body>
-</html>
+            <button class=

@@ -166,7 +166,63 @@
     // ==========================================
     // 👤 玩家個人檔案系統 (Player Profile)
     // ==========================================
-    const PROFILE_AVATARS = ['🎵','🎶','🎹','🎸','🥁','🎺','🎻','🎷','🎼','🎤','🎧','🎙️','🦊','🐱','🐶','🐼','🦁','🐰','🐸','🦄','🌟','⭐','🔥','💎','🏆','👑','🎯','🚀'];
+    const PROFILE_AVATARS = [
+      // 🎶 樂器 Instruments
+      {emoji:'🎸', name:'結他手',     bg:'linear-gradient(135deg,#FF6B35,#FF8F65)', cat:'inst'},
+      {emoji:'🥁', name:'鼓手',       bg:'linear-gradient(135deg,#FFB800,#FFD54F)', cat:'inst'},
+      {emoji:'🎻', name:'小提琴手',   bg:'linear-gradient(135deg,#E040FB,#EA80FC)', cat:'inst'},
+      {emoji:'🎹', name:'鋼琴家',     bg:'linear-gradient(135deg,#536DFE,#8C9EFF)', cat:'inst'},
+      {emoji:'🎺', name:'小號手',     bg:'linear-gradient(135deg,#FFC107,#FFE082)', cat:'inst'},
+      {emoji:'🎷', name:'色士風手',   bg:'linear-gradient(135deg,#FF8A65,#FFAB91)', cat:'inst'},
+      {emoji:'🎤', name:'歌手',       bg:'linear-gradient(135deg,#EC407A,#F48FB1)', cat:'inst'},
+      {emoji:'🎧', name:'DJ',         bg:'linear-gradient(135deg,#7C4DFF,#B388FF)', cat:'inst'},
+      // 🌟 角色 Characters
+      {emoji:'🎵', name:'音符精靈',   bg:'linear-gradient(135deg,#8B66FF,#B39DFF)', cat:'char'},
+      {emoji:'🎶', name:'和聲仙子',   bg:'linear-gradient(135deg,#FF65A3,#FF8EC4)', cat:'char'},
+      {emoji:'🎼', name:'樂譜大師',   bg:'linear-gradient(135deg,#00A6ED,#4FC3F7)', cat:'char'},
+      {emoji:'🎙️', name:'錄音師',     bg:'linear-gradient(135deg,#78909C,#B0BEC5)', cat:'char'},
+      // 🐾 動物夥伴 Animal Pals
+      {emoji:'🦊', name:'狐狸指揮',   bg:'linear-gradient(135deg,#FF7043,#FF8A65)', cat:'animal'},
+      {emoji:'🐱', name:'貓咪鋼琴家', bg:'linear-gradient(135deg,#FFB74D,#FFCC80)', cat:'animal'},
+      {emoji:'🐶', name:'汪汪鼓手',   bg:'linear-gradient(135deg,#8D6E63,#A1887F)', cat:'animal'},
+      {emoji:'🦁', name:'獅王指揮家', bg:'linear-gradient(135deg,#FFA726,#FFB74D)', cat:'animal'},
+      {emoji:'🐰', name:'兔兔長笛手', bg:'linear-gradient(135deg,#F48FB1,#F8BBD0)', cat:'animal'},
+      {emoji:'🦄', name:'獨角獸歌姬', bg:'linear-gradient(135deg,#CE93D8,#E1BEE7)', cat:'animal'},
+      // 🧸 奇幻夥伴 Fantasy Friends (inspired by reference)
+      {emoji:'🧸', name:'玩具熊',     bg:'linear-gradient(135deg,#8BC34A,#AED581)', cat:'fantasy'},
+      {emoji:'🤖', name:'積木機械人', bg:'linear-gradient(135deg,#FF7043,#FFAB91)', cat:'fantasy'},
+      {emoji:'✨', name:'魔法星精靈', bg:'linear-gradient(135deg,#7E57C2,#B39DDB)', cat:'fantasy'},
+      {emoji:'🐤', name:'海盜鴨鴨',   bg:'linear-gradient(135deg,#FFD600,#FFEE58)', cat:'fantasy'},
+      {emoji:'🚂', name:'火車長',     bg:'linear-gradient(135deg,#42A5F5,#90CAF9)', cat:'fantasy'},
+      {emoji:'🖍️', name:'彩色怪獸',   bg:'linear-gradient(135deg,#AB47BC,#CE93D8)', cat:'fantasy'},
+      {emoji:'🚀', name:'火箭齒輪頭', bg:'linear-gradient(135deg,#66BB6A,#A5D6A7)', cat:'fantasy'},
+      {emoji:'🪁', name:'風箏少年',   bg:'linear-gradient(135deg,#29B6F6,#81D4FA)', cat:'fantasy'},
+      // ☁️ 夢幻系列 Dreamy (inspired by reference)
+      {emoji:'☁️', name:'雲朵綿羊',   bg:'linear-gradient(135deg,#E1BEE7,#F3E5F5)', cat:'dreamy'},
+      {emoji:'🦕', name:'積木恐龍',   bg:'linear-gradient(135deg,#AED581,#DCEDC8)', cat:'dreamy'},
+      {emoji:'🧜', name:'月亮美人魚', bg:'linear-gradient(135deg,#4DD0E1,#80DEEA)', cat:'dreamy'},
+      {emoji:'🎈', name:'氣球兔兔',   bg:'linear-gradient(135deg,#F48FB1,#F8BBD0)', cat:'dreamy'},
+      {emoji:'🐱‍🚀', name:'太空貓',   bg:'linear-gradient(135deg,#EF5350,#EF9A9A)', cat:'dreamy'},
+      {emoji:'🐭', name:'海盜鼠',     bg:'linear-gradient(135deg,#8D6E63,#BCAAA4)', cat:'dreamy'},
+      {emoji:'🍄', name:'蘑菇小屋',   bg:'linear-gradient(135deg,#EF5350,#FFCDD2)', cat:'dreamy'},
+      {emoji:'🌴', name:'叢林樂隊',   bg:'linear-gradient(135deg,#4CAF50,#81C784)', cat:'dreamy'},
+      // 🏅 成就 Achievement
+      {emoji:'🌟', name:'閃亮之星',   bg:'linear-gradient(135deg,#FFD740,#FFEE58)', cat:'item'},
+      {emoji:'🔥', name:'熱力全開',   bg:'linear-gradient(135deg,#FF5722,#FF8A65)', cat:'item'},
+      {emoji:'💎', name:'寶石收藏家', bg:'linear-gradient(135deg,#4DD0E1,#80DEEA)', cat:'item'},
+      {emoji:'🏆', name:'冠軍',       bg:'linear-gradient(135deg,#FFC107,#FFD54F)', cat:'item'},
+      {emoji:'👑', name:'音樂王者',   bg:'linear-gradient(135deg,#FFB300,#FFCA28)', cat:'item'},
+    ];
+    const AVATAR_CATEGORIES = [
+      {key:'all', label:'全部'},
+      {key:'inst', label:'🎶 樂器'},
+      {key:'char', label:'🌟 角色'},
+      {key:'animal', label:'🐾 動物'},
+      {key:'fantasy', label:'🧸 奇幻'},
+      {key:'dreamy', label:'☁️ 夢幻'},
+      {key:'item', label:'🏅 成就'},
+    ];
+    function _avatarLookup(emoji) { return PROFILE_AVATARS.find(a => a.emoji === emoji) || {emoji, name:'', bg:'linear-gradient(135deg,#8B66FF,#B39DFF)', cat:'char'}; }
     const PROFILE_STORAGE_KEY = 'musicGameProfile';
     const PROFILE_HISTORY_KEY = 'musicGameProfileHistory';
 
@@ -264,7 +320,10 @@
 
     function renderProfileScreen(user) {
         const p = loadProfile(user);
-        document.getElementById('profileAvatar').textContent = p.avatar;
+        const avInfo = _avatarLookup(p.avatar);
+        const avEl = document.getElementById('profileAvatar');
+        avEl.textContent = p.avatar;
+        avEl.style.background = avInfo.bg;
         document.getElementById('profileName').textContent = p.name + ' 同學';
         document.getElementById('profileSig').textContent = p.signature || '點擊編輯個人簽名...';
         document.getElementById('profileId').textContent = `${p.grade ? '小' + p.grade : ''} ${p.class}班 ${p.seat ? p.seat + '號' : ''}`;
@@ -299,18 +358,46 @@
         document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
         document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
 
-        // Avatar grid
+        // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
-        grid.innerHTML = PROFILE_AVATARS.map(a =>
-            `<div class="profile-avatar-opt${a === p.avatar ? ' selected' : ''}" data-av="${a}">${a}</div>`
-        ).join('');
+        const avSection = grid.closest('.profile-avatars-section');
+        let avCatFilter = avSection.querySelector('.avatar-cat-filter');
+        if (!avCatFilter) {
+            avCatFilter = document.createElement('div');
+            avCatFilter.className = 'avatar-cat-filter';
+            avCatFilter.innerHTML = AVATAR_CATEGORIES.map(c =>
+                `<button class="av-cat-btn${c.key === 'all' ? ' active' : ''}" data-cat="${c.key}">${c.label}</button>`
+            ).join('');
+            avSection.insertBefore(avCatFilter, grid);
+        }
+        let _avCat = 'all';
+        function _renderAvatarGrid() {
+            const filtered = _avCat === 'all' ? PROFILE_AVATARS : PROFILE_AVATARS.filter(a => a.cat === _avCat);
+            grid.innerHTML = filtered.map(a =>
+                `<div class="profile-avatar-opt${a.emoji === p.avatar ? ' selected' : ''}" data-av="${a.emoji}">
+                    <div class="pav-circle" style="background:${a.bg}">${a.emoji}</div>
+                    <div class="pav-name">${a.name}</div>
+                </div>`
+            ).join('');
+        }
+        _renderAvatarGrid();
+        avCatFilter.onclick = (e) => {
+            const btn = e.target.closest('.av-cat-btn');
+            if (!btn) return;
+            _avCat = btn.dataset.cat;
+            avCatFilter.querySelectorAll('.av-cat-btn').forEach(b => b.classList.toggle('active', b === btn));
+            _renderAvatarGrid();
+        };
         grid.onclick = (e) => {
             const opt = e.target.closest('.profile-avatar-opt');
             if (!opt) return;
             const av = opt.dataset.av;
             p.avatar = av;
             saveProfile(p);
-            document.getElementById('profileAvatar').textContent = av;
+            const info = _avatarLookup(av);
+            const el = document.getElementById('profileAvatar');
+            el.textContent = av;
+            el.style.background = info.bg;
             grid.querySelectorAll('.profile-avatar-opt').forEach(el => el.classList.toggle('selected', el.dataset.av === av));
         };
 
@@ -449,7 +536,8 @@
             attemptedThisQuestion: false,
             showAnswerHighlight: false,
             slowNoteStats: {},
-            lastNoteLetter: null
+            lastNoteLetter: null,
+            practiceDiff: '3'
         };
     }
 
@@ -872,8 +960,10 @@
     }
 
     function saveSettings() {
-        const s = {}; dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
+        const s = {};
+        if (dom.inputs) dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
         s.lastMode = state.currentMode;
+        s.practiceDiff = state.practiceDiff;
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
@@ -886,7 +976,8 @@
         try {
             const s = JSON.parse(stored);
             if (s) {
-                dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
+                if (dom.inputs) dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
+                if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
                 if (s.lastMode && MODE_CONFIG[s.lastMode]) {
                     state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode];
                     dom.modeCards.forEach(c => c.classList.remove('active'));
@@ -912,7 +1003,7 @@
         } catch (e) {
             console.error('Error loading settings:', e);
         }
-        handleTextbookModeChange();
+        buildNoteButtons();
     }
 
     function updateScoreboard() {
@@ -979,9 +1070,13 @@
         dom.endBtn.disabled = !enabled;
     }
 
+    function _getPracticeConfig() {
+        const DIFF_TB = {'1':'1','2':'2','3':'3','4':'5','5':'6'};
+        const tbKey = DIFF_TB[state.practiceDiff] || '3';
+        return TEXTBOOK_CONFIG[tbKey];
+    }
+
     function generateNote() {
-        const tbMode = dom.textbookMode ? dom.textbookMode.value : "0";
-        const config = TEXTBOOK_CONFIG[tbMode];
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
         // Challenge modes can force a specific clef
@@ -989,22 +1084,13 @@
         
         if (forceClef) {
             clefOptions = forceClef === 'mixed' ? ['treble','bass'] : [forceClef];
-            accidentalChance = ((dom.accidentalSharp && dom.accidentalSharp.checked) || (dom.accidentalFlat && dom.accidentalFlat.checked)) ? 0.3 : 0;
+            accidentalChance = 0.3;
             allowAbove = true; allowBelow = true;
             noteRange = [0, 12];
-        } else if (config) { 
-            clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow; 
         } else {
-            if(dom.clefTreble && dom.clefTreble.checked) clefOptions.push('treble');
-            if(dom.clefBass   && dom.clefBass.checked)   clefOptions.push('bass');
-            if (!clefOptions.length) clefOptions = ['treble'];
-            accidentalChance = ((dom.accidentalSharp && dom.accidentalSharp.checked) || (dom.accidentalFlat && dom.accidentalFlat.checked)) ? 0.3 : 0;
-            
-            allowAbove = dom.ledgerLineAbove ? dom.ledgerLineAbove.checked : true; 
-            allowBelow = dom.ledgerLineBelow ? dom.ledgerLineBelow.checked : true;
-            const rf = dom.noteRangeFrom ? parseInt(dom.noteRangeFrom.value) : 0;
-            const rt = dom.noteRangeTo ? parseInt(dom.noteRangeTo.value) : 12;
-            noteRange = [Math.min(rf, rt), Math.max(rf, rt)];
+            // Practice mode — use difficulty-based config
+            const config = _getPracticeConfig();
+            clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow;
         }
 
         const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
@@ -1020,8 +1106,8 @@
         let finalName = base.letter, accidental = null;
         if (Math.random() < accidentalChance) {
             const isSharp = Math.random() < 0.5;
-            if (isSharp && (dom.accidentalSharp && dom.accidentalSharp.checked) && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
-            else if (!isSharp && (dom.accidentalFlat && dom.accidentalFlat.checked) && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
+            if (isSharp && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
+            else if (!isSharp && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
         }
         const note = { ...base, clef, accidental, correctName: finalName, freqKey: finalName + base.octave };
         state.lastNoteLetter = base.letter;
@@ -1029,8 +1115,11 @@
     }
 
     function buildNoteButtons() {
-        const showSharp = dom.accidentalSharp && dom.accidentalSharp.checked;
-        const showFlat  = dom.accidentalFlat  && dom.accidentalFlat.checked;
+        // Derive sharp/flat visibility from active config
+        const forceClef = state.modeConfig && state.modeConfig.forceClef;
+        const hasAccidentals = forceClef ? true : (_getPracticeConfig().accidentalChance > 0);
+        const showSharp = hasAccidentals;
+        const showFlat  = hasAccidentals;
 
         if (!_noteRowsBuilt) {
             dom.notesGrid.innerHTML = '';
@@ -1696,35 +1785,16 @@
 
         // Practice difficulty selector
         const diffBtns = document.querySelectorAll('.diff-btn');
-        const DIFF_TO_TB = {'1':'1','2':'2','3':'3','4':'5','5':'6'};
         diffBtns.forEach(btn => btn.addEventListener('click', () => {
             audio.init(); audio.playClick('select');
             diffBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            if (dom.textbookMode) { dom.textbookMode.value = DIFF_TO_TB[btn.dataset.diff]; handleTextbookModeChange(); saveSettings(); }
+            state.practiceDiff = btn.dataset.diff;
+            buildNoteButtons();
+            saveSettings();
         }));
         if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = state.currentMode === 'practice' ? '' : 'none';
-        { const tbToDiff = {'1':'1','2':'2','3':'3','4':'3','5':'4','6':'5'}; const d = tbToDiff[dom.textbookMode?.value] || '3'; diffBtns.forEach(b => b.classList.toggle('active', b.dataset.diff === d)); }
-        
-        dom.settingsToggleBtn.addEventListener('click', () => { audio.init(); audio.playClick(); dom.settingsContent.classList.toggle('show'); dom.settingsArrow.textContent = dom.settingsContent.classList.contains('show') ? '▲ 摺疊' : '▼ 展開'; });
-        dom.inputs.forEach(el => el.addEventListener('change', () => { audio.init(); audio.playClick(); if (el.id === 'textbookMode') handleTextbookModeChange(); toggleCheckboxAppearance(); saveSettings(); if (el.id.startsWith('clef') || el.id.startsWith('accidental')) { buildNoteButtons(); enableGameControls(false); } }));
-        // Note range interlock: keep from <= to
-        if (dom.noteRangeFrom && dom.noteRangeTo) {
-            dom.noteRangeFrom.addEventListener('change', () => {
-                audio.init(); audio.playClick();
-                if (parseInt(dom.noteRangeFrom.value) >= parseInt(dom.noteRangeTo.value)) {
-                    dom.noteRangeTo.value = String(Math.min(parseInt(dom.noteRangeFrom.value) + 1, 12));
-                }
-                saveSettings(); enableGameControls(false);
-            });
-            dom.noteRangeTo.addEventListener('change', () => {
-                audio.init(); audio.playClick();
-                if (parseInt(dom.noteRangeTo.value) <= parseInt(dom.noteRangeFrom.value)) {
-                    dom.noteRangeFrom.value = String(Math.max(parseInt(dom.noteRangeTo.value) - 1, 0));
-                }
-                saveSettings(); enableGameControls(false);
-            });
-        }
+        diffBtns.forEach(b => b.classList.toggle('active', b.dataset.diff === state.practiceDiff));
         
         dom.startBtn.addEventListener('click', startGame); 
         dom.endBtn.addEventListener('click', endGame); 
@@ -1787,6 +1857,276 @@
                 if (!dom.revealBtn.disabled) dom.revealBtn.click(); 
             } 
         });
+    }
+
+    // ==========================================
+    // 👥 社交功能 (Social Features)
+    // ==========================================
+    const CHAT_STORAGE_KEY = 'musicGameChat';
+    const CHAT_MAX_MESSAGES = 200;
+
+    function initSocialFeatures() {
+        // Hub buttons
+        document.getElementById('hubClassmatesBtn').addEventListener('click', () => {
+            if (!state.currentUser || !state.currentUser.name) { alert('請先選擇你的身份！'); return; }
+            document.getElementById('cmGrade').value = state.currentUser.grade || '6';
+            document.getElementById('cmClass').value = state.currentUser.class || 'A';
+            renderClassmateList();
+            switchScreen('screen-classmates');
+        });
+        document.getElementById('hubChatBtn').addEventListener('click', () => {
+            if (!state.currentUser || !state.currentUser.name) { alert('請先選擇你的身份！'); return; }
+            openChat('class');
+            switchScreen('screen-chat');
+        });
+
+        // Back buttons
+        document.getElementById('classmatesBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
+        document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen('screen-classmates'));
+        document.getElementById('chatBackBtn').addEventListener('click', () => {
+            if (_chatPollTimer) clearInterval(_chatPollTimer);
+            switchScreen('screen-hub');
+        });
+
+        // Classmate filter changes
+        document.getElementById('cmGrade').addEventListener('change', renderClassmateList);
+        document.getElementById('cmClass').addEventListener('change', renderClassmateList);
+
+        // Sync hub selections into classmate filters
+        const cmGrade = document.getElementById('cmGrade');
+        const cmClass = document.getElementById('cmClass');
+        if (state.currentUser) {
+            cmGrade.value = state.currentUser.grade || '6';
+            cmClass.value = state.currentUser.class || 'A';
+        }
+
+        // Chat tabs
+        document.querySelector('.chat-tabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('.chat-tab');
+            if (!tab) return;
+            document.querySelectorAll('.chat-tab').forEach(t => t.classList.toggle('active', t === tab));
+            openChat(tab.dataset.tab);
+        });
+
+        // Chat send
+        document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+        document.getElementById('chatInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+        });
+        document.getElementById('chatInput').addEventListener('focus', () => state.inputFocused = true);
+        document.getElementById('chatInput').addEventListener('blur', () => state.inputFocused = false);
+
+        // View-profile chat button
+        document.getElementById('vpChatBtn').addEventListener('click', () => {
+            if (_viewingProfile) {
+                _chatDMTarget = _viewingProfile;
+                openChat('dm');
+                switchScreen('screen-chat');
+            }
+        });
+    }
+
+    let _viewingProfile = null;
+    let _chatDMTarget = null;
+    let _chatCurrentTab = 'class';
+    let _chatPollTimer = null;
+
+    // ── Classmates Directory ──
+    function renderClassmateList() {
+        const grade = document.getElementById('cmGrade').value;
+        const cls = document.getElementById('cmClass').value;
+        const students = getStudentList(grade, cls);
+        const list = document.getElementById('classmateList');
+
+        if (!students.length) {
+            list.innerHTML = '<div class="cm-empty">這個班別暫時沒有同學資料 📭</div>';
+            return;
+        }
+
+        const me = state.currentUser;
+        list.innerHTML = students.map((name, i) => {
+            const user = { name, grade, class: cls, seat: i + 1 };
+            const p = loadProfile(user);
+            const avInfo = _avatarLookup(p.avatar);
+            const isMe = me && me.name === name && me.grade == grade && me.class === cls;
+            return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${i+1}">
+                <div class="cm-avatar" style="background:${avInfo.bg}">${p.avatar}</div>
+                <div class="cm-info">
+                    <div class="cm-name">${escHtml(name)}${isMe ? ' <span class="cm-me-tag">我</span>' : ''}</div>
+                    <div class="cm-detail">Lv.${p.level} · ${p.signature || '未設定簽名'}</div>
+                    <div class="cm-stats">🎮 ${p.stats.totalPlayed}次 · 🏆 ${p.stats.totalScore}分 · 🔥 ${p.stats.maxCombo}連擊</div>
+                </div>
+                <div class="cm-actions">
+                    <button class="cm-view-btn" title="查看檔案">📋</button>
+                    <button class="cm-chat-btn" title="傳訊息">💬</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        list.onclick = (e) => {
+            const card = e.target.closest('.cm-card');
+            if (!card) return;
+            const name = card.dataset.name;
+            const g = card.dataset.grade;
+            const c = card.dataset.class;
+            const s = card.dataset.seat;
+            const user = { name, grade: g, class: c, seat: s };
+
+            if (e.target.closest('.cm-chat-btn')) {
+                _chatDMTarget = user;
+                openChat('dm');
+                switchScreen('screen-chat');
+                return;
+            }
+            // Default: view profile
+            openViewProfile(user);
+        };
+    }
+
+    // ── View Other Profile ──
+    function openViewProfile(user) {
+        _viewingProfile = user;
+        const p = loadProfile(user);
+        const avInfo = _avatarLookup(p.avatar);
+
+        const avEl = document.getElementById('vpAvatar');
+        avEl.textContent = p.avatar;
+        avEl.style.background = avInfo.bg;
+
+        document.getElementById('vpName').textContent = p.name + ' 同學';
+        document.getElementById('vpSig').textContent = p.signature || '尚未設定簽名';
+        document.getElementById('vpMeta').textContent = `${p.grade ? '小' + p.grade : ''} ${p.class}班 · ${p.seat ? p.seat + '號' : ''}`;
+        document.getElementById('vpLevel').textContent = 'Lv.' + p.level;
+        const needed = _expForLevel(p.level);
+        document.getElementById('vpExpFill').style.width = Math.min(100, Math.round((p.exp / needed) * 100)) + '%';
+
+        document.getElementById('vpTotalPlayed').textContent = p.stats.totalPlayed;
+        document.getElementById('vpCleared').textContent = p.stats.cleared;
+        document.getElementById('vpTotalScore').textContent = p.stats.totalScore;
+        document.getElementById('vpMaxCombo').textContent = p.stats.maxCombo;
+
+        document.getElementById('vpGame1').textContent = p.gameBests.game1 || '---';
+        document.getElementById('vpGame2').textContent = p.gameBests.game2 || '---';
+        document.getElementById('vpGame3').textContent = p.gameBests.game3 || '---';
+
+        switchScreen('screen-view-profile');
+    }
+
+    // ── Chat System (localStorage-based for same-device, GAS for cross-device) ──
+    function _getChatKey(tab) {
+        if (tab === 'class') {
+            const u = state.currentUser;
+            return `${CHAT_STORAGE_KEY}_class_${u.grade}_${u.class}`;
+        }
+        if (tab === 'dm' && _chatDMTarget) {
+            const u = state.currentUser;
+            const t = _chatDMTarget;
+            const pair = [
+                `${u.grade}_${u.class}_${u.name}`,
+                `${t.grade}_${t.class}_${t.name}`
+            ].sort().join('__');
+            return `${CHAT_STORAGE_KEY}_dm_${pair}`;
+        }
+        return null;
+    }
+
+    function _loadChatMessages(key) {
+        if (!key) return [];
+        try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { return []; }
+    }
+
+    function _saveChatMessages(key, msgs) {
+        if (!key) return;
+        // Keep only last N messages
+        const trimmed = msgs.slice(-CHAT_MAX_MESSAGES);
+        try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(e) {}
+    }
+
+    function openChat(tab) {
+        _chatCurrentTab = tab;
+        if (_chatPollTimer) clearInterval(_chatPollTimer);
+
+        // Update tab UI
+        document.querySelectorAll('.chat-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+
+        // Update header
+        const panel = document.getElementById('chatPanel');
+        if (tab === 'dm' && _chatDMTarget) {
+            panel.dataset.target = _chatDMTarget.name;
+            const header = panel.querySelector('.chat-dm-header') || document.createElement('div');
+            header.className = 'chat-dm-header';
+            const avInfo = _avatarLookup(loadProfile(_chatDMTarget).avatar);
+            header.innerHTML = `<span class="chat-dm-avatar" style="background:${avInfo.bg}">${loadProfile(_chatDMTarget).avatar}</span> ${escHtml(_chatDMTarget.name)} 同學`;
+            if (!panel.querySelector('.chat-dm-header')) panel.insertBefore(header, panel.firstChild);
+            header.style.display = '';
+        } else {
+            const header = panel.querySelector('.chat-dm-header');
+            if (header) header.style.display = 'none';
+        }
+
+        renderChatMessages();
+
+        // Poll for new messages every 3 seconds
+        _chatPollTimer = setInterval(renderChatMessages, 3000);
+    }
+
+    function renderChatMessages() {
+        const key = _getChatKey(_chatCurrentTab);
+        const msgs = _loadChatMessages(key);
+        const container = document.getElementById('chatMessages');
+        const me = state.currentUser;
+
+        if (!msgs.length) {
+            container.innerHTML = `<div class="chat-empty">${_chatCurrentTab === 'dm' ? '同對方打個招呼吧！👋' : '成為第一個發言的同學吧！🎵'}</div>`;
+            return;
+        }
+
+        container.innerHTML = msgs.map(m => {
+            const isMine = m.name === me.name && m.grade == me.grade && m.class === me.class;
+            const avInfo = _avatarLookup(m.avatar || '🎵');
+            const time = new Date(m.ts).toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
+            return `<div class="chat-msg ${isMine ? 'chat-msg-mine' : 'chat-msg-other'}">
+                <div class="chat-msg-avatar" style="background:${avInfo.bg}">${m.avatar || '🎵'}</div>
+                <div class="chat-msg-body">
+                    <div class="chat-msg-name">${escHtml(m.name)}${isMine ? '' : ` · ${m.grade ? '小' + m.grade : ''}${m.class}班`}</div>
+                    <div class="chat-msg-bubble">${escHtml(m.text)}</div>
+                    <div class="chat-msg-time">${time}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text || !state.currentUser || !state.currentUser.name) return;
+
+        const key = _getChatKey(_chatCurrentTab);
+        if (!key) return;
+
+        const p = loadProfile(state.currentUser);
+        const msg = {
+            name: state.currentUser.name,
+            grade: state.currentUser.grade,
+            class: state.currentUser.class,
+            avatar: p.avatar,
+            text: text.slice(0, 100),
+            ts: Date.now()
+        };
+
+        const msgs = _loadChatMessages(key);
+        msgs.push(msg);
+        _saveChatMessages(key, msgs);
+
+        input.value = '';
+        renderChatMessages();
+
+        // Play SFX
+        if (audio.enabled && audio.playClick) {
+            try { audio.playClick(); } catch(e) {}
+        }
     }
 
     // Initialize on DOM ready
@@ -2122,6 +2462,9 @@
             switchScreen('screen-profile');
         });
         document.getElementById('profileBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
+
+        // ——— 社交功能 Social Features ———
+        initSocialFeatures();
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
             switchScreen('screen-hub');
@@ -2475,6 +2818,10 @@
                    {n:'ti-ti-ri',d:1},{n:'ti-ri-ti',d:1},{n:'ri-ti-ri',d:1},{n:'ta-a-a',d:3}],
     };
 
+    // Compound tokens that use beams — must start at an integer beat position
+    // (otherwise the beam would cross a beat boundary, which is wrong notation)
+    const _BEAM_TOKENS = new Set(['ti-ti','ti-ri-ti-ri','ti-ri','ti-ti-ri','ti-ri-ti','ri-ti-ri']);
+
     function _generateChallengeRhythm(diff) {
         const tokens = CHALLENGE_TOKEN_SETS[diff] || CHALLENGE_TOKEN_SETS.basic;
         const target = 4;
@@ -2482,11 +2829,16 @@
         const parts = [];
         let safety = 0;
         while (remaining > 0.001 && safety++ < 200) {
-            const eligible = tokens.filter(t => t.d <= remaining + 0.001);
+            const pos = Math.round((target - remaining) * 1000) / 1000;
+            const onBeat = Math.abs(pos - Math.round(pos)) < 0.01; // at integer beat?
+            let eligible = tokens.filter(t => t.d <= remaining + 0.001);
+            // At non-integer beat positions, only allow non-beaming tokens
+            // to ensure beams never cross beat boundaries
+            if (!onBeat) eligible = eligible.filter(t => !_BEAM_TOKENS.has(t.n));
             if (!eligible.length) break;
             const tok = eligible[Math.floor(Math.random() * eligible.length)];
             parts.push(tok.n);
-            remaining = Math.round((remaining - tok.d) * 100) / 100;
+            remaining = Math.round((remaining - tok.d) * 1000) / 1000;
         }
         return parts.join(' ');
     }
@@ -2521,7 +2873,7 @@
                 _rcRenderLevels(level);
             };
         });
-        document.getElementById('rcLevelsBack').onclick = () => switchScreen('screen-g2-setup');
+        document.getElementById('rcLevelsBack').onclick = () => { audio.bgPlay(); switchScreen('screen-g2-setup'); };
         _rcSetFilterButtons(rcGameState._filterLevel);
         _rcRenderLevels(rcGameState._filterLevel);
         switchScreen('screen-rc-levels');
@@ -2771,7 +3123,7 @@
 
         // Wire buttons
         document.getElementById('rchgStartBtn').onclick = _rchgBeginCountdown;
-        document.getElementById('rchgBack').onclick = () => { _rchgCleanup(); switchScreen('screen-g2-setup'); };
+        document.getElementById('rchgBack').onclick = () => { _rchgCleanup(); audio.bgPlay(); switchScreen('screen-g2-setup'); };
         document.getElementById('rchgRetryBtn').onclick = () => startRCGradeChallenge(rchgState.user);
         document.getElementById('rchgNewBtn').onclick = () => startRCGradeChallenge(rchgState.user);
 
@@ -3363,7 +3715,7 @@
         document.getElementById('rcResReplay').textContent = '🔄 再挑戰';
         document.getElementById('rcResReplay').onclick     = () => startRCChallengeMode(user, difficulty);
         document.getElementById('rcResBack').textContent   = '← 返回設定';
-        document.getElementById('rcResBack').onclick       = () => switchScreen('screen-g2-setup');
+        document.getElementById('rcResBack').onclick       = () => { audio.bgPlay(); switchScreen('screen-g2-setup'); };
         const rankBtn = document.getElementById('rcResViewRank');
         if (rankBtn) {
             rankBtn.style.display = '';
@@ -3462,6 +3814,7 @@
         document.getElementById('rcDetailPreviewBtn').onclick = () => _rcPlayPreview(card);
         document.getElementById('rcDetailBack').onclick = () => {
             _rcStopPreview();
+            audio.bgPlay();
             switchScreen('screen-rc-levels');
         };
         document.getElementById('rcDetailStartBtn').onclick = () => showRCReadPhase(card, rcGameState._bpm, user);
@@ -3469,14 +3822,15 @@
         switchScreen('screen-rc-detail');
     }
 
-    function _rcPlayPreview(card) {
+    async function _rcPlayPreview(card) {
         _rcStopPreview();
         audio.bgStop();
         if (!audio.ctx) {
             audio.init();
             audio.warmUp();
         }
-        if (audio.ctx.state === 'suspended') audio.ctx.resume();
+        if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+        await audio.warmUp();
 
         const bpm = rcGameState._bpm || 60;
         const beatSec = 60 / bpm;
@@ -3525,10 +3879,11 @@
         }
     }
 
-    function _rcPlayLevelPreview(card, btn) {
+    async function _rcPlayLevelPreview(card, btn) {
         _rcStopPreview();
         if (!audio.ctx) { audio.init(); audio.warmUp(); }
-        if (audio.ctx.state === 'suspended') audio.ctx.resume();
+        if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+        await audio.warmUp();
 
         const bpm = [75, 70, 65, 60][card.level - 1] || 65;
         const beatSec = 60 / bpm;
@@ -3558,16 +3913,29 @@
         _rcStopPreview();
         switchScreen('screen-rc-game');
 
+        // Hide the "準備..." play-phase overlay during the read phase
+        const msgEl = document.getElementById('rcMessageOverlay');
+        if (msgEl) msgEl.style.display = 'none';
+
         const canvas = document.getElementById('rcGameCanvas');
         const wrap   = canvas.parentElement;
         const overlay = document.getElementById('rcReadOverlay');
 
-        // Expand canvas wrap to show all bars
         const bars = card.bars && card.bars.length ? card.bars : [card.label || ''];
-        const ROW_H = 128;
-        const previewH = bars.length * ROW_H + 20;
+
+        // Adaptive ROW_H: aim to fit all bars in ~68% of screen without scrolling.
+        // On phones this prevents bar 3/4 being hidden under the sticky button.
+        const screenH = window.innerHeight;
+        const canvasAvailH = Math.round(screenH * 0.68);
+        const idealROW_H = Math.floor((canvasAvailH - 60) / bars.length);
+        const ROW_H = Math.max(118, Math.min(172, idealROW_H));
+        const previewH = bars.length * ROW_H + 64; // 64px bottom so labels aren't under button
+
         wrap.style.overflowY = 'auto';
-        wrap.style.minHeight = Math.min(previewH, window.innerHeight * 0.58) + 'px';
+        wrap.style.maxHeight = 'none'; // lift CSS max-height during read phase
+        wrap.style.minHeight = Math.min(previewH, canvasAvailH) + 'px';
+        // Smooth scroll on iOS
+        wrap.style.webkitOverflowScrolling = 'touch';
 
         const dpr = window.devicePixelRatio || 1;
         const logW = wrap.clientWidth || 360;
@@ -3584,7 +3952,9 @@
         document.getElementById('rcReadStartBtn').onclick = () => {
             overlay.style.display = 'none';
             wrap.style.overflowY = '';
+            wrap.style.maxHeight = ''; // restore CSS max-height for game phase
             wrap.style.minHeight = '';
+            wrap.style.webkitOverflowScrolling = '';
             canvas.style.width  = '';
             canvas.style.height = '';
             startRCGame(card, bpm, user);
@@ -3594,88 +3964,132 @@
     function _rcDrawAllBarsPreview(bars, W, totalH, ctx) {
         const n       = bars.length;
         const ROW_H   = (totalH - 20) / n;
-        const headRx  = 9, headRy = 6.5;
-        const stemH   = 38;
-        const beamThick = 5, beamGap = 7;
+        const headRx  = 10, headRy = 7;
+        const stemH   = 42;
+        const beamThick = 4.5, beamGap = 8;
         const barBeats = 4;
-        const LABEL_W  = 48;
+        const LABEL_W  = 44;
         const laneLeft  = LABEL_W;
-        const laneRight = W - 18;
+        const laneRight = W - 14;
         const laneWidth = laneRight - laneLeft;
 
         // Background
-        ctx.fillStyle = '#F8FAFF';
+        ctx.fillStyle = '#FAFCFF';
         ctx.fillRect(0, 0, W, totalH);
 
+        // Title at very top
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = '800 13px Nunito, sans-serif';
+        ctx.fillStyle = 'rgba(99,102,241,0.55)';
+        ctx.fillText('📖 先睇清楚節奏', W / 2, 3);
+
         bars.forEach((barLabel, bi) => {
-            const rowTop = 10 + bi * ROW_H;
-            const staffY = rowTop + ROW_H * 0.52;
-            const beatX  = b => laneLeft + (b / barBeats) * laneWidth;
+            const rowTop = 18 + bi * ROW_H;
+            const staffY = rowTop + ROW_H * 0.48;
+            const beatX  = b => laneLeft + ((b + 0.5) / barBeats) * laneWidth;
 
-            // Row tint
-            ctx.fillStyle = bi % 2 === 0 ? 'rgba(59,130,246,0.028)' : 'rgba(99,102,241,0.028)';
-            ctx.fillRect(laneLeft - 6, rowTop + 2, laneWidth + 12, ROW_H - 4);
+            // Row tint — subtle alternation
+            ctx.fillStyle = bi % 2 === 0 ? 'rgba(59,130,246,0.025)' : 'rgba(99,102,241,0.025)';
+            const tintR = 8;
+            _roundRect(ctx, laneLeft - 4, rowTop + 2, laneWidth + 8, ROW_H - 6, tintR);
+            ctx.fill();
 
-            // Bar number label
-            ctx.textAlign  = 'right';
+            // Bar number badge
+            ctx.textAlign  = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = '700 11px Nunito, sans-serif';
-            ctx.fillStyle = 'rgba(99,102,241,0.38)';
-            ctx.fillText('小節' + (bi + 1), LABEL_W - 6, staffY);
+            const badgeY = staffY - stemH - 14;
+            const badgeW = 18, badgeH = 18, badgeR = 6;
+            ctx.fillStyle = bi === 0 ? 'rgba(255,140,66,0.18)' : 'rgba(99,102,241,0.10)';
+            _roundRect(ctx, laneLeft / 2 - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, badgeR);
+            ctx.fill();
+            ctx.font = '900 12px Nunito, sans-serif';
+            ctx.fillStyle = bi === 0 ? 'rgba(255,140,66,0.85)' : 'rgba(99,102,241,0.55)';
+            ctx.fillText(String(bi + 1), laneLeft / 2, badgeY);
+
+            // "小節" label
+            ctx.font = '700 9px Nunito, sans-serif';
+            ctx.fillStyle = 'rgba(99,102,241,0.32)';
+            ctx.fillText('小節', laneLeft / 2, badgeY + 14);
 
             // Staff line
-            ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(laneLeft - 4, staffY);
-            ctx.lineTo(laneRight + 4, staffY);
+            ctx.moveTo(laneLeft - 2, staffY);
+            ctx.lineTo(laneRight + 2, staffY);
             ctx.stroke();
 
             // Beat grid + count labels
-            for (let b = 0; b <= barBeats; b++) {
-                const x = beatX(b);
-                ctx.strokeStyle = b === 0 ? 'rgba(255,140,66,0.35)' : 'rgba(0,0,0,0.07)';
-                ctx.lineWidth   = b === 0 ? 1.5 : 1;
+            for (let b = 0; b < barBeats; b++) {
+                const x = laneLeft + (b / barBeats) * laneWidth;
+                // Beat separator line
+                ctx.strokeStyle = b === 0 ? 'rgba(255,140,66,0.30)' : 'rgba(0,0,0,0.05)';
+                ctx.lineWidth   = b === 0 ? 1.5 : 0.8;
+                ctx.setLineDash(b === 0 ? [] : [3, 4]);
                 ctx.beginPath();
-                ctx.moveTo(x, staffY - stemH - 22);
-                ctx.lineTo(x, staffY + 38);
+                ctx.moveTo(x, staffY - stemH - 6);
+                ctx.lineTo(x, staffY + 34);
                 ctx.stroke();
-                if (b < barBeats) {
-                    ctx.textAlign    = 'center';
-                    ctx.textBaseline = 'alphabetic';
-                    ctx.font      = '900 15px Nunito, sans-serif';
-                    ctx.fillStyle = 'rgba(59,130,246,0.75)';
-                    ctx.fillText(b + 1, x, staffY - stemH - 8);
-                }
+                ctx.setLineDash([]);
+
+                // Beat number
+                const numX = beatX(b) - (0.5 / barBeats) * laneWidth;
+                ctx.textAlign    = 'center';
+                ctx.textBaseline = 'alphabetic';
+                ctx.font      = '900 14px Nunito, sans-serif';
+                ctx.fillStyle = b === 0 ? 'rgba(255,140,66,0.75)' : 'rgba(59,130,246,0.55)';
+                ctx.fillText(b + 1, x + (laneWidth / barBeats) / 2, staffY - stemH - 6);
             }
+            // End barline
+            ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(laneRight, staffY - stemH - 6);
+            ctx.lineTo(laneRight, staffY + 34);
+            ctx.stroke();
 
             // Parse bar
             const { units, segments } = parseRhythmUnits(barLabel);
 
-            // Rests: simple grey hat + 休
+            // Rests
             segments.filter(s => s.isRest).forEach(s => {
                 const cx = beatX(s.start);
-                ctx.fillStyle = '#B8C0CC';
-                ctx.beginPath();
-                ctx.arc(cx, staffY, 12, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#6B7280';
-                ctx.font = '900 10px Nunito, sans-serif';
+                // Quarter rest symbol
+                ctx.fillStyle = 'rgba(100,116,139,0.5)';
+                ctx.font = '900 22px serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('休', cx, staffY);
+                ctx.fillText('𝄾', cx, staffY);
+                // Rest label
+                ctx.font = '700 10px Nunito, sans-serif';
+                ctx.fillStyle = 'rgba(100,116,139,0.55)';
+                ctx.textBaseline = 'top';
+                ctx.fillText('休止', cx, staffY + 14);
             });
 
-            // Group notes by segment for beaming
-            const segGroups = {};
+            // Group notes by segment, then SPLIT at integer beat boundaries.
+            const rawBySegment = {};
             units.forEach(u => {
-                if (!segGroups[u.segmentIndex]) segGroups[u.segmentIndex] = [];
-                segGroups[u.segmentIndex].push(u);
+                if (!rawBySegment[u.segmentIndex]) rawBySegment[u.segmentIndex] = [];
+                rawBySegment[u.segmentIndex].push(u);
+            });
+            const segGroups = [];
+            Object.values(rawBySegment).forEach(group => {
+                group.sort((a, b) => a.beatPos - b.beatPos);
+                let curBeat = Math.floor(group[0].beatPos + 0.001);
+                let sub = [];
+                group.forEach(note => {
+                    const nb = Math.floor(note.beatPos + 0.001);
+                    if (nb !== curBeat && sub.length > 0) { segGroups.push(sub); sub = []; curBeat = nb; }
+                    sub.push(note);
+                });
+                if (sub.length > 0) segGroups.push(sub);
             });
 
             const NC = '#1E293B'; // note colour
-            Object.values(segGroups).forEach(group => {
-                group.sort((a, b) => a.beatPos - b.beatPos);
+            segGroups.forEach(group => {
                 const isBeamed = group.length > 1;
 
                 group.forEach(note => {
@@ -3683,65 +4097,67 @@
                     const dur = note.durationBeats;
                     const filled = dur <= 1;
 
-                    // Notehead
-                    ctx.shadowColor = 'rgba(59,130,246,0.22)';
-                    ctx.shadowBlur  = 8;
+                    // Notehead shadow
+                    ctx.shadowColor = 'rgba(30,41,59,0.12)';
+                    ctx.shadowBlur  = 6;
                     ctx.save();
                     ctx.translate(cx, staffY);
-                    ctx.rotate(-0.2);
+                    ctx.rotate(-0.18);
                     ctx.beginPath();
                     ctx.ellipse(0, 0, headRx, headRy, 0, 0, Math.PI * 2);
                     if (filled) { ctx.fillStyle = NC; ctx.fill(); }
-                    else { ctx.strokeStyle = NC; ctx.lineWidth = 2.5; ctx.stroke(); }
+                    else { ctx.strokeStyle = NC; ctx.lineWidth = 2.8; ctx.stroke(); }
                     ctx.restore();
                     ctx.shadowBlur = 0;
 
                     // Augmentation dot
-                    if (dur === 0.75 || dur === 1.5) {
+                    if (dur === 0.75 || dur === 1.5 || dur === 3) {
                         ctx.beginPath();
-                        ctx.arc(cx + headRx + 5, staffY, 3, 0, Math.PI * 2);
+                        ctx.arc(cx + headRx + 6, staffY - 2, 3, 0, Math.PI * 2);
                         ctx.fillStyle = NC; ctx.fill();
                     }
 
                     // Stem
                     if (dur < 4) {
                         const stemX = cx + headRx - 1;
-                        ctx.strokeStyle = NC; ctx.lineWidth = 2.5;
+                        ctx.strokeStyle = NC; ctx.lineWidth = 2.2;
                         ctx.beginPath();
                         ctx.moveTo(stemX, staffY - headRy + 2);
                         ctx.lineTo(stemX, staffY - stemH);
                         ctx.stroke();
-                        // Isolated flag (8th)
-                        if (!isBeamed && dur === 0.5) {
+                        // Isolated flag (8th note or dotted-8th)
+                        if (!isBeamed && (dur === 0.5 || dur === 0.75)) {
+                            ctx.lineWidth = 2;
                             ctx.beginPath();
                             ctx.moveTo(stemX, staffY - stemH);
-                            ctx.quadraticCurveTo(stemX + 14, staffY - stemH + 12, stemX + 4, staffY - stemH + 24);
+                            ctx.bezierCurveTo(stemX + 8, staffY - stemH + 6, stemX + 14, staffY - stemH + 14, stemX + 5, staffY - stemH + 24);
                             ctx.stroke();
                         }
                         // Double flag (16th)
                         if (!isBeamed && dur === 0.25) {
+                            ctx.lineWidth = 2;
                             for (let f = 0; f < 2; f++) {
                                 const fy = staffY - stemH + f * beamGap;
                                 ctx.beginPath();
                                 ctx.moveTo(stemX, fy);
-                                ctx.quadraticCurveTo(stemX + 14, fy + 12, stemX + 4, fy + 24);
+                                ctx.bezierCurveTo(stemX + 8, fy + 6, stemX + 14, fy + 14, stemX + 5, fy + 24);
                                 ctx.stroke();
                             }
                         }
                     }
 
                     // Kodály label
-                    ctx.fillStyle = 'rgba(120,80,40,0.82)';
-                    ctx.font = '900 12px Nunito, sans-serif';
+                    ctx.fillStyle = 'rgba(120,80,40,0.85)';
+                    ctx.font = '900 11.5px Nunito, sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
-                    ctx.fillText(note.label, cx, staffY + 13);
+                    ctx.fillText(note.label, cx, staffY + 14);
 
                     // Beat value
-                    const vt = dur===0.25?'¼拍':dur===0.5?'½拍':dur===0.75?'¾拍':dur===1.5?'1½拍':`${dur}拍`;
-                    ctx.font = '700 10px Nunito, sans-serif';
-                    ctx.fillStyle = 'rgba(100,80,60,0.38)';
-                    ctx.fillText(vt, cx, staffY + 26);
+                    const vt = dur===0.25?'¼拍':dur===0.5?'½拍':dur===0.75?'¾拍':dur===1?'1拍':dur===1.5?'1½拍':dur===2?'2拍':dur===3?'3拍':`${dur}拍`;
+                    ctx.font = '700 9.5px Nunito, sans-serif';
+                    ctx.fillStyle = 'rgba(100,80,60,0.32)';
+                    ctx.fillText(vt, cx, staffY + 27);
                 });
 
                 // Beams
@@ -3750,7 +4166,14 @@
                     const x2 = beatX(group[group.length - 1].beatPos) + headRx - 1;
                     const bY  = staffY - stemH;
                     ctx.fillStyle = NC;
-                    ctx.fillRect(x1, bY, x2 - x1, beamThick);
+                    // Round beam caps
+                    ctx.beginPath();
+                    ctx.moveTo(x1, bY);
+                    ctx.lineTo(x2, bY);
+                    ctx.lineTo(x2, bY + beamThick);
+                    ctx.lineTo(x1, bY + beamThick);
+                    ctx.closePath();
+                    ctx.fill();
                     // Secondary beam (16ths)
                     let si = 0;
                     while (si < group.length) {
@@ -3772,13 +4195,21 @@
                 }
             });
         });
+    }
 
-        // Title at very top
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.font = '800 12px Nunito, sans-serif';
-        ctx.fillStyle = 'rgba(99,102,241,0.5)';
-        ctx.fillText('📖 先睇清楚節奏', W / 2, 2);
+    // Rounded rectangle helper
+    function _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
     }
 
     function startRCGame(card, bpm, user) {
@@ -4937,342 +5368,4 @@
         { cat:'tempo',    sym:'Presto',    name:'Presto',       meaning:'急板（極快）',   grade:5 },
         { cat:'tempo',    sym:'rit.',      name:'Ritardando',   meaning:'漸慢',           grade:4 },
         { cat:'tempo',    sym:'accel.',    name:'Accelerando',  meaning:'漸快',           grade:4 },
-        { cat:'tempo',    sym:'a tempo',   name:'A tempo',      meaning:'回原速',         grade:4 },
-        { cat:'tempo',    sym:'più mosso', name:'Più mosso',    meaning:'更快地',         grade:6 },
-        // 奏法 (Articulation)
-        { cat:'articulation', sym:'~',   name:'Legato',    meaning:'連奏',             grade:2 },
-        { cat:'articulation', sym:'·',   name:'Staccato',  meaning:'斷奏',             grade:2, img:'img/cards/sym-art-staccato.png' },
-        { cat:'articulation', sym:'>',   name:'Accent',    meaning:'重音',             grade:3, img:'img/cards/sym-art-accent.png' },
-        { cat:'articulation', sym:'—',   name:'Tenuto',    meaning:'持音（保持音值）', grade:5, img:'img/cards/sym-art-tenuto.png' },
-        { cat:'articulation', sym:'𝄐',   name:'Fermata',   meaning:'延長號',           grade:5, img:'img/cards/sym-art-fermata.png' },
-        { cat:'articulation', sym:'^',   name:'Marcato',   meaning:'強奏',             grade:6 },
-        // 調號 (Key Signatures) — use extracted PDF images
-        { cat:'keysig', sym:'0♯ 0♭', name:'C大調 / a小調', meaning:'無升降號',         grade:1, img:'img/cards/keysig-0n.png' },
-        { cat:'keysig', sym:'1♯',    name:'G大調 / e小調', meaning:'升 Fa（F♯）',      grade:3, img:'img/cards/keysig-1s.png' },
-        { cat:'keysig', sym:'2♯',    name:'D大調 / b小調', meaning:'升 Fa、Do',        grade:4, img:'img/cards/keysig-2s.png' },
-        { cat:'keysig', sym:'3♯',    name:'A大調 / f♯小調',meaning:'升 Fa、Do、Sol',   grade:5, img:'img/cards/keysig-3s.png' },
-        { cat:'keysig', sym:'4♯',    name:'E大調 / c♯小調',meaning:'升 Fa Do Sol Re', grade:6, img:'img/cards/keysig-4s.png' },
-        { cat:'keysig', sym:'1♭',    name:'F大調 / d小調', meaning:'降 Si（B♭）',      grade:3, img:'img/cards/keysig-1f.png' },
-        { cat:'keysig', sym:'2♭',    name:'B♭大調 / g小調',meaning:'降 Si、Mi',        grade:4, img:'img/cards/keysig-2f.png' },
-        { cat:'keysig', sym:'3♭',    name:'E♭大調 / c小調',meaning:'降 Si、Mi、La',    grade:5, img:'img/cards/keysig-3f.png' },
-        { cat:'keysig', sym:'4♭',    name:'A♭大調 / f小調',meaning:'降 Si Mi La Re',   grade:6, img:'img/cards/keysig-4f.png' },
-        // 曲式記號 (Form/Repeat)
-        { cat:'form', sym:'‖: :‖',  name:'反覆記號',  meaning:'重複演奏一段', grade:2, img:'img/cards/sym-bar-repeat-start.png' },
-        { cat:'form', sym:'1.  2.', name:'第一/二括', meaning:'第一/二次結尾',grade:3 },
-        { cat:'form', sym:'D.C.',   name:'Da Capo',   meaning:'從頭再奏',     grade:4 },
-        { cat:'form', sym:'D.S.',   name:'Dal Segno', meaning:'從記號重奏',   grade:4, img:'img/cards/sym-sym-segno.png' },
-        { cat:'form', sym:'Fine',   name:'Fine',      meaning:'樂曲結束',     grade:4 },
-        // 情緒/表情 (Expression/Character)
-        { cat:'expression', sym:'cantabile',  name:'Cantabile',  meaning:'如歌地',   grade:5 },
-        { cat:'expression', sym:'dolce',      name:'Dolce',      meaning:'甜美地',   grade:5 },
-        { cat:'expression', sym:'espressivo', name:'Espressivo', meaning:'有表情地', grade:6 },
-        { cat:'expression', sym:'maestoso',   name:'Maestoso',   meaning:'雄壯地',   grade:6 },
-        { cat:'expression', sym:'giocoso',    name:'Giocoso',    meaning:'嬉戲地',   grade:6 },
-        { cat:'expression', sym:'tranquillo', name:'Tranquillo', meaning:'平靜地',   grade:6 },
-    ];
-
-    const CAT_LABELS = { dynamics:'力度', tempo:'速度', articulation:'奏法', keysig:'調號', form:'記號', expression:'情緒' };
-
-    let g3StudyActiveCat = 'all';
-    let g3StudyActiveGrade = 0;
-
-    function renderStudyGrid() {
-        const grid = document.getElementById('g3TermsGrid');
-        if (!grid) return;
-        const filtered = FULL_TERMS_TABLE.filter(t =>
-            (g3StudyActiveCat === 'all' || t.cat === g3StudyActiveCat) &&
-            (g3StudyActiveGrade === 0 || t.grade === g3StudyActiveGrade)
-        );
-        if (filtered.length === 0) {
-            grid.innerHTML = '<div class="study-terms-empty">此篩選條件下沒有術語 🎵</div>';
-            return;
-        }
-        grid.innerHTML = filtered.map(t => {
-            let visual = '';
-            if (t.img) {
-                visual = `<img src="${escHtml(t.img)}" class="study-term-img" alt="${escHtml(t.sym)}" loading="lazy">`;
-            } else if (t.cat === 'form' && FORM_SVG[t.sym]) {
-                visual = FORM_SVG[t.sym];
-            } else {
-                visual = `<div class="study-term-sym">${escHtml(t.sym)}</div>`;
-            }
-            const showSym = (t.img || t.cat === 'keysig' || t.cat === 'form') ? '' : '';
-            const nameHtml = t.cat === 'keysig'
-                ? `<div class="study-term-name study-ks-name"><strong>${escHtml(t.name)}</strong></div>`
-                : `<div class="study-term-name">${escHtml(t.name)}</div>`;
-            const meaningHtml = t.cat === 'keysig'
-                ? `<div class="study-term-meaning study-ks-notes">${escHtml(t.meaning)}</div>`
-                : `<div class="study-term-meaning">${escHtml(t.meaning)}</div>`;
-            return `<div class="study-term-card cat-${escHtml(t.cat)}">
-                ${visual}
-                ${nameHtml}
-                ${meaningHtml}
-            </div>`;
-        }).join('');
-    }
-
-    function openStudyScreen() {
-        g3StudyActiveCat = 'all';
-        g3StudyActiveGrade = 0;
-        // Reset tab/grade button states
-        document.querySelectorAll('.study-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
-        document.querySelectorAll('.study-grade-btn').forEach(b => b.classList.toggle('active', b.dataset.grade === '0'));
-        renderStudyGrid();
-        switchScreen('screen-g3-study');
-    }
-
-    // Tab & grade filter listeners (set up once)
-    document.querySelectorAll('.study-tab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            g3StudyActiveCat = btn.dataset.cat;
-            document.querySelectorAll('.study-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderStudyGrid();
-        });
-    });
-    document.querySelectorAll('.study-grade-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            g3StudyActiveGrade = Number(btn.dataset.grade);
-            document.querySelectorAll('.study-grade-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderStudyGrid();
-        });
-    });
-    document.getElementById('g3StudyBack').addEventListener('click', () => switchScreen('screen-g3-setup'));
-    document.getElementById('g3StudyStartBtn').addEventListener('click', () => switchScreen('screen-g3-setup'));
-
-    // Rank filter listeners — set up once (use current game state for user)
-    document.getElementById('g3RankClass').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
-    document.getElementById('g3RankGrade').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
-
-    let g3State = {};
-    let g3TimerHandle = null;
-
-    function makeKeySigSvg(count, type) {
-        // Staff lines: 5 lines, y = 12 20 28 36 44 (gap=8), bottom=E4 top=F5
-        // Sharp order F C G D A E B → positions on treble staff
-        const sharpY = [12, 24,  8, 20, 32, 16, 28]; // F5 C5 G5 D5 A4 E5 B4
-        // Flat order  B E A D G C F → positions on treble staff
-        const flatY  = [28, 16, 32, 20, 36, 24, 40]; // B4 E5 A4 D5 G4 C5 F4
-        const positions = type === 'sharp' ? sharpY : flatY;
-        const sym = type === 'sharp' ? '\u266F' : '\u266D'; // ♯ or ♭
-        const xStart = 26, xGap = 16;
-        const W = Math.max(xStart + (count - 1) * xGap + 36, 80);
-        const H = 60;
-        const lineY = [12, 20, 28, 36, 44];
-        const staff = lineY.map(y =>
-            `<line x1="4" y1="${y}" x2="${W - 4}" y2="${y}" stroke="#555" stroke-width="1.3"/>`
-        ).join('');
-        const dy = type === 'sharp' ? 7 : 9; // baseline offset to centre on staff position
-        const accs = Array.from({length: count}, (_, i) => {
-            const x = xStart + i * xGap;
-            const y = positions[i];
-            return `<text x="${x}" y="${y + dy}" font-size="19" font-weight="900" fill="#1E293B" font-family="serif" text-anchor="middle">${sym}</text>`;
-        }).join('');
-        return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="keysig-quiz-svg">${staff}${accs}</svg>`;
-    }
-
-    const G3_DIFF_POOL = {
-        easy:   () => TERMS_BANK.easy.slice(),
-        normal: () => TERMS_BANK.easy.concat(TERMS_BANK.medium),
-        hard:   () => TERMS_BANK.medium.concat(TERMS_BANK.hard),
-        expert: () => TERMS_BANK.easy.concat(TERMS_BANK.medium, TERMS_BANK.hard),
-    };
-
-    function startGame3(user, mode, difficulty) {
-        mode = mode || 'challenge';
-        difficulty = difficulty || 'easy';
-        const isChallenge = mode === 'challenge';
-        g3State = { user, mode, difficulty, score: 0, combo: 0, maxCombo: 0, qIdx: 0, wrong: 0, correct: 0, questions: [], totalTime: isChallenge ? 60 : Infinity, globalTimeLeft: isChallenge ? 60 : Infinity, mistakes: [] };
-        if (g3TimerHandle) clearInterval(g3TimerHandle);
-        audio.init(); audio.warmUp();
-
-        const pool = (G3_DIFF_POOL[difficulty] || G3_DIFF_POOL.easy)();
-        // For challenge mode, we need a large shuffled pool; recycle if needed
-        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-        g3State.questions = pool;
-        g3State._pool = pool; // keep reference for recycling
-
-        const modeLabel = isChallenge ? '⏱️ 限時挑戰 (60秒)' : '📝 練習模式';
-        const diffEmoji = (DIFFICULTY_CONFIG[difficulty] || {}).emoji || '';
-        document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 音樂術語 ${modeLabel} ${diffEmoji}`;
-        document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
-        switchScreen('screen-game3');
-
-        // Start global countdown for challenge mode
-        if (isChallenge) {
-            const timerEl = document.getElementById('g3Timer');
-            const g3timerFill = document.getElementById('g3TimerFill');
-            if (g3timerFill) { g3timerFill.style.width = '100%'; g3timerFill.classList.remove('urgent'); }
-            const updateGlobalTimer = () => {
-                if (timerEl) timerEl.textContent = g3State.globalTimeLeft + 's';
-                const pct = (g3State.globalTimeLeft / g3State.totalTime) * 100;
-                if (g3timerFill) { g3timerFill.style.width = pct + '%'; if (g3State.globalTimeLeft <= 10) g3timerFill.classList.add('urgent'); else g3timerFill.classList.remove('urgent'); }
-                if (timerEl) { if (g3State.globalTimeLeft <= 10) timerEl.style.color = 'var(--primary-red)'; else timerEl.style.color = ''; }
-            };
-            updateGlobalTimer();
-            g3TimerHandle = setInterval(() => {
-                g3State.globalTimeLeft--;
-                updateGlobalTimer();
-                if (g3State.globalTimeLeft <= 0) {
-                    clearInterval(g3TimerHandle); g3TimerHandle = null;
-                    document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
-                    setTimeout(() => endGame3(), 400);
-                }
-            }, 1000);
-        }
-        renderG3Question();
-    }
-
-    function _getG3Question() {
-        // Get next question, recycle pool if exhausted
-        if (g3State.qIdx >= g3State.questions.length) {
-            // Reshuffle and reset index
-            const pool = g3State._pool.slice();
-            for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-            g3State.questions = pool;
-            g3State.qIdx = 0;
-        }
-        return g3State.questions[g3State.qIdx];
-    }
-
-    function renderG3Question() {
-        const isChallenge = g3State.mode === 'challenge';
-        // For challenge, check if time is up
-        if (isChallenge && g3State.globalTimeLeft <= 0) { endGame3(); return; }
-        // For practice, stop after 10 questions
-        if (!isChallenge && g3State.qIdx >= 10) { endGame3(); return; }
-
-        const q = _getG3Question();
-        const totalAnswered = g3State.correct + g3State.wrong;
-        if (isChallenge) {
-            document.getElementById('g3Progress').textContent = `${totalAnswered}題`;
-            document.getElementById('g3QNum').textContent = `已答 ${totalAnswered} 題`;
-        } else {
-            document.getElementById('g3Progress').textContent = `${g3State.qIdx+1}/10`;
-            document.getElementById('g3QNum').textContent = `第 ${g3State.qIdx+1} 題 / 共 10 題`;
-        }
-        document.getElementById('g3Score').textContent = g3State.score;
-        document.getElementById('g3Combo').textContent = g3State.combo;
-
-        // Progress bar for practice mode only
-        const g3pfill = document.getElementById('g3ProgressFill');
-        if (g3pfill) g3pfill.style.width = (isChallenge ? 0 : (g3State.qIdx / 10) * 100) + '%';
-
-        // Timer for practice mode (no per-question timer, show infinity)
-        if (!isChallenge) {
-            const timerEl = document.getElementById('g3Timer');
-            const g3timerFill = document.getElementById('g3TimerFill');
-            if (timerEl) timerEl.textContent = '∞';
-            if (g3timerFill) g3timerFill.style.width = '100%';
-        }
-
-        document.getElementById('g3Question').textContent = q.q;
-        document.getElementById('g3Visual').innerHTML = q.ksImg
-            ? `<div class="ks-quiz-visual"><img src="${escHtml(q.ksImg)}" class="ks-card-img" alt="調號卡" loading="eager">${q.ksCaption ? `<div class="ks-quiz-caption">${q.ksCaption}</div>` : ''}</div>`
-            : q.keySig
-            ? makeKeySigSvg(q.keySig.count, q.keySig.type)
-            : q.img
-            ? `<img src="${escHtml(q.img)}" class="quiz-card-img" alt="${escHtml(q.sym || '')}" loading="eager">`
-            : `<div class="term-display term-italic">${escHtml(q.sym || '')}</div>`;
-        document.getElementById('g3Message').textContent = '📖 快速選出正確答案！';
-        document.getElementById('g3Message').className = 'message-box';
-
-        const optEl = document.getElementById('g3Options');
-        optEl.innerHTML = '';
-        const G3_LETTERS = ['A', 'B', 'C', 'D'];
-        q.opts.forEach((opt, i) => {
-            const btn = document.createElement('button');
-            btn.className = 'quiz-opt-btn';
-            btn.dataset.answer = opt;
-            btn.innerHTML = `<span class="opt-letter">${G3_LETTERS[i]}</span><span class="opt-text">${escHtml(opt)}</span>`;
-            btn.addEventListener('click', () => handleG3Answer(opt, q.ans, btn, q));
-            optEl.appendChild(btn);
-        });
-    }
-
-    function handleG3Answer(chosen, correct, btn, q) {
-        const isCorrect = chosen === correct;
-        document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
-        const msgEl = document.getElementById('g3Message');
-        if (isCorrect) {
-            btn.classList.add('correct');
-            g3State.combo++;
-            g3State.correct++;
-            if (g3State.combo > g3State.maxCombo) g3State.maxCombo = g3State.combo;
-            let pts = 10;
-            if (g3State.combo >= 5) pts += 10;
-            g3State.score += pts;
-            audio.playEffect && audio.playEffect('countdown');
-            msgEl.textContent = `✅ 答對！+${pts} 分`;
-            msgEl.className = 'message-box correct';
-        } else {
-            btn.classList.add('wrong');
-            document.querySelectorAll('.quiz-opt-btn').forEach(b => { if (b.dataset.answer === correct) b.classList.add('correct'); });
-            g3State.combo = 0; g3State.wrong++;
-            g3State.mistakes.push({ q: q.q, sym: q.sym, chosen, correct, explain: q.explain || '' });
-            audio.playEffect && audio.playEffect('wrong');
-            const explainText = q.explain ? `　💡 ${q.explain}` : '';
-            msgEl.textContent = `❌ 答錯！正確答案是「${correct}」${explainText}`;
-            msgEl.className = 'message-box wrong';
-        }
-        document.getElementById('g3Score').textContent = g3State.score;
-        document.getElementById('g3Combo').textContent = g3State.combo;
-        g3State.qIdx++;
-        const _isChallenge = g3State.mode === 'challenge';
-        setTimeout(() => renderG3Question(), _isChallenge ? 980 : 1300);
-    }
-
-    function endGame3() {
-        if (g3TimerHandle) { clearInterval(g3TimerHandle); g3TimerHandle = null; }
-        const { user, score, wrong, maxCombo, mode, difficulty, correct: correctCount } = g3State;
-        const totalAnswered = (correctCount || 0) + wrong;
-        const correct = correctCount || 0;
-        let finalScore = score;
-        if (mode !== 'practice' && wrong === 0 && totalAnswered > 0) finalScore += 20; // all correct bonus
-        g3State.score = finalScore;
-        const accuracy = totalAnswered > 0 ? Math.round((correct / totalAnswered) * 100) : 0;
-        const diffLabel = (DIFFICULTY_CONFIG[difficulty] || {}).label || 'Easy';
-        if (mode !== 'practice') {
-            saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
-            submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '音樂術語·' + diffLabel);
-            recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
-        }
-
-        const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
-        document.getElementById('g3ReportGrid').innerHTML = `
-            <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${totalAnswered}</div></div>
-            <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
-            <div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div>
-            <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
-            <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
-        document.getElementById('g3Weakness').innerHTML = wrong === 0
-            ? '<div>🌟 全部答對！你係音樂術語小專家！🎉</div>'
-            : `<div>繼續練習加油！正確 ${correct}/${totalAnswered} 題。</div>`;
-
-        // Render mistake review
-        const g3MistakeEl = document.getElementById('g3MistakeReview');
-        if (g3MistakeEl) {
-            if (g3State.mistakes.length > 0) {
-                g3MistakeEl.innerHTML = '<div class="mistake-review-title">📝 錯題回顧</div>' +
-                    g3State.mistakes.map(m => `<div class="mistake-item">
-                        <div class="mistake-q">${escHtml(m.q)}</div>
-                        <div class="mistake-detail"><span class="mistake-wrong">你的答案：${escHtml(String(m.chosen))}</span> → <span class="mistake-correct">正確：${escHtml(String(m.correct))}</span></div>
-                        ${m.explain ? `<div class="mistake-explain">💡 ${escHtml(m.explain)}</div>` : ''}
-                    </div>`).join('');
-            } else {
-                g3MistakeEl.innerHTML = '';
-            }
-        }
-
-        renderLocalRankList('game3', 'g3RankList', user, difficulty);
-        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 2500);
-        document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
-        document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
-        switchScreen('screen-game3-result');
-    }
-
-})();
-
-
-
+        { cat:'tempo',    sym:'a tempo',   name:'A tempo',      meaning:'回原速',  
