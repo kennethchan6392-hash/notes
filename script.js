@@ -2819,8 +2819,9 @@
         voice.setMode(2); // SOFT
         voice.addTickables(allVfNotes);
         new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+        const beams = beamGroups.map(g => new Beam(g));
         voice.draw(context, stave);
-        beamGroups.forEach(g => new Beam(g).setContext(context).draw());
+        beams.forEach(b => b.setContext(context).draw());
 
         // Store VF data on rchgState for scanner & hit coloring
         const noteStartX = stave.getNoteStartX();
@@ -3786,7 +3787,7 @@
         bars.forEach((barLabel, bi) => {
             const y = bi * STAVE_H + 10;
             const stave = new Stave(10, y, STAVE_W - 10);
-            stave.setNumLines(1);
+            [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
             if (bi === 0) stave.addTimeSignature('4/4');
             stave.setContext(context).draw();
 
@@ -3840,11 +3841,9 @@
             voice.addTickables(notes);
 
             new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+            const beams = beamGroups.map(g => new Beam(g));
             voice.draw(context, stave);
-
-            beamGroups.forEach(group => {
-                new Beam(group).setContext(context).draw();
-            });
+            beams.forEach(b => b.setContext(context).draw());
         });
     }
 
@@ -3914,8 +3913,9 @@
         voice.setMode(2);
         voice.addTickables(vfNotes);
         new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+        const beams = beamGroups.map(g => new Beam(g));
         voice.draw(context, stave);
-        beamGroups.forEach(g => new Beam(g).setContext(context).draw());
+        beams.forEach(b => b.setContext(context).draw());
 
         // Collect SVG elements and X positions
         const noteStartX = stave.getNoteStartX();
