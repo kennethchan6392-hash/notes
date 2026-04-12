@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
 </head>
 <body>
     <!-- 背景裝飾 -->
@@ -27,7 +28,6 @@
         </div>
         <div class="hub-corner-actions hub-corner-left">
             <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊">👥</button>
-            <button class="hub-social-corner-btn" id="hubChatBtn" title="聊天室">💬</button>
         </div>
         <h1 class="game-title"><span class="title-icon">🎵</span> 音符小精靈</h1>
         <div class="game-subtitle">互動音樂學習站 · 小一至小六</div>
@@ -251,28 +251,6 @@
             <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏卡打擊</span><span class="pgb-score" id="vpGame2">---</span></div>
             <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-score" id="vpGame3">---</span></div>
         </div>
-        <button class="btn-action vp-chat-btn" id="vpChatBtn">💬 傳送訊息</button>
-    </div>
-
-    <!-- ===================================== -->
-    <!-- 聊天室 (Chat Screen)                  -->
-    <!-- ===================================== -->
-    <div id="screen-chat" class="screen">
-        <button class="btn-back-hub" id="chatBackBtn">← 返回</button>
-        <h2 class="social-title">💬 訊息</h2>
-        <div class="chat-tabs">
-            <button class="chat-tab active" data-tab="class">🏫 班級聊天室</button>
-            <button class="chat-tab" data-tab="dm">📨 私人訊息</button>
-        </div>
-        <div class="chat-panel" id="chatPanel">
-            <div class="chat-messages" id="chatMessages">
-                <div class="chat-empty">選擇聊天室開始對話 💭</div>
-            </div>
-            <div class="chat-input-row">
-                <input type="text" class="chat-input" id="chatInput" maxlength="100" placeholder="輸入訊息...">
-                <button class="chat-send-btn" id="chatSendBtn">送出</button>
-            </div>
-        </div>
     </div>
 
     <!-- ===================================== -->
@@ -434,7 +412,7 @@
                 <div class="mode-icon">🎴</div><div class="mode-name">自由練習</div><div class="mode-desc">自選節奏卡，慢慢練</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g2ModeChallenge">
-                <div class="mode-icon">⭐</div><div class="mode-name">隨機挑戰</div><div class="mode-desc">隨機節奏，衝排行榜</div>
+                <div class="mode-icon">⭐</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">隨機節奏，衝排行榜</div>
             </div>
 
         </div>
@@ -476,11 +454,6 @@
         <h1 class="game-title" style="font-size:1.6rem;margin:0;filter:none;">🎴 節奏卡打擊</h1>
         <div class="rc-filter-row" style="margin:0;">
             <span class="hub-player-badge show" id="rcPlayerBadge" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;">👋 <span id="rcPlayerBadgeText">準備中...</span></span>
-            <button class="rc-filter active" data-level="0">全部</button>
-            <button class="rc-filter" data-level="1">⭐</button>
-            <button class="rc-filter" data-level="2">⭐⭐</button>
-            <button class="rc-filter" data-level="3">⭐⭐⭐</button>
-            <button class="rc-filter" data-level="4">⭐⭐⭐⭐</button>
         </div>
         <div class="rc-level-grid" id="rcLevelGrid"></div>
     </div>
@@ -541,6 +514,10 @@
             <div class="rc-game-rep" id="rcGameRep">第 1 / 4 次</div>
             <div class="rc-game-pattern" id="rcGamePattern">ta ta ta ta</div>
             <div class="rc-game-token-row" id="rcGameTokenRow"></div>
+            <div class="rc-next-bar-strip" id="rcNextBarStrip" style="display:none">
+                <span class="rc-next-bar-label">下一節 →</span>
+                <span class="rc-next-bar-pattern" id="rcNextBarPattern"></span>
+            </div>
         </div>
         <div class="rc-beat-metro-strip">
             <div class="rc-beat-boxes rc-game-beats" id="rcGameBeats">
@@ -559,6 +536,7 @@
         </div>
         <div class="rc-combo-display" id="rcComboDisplay"></div>
         <div class="rc-canvas-wrap">
+            <div id="rcOsmdContainer" class="rc-osmd-container" style="display:none"></div>
             <canvas id="rcGameCanvas"></canvas>
             <div class="rc-message-overlay" id="rcMessageOverlay">🎵 準備...</div>
             <div class="rc-read-overlay" id="rcReadOverlay" style="display:none">
@@ -790,4 +768,107 @@
             <button class="study-tab" data-cat="articulation">🎵 奏法</button>
             <button class="study-tab" data-cat="keysig">🔑 調號</button>
             <button class="study-tab" data-cat="form">🔁 記號</button>
-            <button class=
+            <button class="study-tab" data-cat="expression">🎭 情緒</button>
+        </div>
+
+        <!-- Grade filter -->
+        <div class="study-grade-filter">
+            <span class="study-grade-label">年級篩選：</span>
+            <button class="study-grade-btn active" data-grade="0">全部</button>
+            <button class="study-grade-btn" data-grade="1">小一</button>
+            <button class="study-grade-btn" data-grade="2">小二</button>
+            <button class="study-grade-btn" data-grade="3">小三</button>
+            <button class="study-grade-btn" data-grade="4">小四</button>
+            <button class="study-grade-btn" data-grade="5">小五</button>
+            <button class="study-grade-btn" data-grade="6">小六</button>
+        </div>
+
+        <!-- Terms grid -->
+        <div class="study-terms-grid" id="g3TermsGrid"></div>
+
+        <button class="btn-start" id="g3StudyStartBtn">🚀 返回設定，開始挑戰！</button>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲說明教學 Modal                    -->
+    <!-- ===================================== -->
+    <div id="tutorialModal" class="tutorial-modal" role="dialog" aria-modal="true" aria-label="遊戲說明教學" style="display:none">
+        <div class="tutorial-box">
+            <div class="tut-header">
+                <div class="tut-stepper" id="tutDots">
+                    <span class="tut-dot active"></span>
+                    <span class="tut-dot"></span>
+                    <span class="tut-dot"></span>
+                </div>
+                <button class="tut-close" id="tutClose" aria-label="關閉教學">✕</button>
+            </div>
+
+            <div id="tutSlidesWrap">
+
+                <!-- Slide 0: 五線譜與鍵盤對照 -->
+                <div class="tut-slide active">
+                    <h3 class="tut-title">🎹 五線譜與鍵盤音符對照</h3>
+                    <a class="tut-img-wrap" href="img/tut-score-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                        <img src="img/tut-score-1.jpg" alt="五線譜與鍵盤音符對照表" class="tut-img" loading="lazy" decoding="async">
+                        <span class="tut-img-hint">🔍 點擊放大</span>
+                    </a>
+                    <p class="tut-text">五線譜每個位置對應琴鍵上一個音。圖中彩色音符由低到高：<strong>Do Re Mi Fa Sol La Si</strong>（英文 <strong>C D E F G A B</strong>）。超出五條線就用<strong>加線</strong>延伸。</p>
+                </div>
+
+                <!-- Slide 1: 認識音符位置 -->
+                <div class="tut-slide">
+                    <h3 class="tut-title">📖 認識高音譜號音符位置</h3>
+                    <a class="tut-img-wrap" href="img/tut-notes-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                        <img src="img/tut-notes-1.jpg" alt="高音譜號音符位置讀譜練習表" class="tut-img" loading="lazy" decoding="async">
+                        <span class="tut-img-hint">🔍 點擊放大</span>
+                    </a>
+                    <p class="tut-text">圖右方「音名對照表」：意大利語 Do/Re… = 英語 C/D… = 日語 ハ/ニ…。下方「おんぷクイズ」的題型同我哋遊戲一樣——睇譜認音，多做多快！</p>
+                </div>
+
+                <!-- Slide 2: 點樣玩 -->
+                <div class="tut-slide">
+                    <h3 class="tut-title">🎮 點樣玩遊戲？</h3>
+                    <div class="tut-visual tut-steps-visual">
+                        <ol class="tut-steps">
+                            <li style="background:#FFF0F8; border-left:4px solid #FF65A3;">👀 <strong>睇住</strong>五線譜上出現嘅音符</li>
+                            <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎹 <strong>快快按</strong>下正確的音名按鈕（如 C、D、F# …）</li>
+                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">🔥 答對有分！<strong>連續答對</strong>有連擊獎勵加分 💯</li>
+                            <li style="background:#F3EEFF; border-left:4px solid #8B66FF;">💡 唔確定可以按「<strong>聽&amp;看答案</strong>」學習，或「<strong>跳過</strong>」換題</li>
+                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">⌨️ 鍵盤快捷鍵：<strong>1-7</strong> 按自然音，<strong>H</strong> 聆聽答案，<strong>空格</strong> 跳過</li>
+                            <li style="background:#EEFAF6; border-left:4px solid #00B89F;">🏆 挑戰模式完成後可上傳<strong>排行榜</strong>，同班競技！</li>
+                        </ol>
+                    </div>
+                    <p class="tut-text">🔑 口訣：<strong>Do=C　Re=D　Mi=E　Fa=F　Sol=G　La=A　Si=B</strong>　多練多快 🎵</p>
+                </div>
+
+            </div><!-- end tutSlidesWrap -->
+
+            <div class="tut-nav">
+                <button class="tut-btn" id="tutPrev" disabled>◀ 上一頁</button>
+                <span class="tut-page" id="tutPage">1 / 3</span>
+                <button class="tut-btn" id="tutNext">下一頁 ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 教學圖片 Lightbox Modal               -->
+    <!-- ===================================== -->
+    <div id="imgLightbox" class="img-lightbox" style="display:none;" role="dialog" aria-modal="true" aria-label="教學圖表">
+        <div class="img-lightbox-backdrop" id="imgLightboxBackdrop"></div>
+        <div class="img-lightbox-box">
+            <div class="img-lightbox-header">
+                <span class="img-lightbox-title" id="imgLightboxTitle">📋 音符節奏圖表</span>
+                <button class="img-lightbox-close" id="imgLightboxClose" aria-label="關閉">✕</button>
+            </div>
+            <div class="img-lightbox-body">
+                <img id="imgLightboxImg" src="" alt="教學圖表" class="img-lightbox-img">
+            </div>
+            <div class="img-lightbox-hint">🔍 可以縮放/拖動圖片查看細節</div>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+    <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
+</body>
+</html>

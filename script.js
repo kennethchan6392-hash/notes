@@ -1862,9 +1862,6 @@
     // ==========================================
     // 👥 社交功能 (Social Features)
     // ==========================================
-    const CHAT_STORAGE_KEY = 'musicGameChat';
-    const CHAT_MAX_MESSAGES = 200;
-
     function initSocialFeatures() {
         // Hub buttons
         document.getElementById('hubClassmatesBtn').addEventListener('click', () => {
@@ -1874,20 +1871,9 @@
             renderClassmateList();
             switchScreen('screen-classmates');
         });
-        document.getElementById('hubChatBtn').addEventListener('click', () => {
-            if (!state.currentUser || !state.currentUser.name) { alert('請先選擇你的身份！'); return; }
-            openChat('class');
-            switchScreen('screen-chat');
-        });
-
         // Back buttons
         document.getElementById('classmatesBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
         document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen('screen-classmates'));
-        document.getElementById('chatBackBtn').addEventListener('click', () => {
-            if (_chatPollTimer) clearInterval(_chatPollTimer);
-            switchScreen('screen-hub');
-        });
-
         // Classmate filter changes
         document.getElementById('cmGrade').addEventListener('change', renderClassmateList);
         document.getElementById('cmClass').addEventListener('change', renderClassmateList);
@@ -1900,36 +1886,9 @@
             cmClass.value = state.currentUser.class || 'A';
         }
 
-        // Chat tabs
-        document.querySelector('.chat-tabs').addEventListener('click', (e) => {
-            const tab = e.target.closest('.chat-tab');
-            if (!tab) return;
-            document.querySelectorAll('.chat-tab').forEach(t => t.classList.toggle('active', t === tab));
-            openChat(tab.dataset.tab);
-        });
-
-        // Chat send
-        document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
-        document.getElementById('chatInput').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
-        });
-        document.getElementById('chatInput').addEventListener('focus', () => state.inputFocused = true);
-        document.getElementById('chatInput').addEventListener('blur', () => state.inputFocused = false);
-
-        // View-profile chat button
-        document.getElementById('vpChatBtn').addEventListener('click', () => {
-            if (_viewingProfile) {
-                _chatDMTarget = _viewingProfile;
-                openChat('dm');
-                switchScreen('screen-chat');
-            }
-        });
     }
 
     let _viewingProfile = null;
-    let _chatDMTarget = null;
-    let _chatCurrentTab = 'class';
-    let _chatPollTimer = null;
 
     // ── Classmates Directory ──
     function renderClassmateList() {
@@ -1958,7 +1917,6 @@
                 </div>
                 <div class="cm-actions">
                     <button class="cm-view-btn" title="查看檔案">📋</button>
-                    <button class="cm-chat-btn" title="傳訊息">💬</button>
                 </div>
             </div>`;
         }).join('');
@@ -1972,12 +1930,6 @@
             const s = card.dataset.seat;
             const user = { name, grade: g, class: c, seat: s };
 
-            if (e.target.closest('.cm-chat-btn')) {
-                _chatDMTarget = user;
-                openChat('dm');
-                switchScreen('screen-chat');
-                return;
-            }
             // Default: view profile
             openViewProfile(user);
         };
@@ -2012,122 +1964,6 @@
         switchScreen('screen-view-profile');
     }
 
-    // ── Chat System (localStorage-based for same-device, GAS for cross-device) ──
-    function _getChatKey(tab) {
-        if (tab === 'class') {
-            const u = state.currentUser;
-            return `${CHAT_STORAGE_KEY}_class_${u.grade}_${u.class}`;
-        }
-        if (tab === 'dm' && _chatDMTarget) {
-            const u = state.currentUser;
-            const t = _chatDMTarget;
-            const pair = [
-                `${u.grade}_${u.class}_${u.name}`,
-                `${t.grade}_${t.class}_${t.name}`
-            ].sort().join('__');
-            return `${CHAT_STORAGE_KEY}_dm_${pair}`;
-        }
-        return null;
-    }
-
-    function _loadChatMessages(key) {
-        if (!key) return [];
-        try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { return []; }
-    }
-
-    function _saveChatMessages(key, msgs) {
-        if (!key) return;
-        // Keep only last N messages
-        const trimmed = msgs.slice(-CHAT_MAX_MESSAGES);
-        try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(e) {}
-    }
-
-    function openChat(tab) {
-        _chatCurrentTab = tab;
-        if (_chatPollTimer) clearInterval(_chatPollTimer);
-
-        // Update tab UI
-        document.querySelectorAll('.chat-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-
-        // Update header
-        const panel = document.getElementById('chatPanel');
-        if (tab === 'dm' && _chatDMTarget) {
-            panel.dataset.target = _chatDMTarget.name;
-            const header = panel.querySelector('.chat-dm-header') || document.createElement('div');
-            header.className = 'chat-dm-header';
-            const avInfo = _avatarLookup(loadProfile(_chatDMTarget).avatar);
-            header.innerHTML = `<span class="chat-dm-avatar" style="background:${avInfo.bg}">${loadProfile(_chatDMTarget).avatar}</span> ${escHtml(_chatDMTarget.name)} 同學`;
-            if (!panel.querySelector('.chat-dm-header')) panel.insertBefore(header, panel.firstChild);
-            header.style.display = '';
-        } else {
-            const header = panel.querySelector('.chat-dm-header');
-            if (header) header.style.display = 'none';
-        }
-
-        renderChatMessages();
-
-        // Poll for new messages every 3 seconds
-        _chatPollTimer = setInterval(renderChatMessages, 3000);
-    }
-
-    function renderChatMessages() {
-        const key = _getChatKey(_chatCurrentTab);
-        const msgs = _loadChatMessages(key);
-        const container = document.getElementById('chatMessages');
-        const me = state.currentUser;
-
-        if (!msgs.length) {
-            container.innerHTML = `<div class="chat-empty">${_chatCurrentTab === 'dm' ? '同對方打個招呼吧！👋' : '成為第一個發言的同學吧！🎵'}</div>`;
-            return;
-        }
-
-        container.innerHTML = msgs.map(m => {
-            const isMine = m.name === me.name && m.grade == me.grade && m.class === me.class;
-            const avInfo = _avatarLookup(m.avatar || '🎵');
-            const time = new Date(m.ts).toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
-            return `<div class="chat-msg ${isMine ? 'chat-msg-mine' : 'chat-msg-other'}">
-                <div class="chat-msg-avatar" style="background:${avInfo.bg}">${m.avatar || '🎵'}</div>
-                <div class="chat-msg-body">
-                    <div class="chat-msg-name">${escHtml(m.name)}${isMine ? '' : ` · ${m.grade ? '小' + m.grade : ''}${m.class}班`}</div>
-                    <div class="chat-msg-bubble">${escHtml(m.text)}</div>
-                    <div class="chat-msg-time">${time}</div>
-                </div>
-            </div>`;
-        }).join('');
-
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function sendChatMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text || !state.currentUser || !state.currentUser.name) return;
-
-        const key = _getChatKey(_chatCurrentTab);
-        if (!key) return;
-
-        const p = loadProfile(state.currentUser);
-        const msg = {
-            name: state.currentUser.name,
-            grade: state.currentUser.grade,
-            class: state.currentUser.class,
-            avatar: p.avatar,
-            text: text.slice(0, 100),
-            ts: Date.now()
-        };
-
-        const msgs = _loadChatMessages(key);
-        msgs.push(msg);
-        _saveChatMessages(key, msgs);
-
-        input.value = '';
-        renderChatMessages();
-
-        // Play SFX
-        if (audio.enabled && audio.playClick) {
-            try { audio.playClick(); } catch(e) {}
-        }
-    }
 
     // Initialize on DOM ready
     window.addEventListener('DOMContentLoaded', () => {
@@ -2361,36 +2197,9 @@
             // Populate player badge on setup screen
             const badgeText = document.getElementById('g2PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
-            // Reset mode selection to practice
-            let g2SelectedMode = 'practice';
-            let g2SelectedDiff = 'easy';
-            const g2DiffSel = document.getElementById('g2DiffSelector');
-
-            document.querySelectorAll('#g2ModeCards .mode-card').forEach(c => {
-                c.classList.toggle('active', c.dataset.mode === 'practice');
-                c.onclick = () => {
-                    g2SelectedMode = c.dataset.mode;
-                    document.querySelectorAll('#g2ModeCards .mode-card').forEach(x => x.classList.remove('active'));
-                    c.classList.add('active');
-                    // Show/hide difficulty selector for challenge mode
-                    if (g2DiffSel) g2DiffSel.style.display = (g2SelectedMode === 'challenge') ? '' : 'none';
-                };
-            });
-
-            // Difficulty card selection
-            document.querySelectorAll('#g2DiffCards .diff-card').forEach(c => {
-                c.classList.toggle('active', c.dataset.diff === 'easy');
-                c.onclick = () => {
-                    g2SelectedDiff = c.dataset.diff;
-                    document.querySelectorAll('#g2DiffCards .diff-card').forEach(x => x.classList.remove('active'));
-                    c.classList.add('active');
-                };
-            });
-            if (g2DiffSel) g2DiffSel.style.display = 'none';
 
             document.getElementById('g2StartBtn').onclick = () => {
-                if (g2SelectedMode === 'challenge') { startRCChallengeMode(user, g2SelectedDiff); }
-                else { enterRCGame(user); }
+                enterRCGame(user);
             };
             document.getElementById('g2BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
             document.getElementById('g2SetupViewRanks').onclick = () => {
@@ -2508,7 +2317,7 @@
             const score = item.score || 0; const acc = item.accuracy || 0;
             const gradeTxt = item.grade ? `小${item.grade}` : '';
             const seatTxt = (item.id || item.seat) ? `${item.id || item.seat}號` : '';
-            // Extract difficulty label from mode_name (e.g. '隨機挑戰·Hard' → 'Hard')
+            // Extract difficulty label from mode_name (e.g. '節奏挑戰·Hard' → 'Hard')
             const diffPart = (item.mode_name || '').split('·')[1] || '';
             const diffColors = { Easy:'#4CAF50', Normal:'#2196F3', Hard:'#FF9800', Expert:'#E91E63' };
             const diffTag = diffPart ? `<span class="rank-tag" style="background:${diffColors[diffPart]||'#888'};color:#fff;">${diffPart}</span>` : '';
@@ -2782,7 +2591,6 @@
     }
 
     let rcGameState = {};
-    let rcChallengeState = null; // set when canvas challenge mode is active
 
     // Best grade persistence per card
     function _rcGetBestGrades() {
@@ -2856,7 +2664,6 @@
             _user: user,
             _card: rcGameState._card || null,
             _bpm: rcGameState._bpm || 60,
-            _filterLevel: rcGameState._filterLevel || 0,
             _previewTimers: [],
             _judgeTimer: null,
         };
@@ -2865,17 +2672,8 @@
         const badge = document.getElementById('rcPlayerBadgeText');
         if (badge) badge.textContent = `${user.name} 同學 (小${grade})`;
 
-        document.querySelectorAll('.rc-filter').forEach(btn => {
-            btn.onclick = () => {
-                const level = parseInt(btn.dataset.level || '0', 10);
-                rcGameState._filterLevel = level;
-                _rcSetFilterButtons(level);
-                _rcRenderLevels(level);
-            };
-        });
         document.getElementById('rcLevelsBack').onclick = () => { audio.bgPlay(); switchScreen('screen-g2-setup'); };
-        _rcSetFilterButtons(rcGameState._filterLevel);
-        _rcRenderLevels(rcGameState._filterLevel);
+        _rcRenderLevels();
         switchScreen('screen-rc-levels');
     }
 
@@ -2912,13 +2710,133 @@
         return { measures, bpm: cfg.bpm, winScale: cfg.winScale };
     }
 
-    /* --- Render measures with bar lines --- */
+    /* --- Render measures with VexFlow notation --- */
     function _rchgRenderMeasures(measures, errorMap, hitMap) {
         const wrap = document.getElementById('rchgMeasuresWrap');
         if (!wrap) return;
         wrap.innerHTML = '';
+
+        // Try VexFlow; fall back to DOM tokens
+        if (typeof VexFlow !== 'undefined') {
+            try {
+                _rchgRenderVF(measures, errorMap, hitMap, wrap);
+                return;
+            } catch (err) { console.warn('rchg VexFlow render failed:', err); wrap.innerHTML = ''; }
+        }
+        _rchgRenderMeasuresDom(measures, errorMap, hitMap, wrap);
+    }
+
+    /* --- VexFlow renderer for all 4 measures --- */
+    function _rchgRenderVF(measures, errorMap, hitMap, container) {
+        const { Renderer, Stave, StaveNote, BarNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+        container.innerHTML = '';
+        // Remove old scanner if present
+        const area = document.getElementById('rchgTrackArea');
+        const oldScanner = area && area.querySelector('.rchg-scanner');
+        if (oldScanner) oldScanner.remove();
+
+        const W = container.clientWidth || 360;
+        const H = 130;
+        const PAD = 10;
+        const STAVE_W = W - PAD * 2;
+
+        const renderer = new Renderer(container, Renderer.Backends.SVG);
+        renderer.resize(W, H);
+        const context = renderer.getContext();
+
+        const stave = new Stave(PAD, 8, STAVE_W);
+        [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+        stave.addTimeSignature('4/4');
+        stave.setContext(context).draw();
+
+        const durMap = { 0.25: '16', 0.5: '8', 0.75: '8d', 1: 'q', 1.5: 'qd', 2: 'h', 3: 'hd' };
+        const allVfNotes = [];
+        const beamGroups = [];
+        // Per-measure note data: [{mIdx, tIdx, vfNote}]
+        const noteData = [];
+        let totalBeats = 0;
+
         measures.forEach((label, mIdx) => {
-            // Bar line before each measure (except first gets thicker "start" line)
+            const tokens = label.split(' ');
+            let tIdx = 0;
+
+            tokens.forEach(token => {
+                const isRest = token === '休';
+                const compound = COMPOUND_TOKENS[token];
+
+                if (isRest) {
+                    const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
+                    note.addModifier(new Annotation('休止').setVerticalJustification(3));
+                    // Color if result
+                    if (errorMap && errorMap[`${mIdx}-${tIdx}`]) {
+                        note.setStyle({ fillStyle: '#EF4444', strokeStyle: '#EF4444' });
+                    }
+                    allVfNotes.push(note);
+                    noteData.push({ mIdx, tIdx, vfNote: note, isRest: true });
+                    tIdx++;
+                } else if (compound) {
+                    const group = [];
+                    compound.forEach((sub, si) => {
+                        const dur = durMap[sub.d];
+                        if (!dur) return;
+                        const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                        if (dur.endsWith('d')) note.addDotToAll();
+                        note.addModifier(new Annotation(sub.l).setVerticalJustification(3));
+                        // Color by hit/error
+                        const hitKey = `${mIdx}-${tIdx}`;
+                        if (hitMap && hitMap[hitKey]) note.setStyle({ fillStyle: '#10B981', strokeStyle: '#10B981' });
+                        else if (errorMap && errorMap[hitKey]) note.setStyle({ fillStyle: '#EF4444', strokeStyle: '#EF4444' });
+                        allVfNotes.push(note);
+                        group.push(note);
+                        noteData.push({ mIdx, tIdx, vfNote: note, subIdx: si });
+                    });
+                    if (group.length > 1) beamGroups.push(group);
+                    tIdx++;
+                } else {
+                    const tokenDur = getRhythmTokenDuration(token);
+                    const dur = durMap[tokenDur];
+                    if (!dur) { tIdx++; return; }
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                    if (dur.endsWith('d')) note.addDotToAll();
+                    note.addModifier(new Annotation(token).setVerticalJustification(3));
+                    const hitKey = `${mIdx}-${tIdx}`;
+                    if (hitMap && hitMap[hitKey]) note.setStyle({ fillStyle: '#10B981', strokeStyle: '#10B981' });
+                    else if (errorMap && errorMap[hitKey]) note.setStyle({ fillStyle: '#EF4444', strokeStyle: '#EF4444' });
+                    allVfNotes.push(note);
+                    noteData.push({ mIdx, tIdx, vfNote: note });
+                    tIdx++;
+                }
+            });
+            totalBeats += 4;
+
+            // Add bar note between measures (not after last)
+            if (mIdx < measures.length - 1) {
+                allVfNotes.push(new BarNote());
+            }
+        });
+
+        const voice = new Voice({ num_beats: totalBeats, beat_value: 4 });
+        voice.setMode(2); // SOFT
+        voice.addTickables(allVfNotes);
+        new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+        voice.draw(context, stave);
+        beamGroups.forEach(g => new Beam(g).setContext(context).draw());
+
+        // Store VF data on rchgState for scanner & hit coloring
+        const noteStartX = stave.getNoteStartX();
+        const noteEndX = stave.getNoteEndX();
+        if (rchgState) {
+            rchgState._vfNoteData = noteData;
+            rchgState._vfNoteStartX = noteStartX;
+            rchgState._vfNoteEndX = noteEndX;
+            rchgState._vfStaveH = H;
+            rchgState._vfActive = true;
+        }
+    }
+
+    /* --- DOM fallback renderer --- */
+    function _rchgRenderMeasuresDom(measures, errorMap, hitMap, wrap) {
+        measures.forEach((label, mIdx) => {
             const barLine = document.createElement('div');
             barLine.className = 'rchg-bar-line' + (mIdx === 0 ? ' rchg-bar-start' : '');
             wrap.appendChild(barLine);
@@ -2927,7 +2845,6 @@
             mDiv.className = 'rchg-measure';
             mDiv.dataset.mIdx = mIdx;
 
-            // Measure number label
             const mNum = document.createElement('div');
             mNum.className = 'rchg-measure-num';
             mNum.textContent = mIdx + 1;
@@ -2936,12 +2853,11 @@
             const tokRow = document.createElement('div');
             tokRow.className = 'rchg-tok-row';
             const tokens = label.split(' ');
-            // Pre-process: merge consecutive 'ti ti' into beamed pairs for display
             const displayTokens = [];
             for (let i = 0; i < tokens.length; i++) {
                 if (tokens[i] === 'ti' && i + 1 < tokens.length && tokens[i + 1] === 'ti') {
                     displayTokens.push({ sym: 'ti-ti', word: 'ti-ti', indices: [i, i + 1] });
-                    i++; // skip next
+                    i++;
                 } else {
                     displayTokens.push({ sym: tokens[i], word: tokens[i], indices: [i] });
                 }
@@ -2956,21 +2872,17 @@
                 const hasHit = dt.indices.some(ti => hitMap && hitMap[`${mIdx}-${ti}`]);
                 if (hasError) cell.classList.add('rchg-tok-error');
                 if (hasHit) cell.classList.add('rchg-tok-hit');
-
                 const symEl = document.createElement('div');
                 symEl.className = 'rchg-tok-sym';
                 symEl.textContent = TOKEN_NOTE_SYM[dt.sym] || dt.sym;
                 const wordEl = document.createElement('div');
                 wordEl.className = 'rchg-tok-word';
                 wordEl.textContent = dt.word === '休' ? '♩休' : dt.word;
-                cell.appendChild(symEl);
-                cell.appendChild(wordEl);
-                tokRow.appendChild(cell);
+                cell.appendChild(symEl); cell.appendChild(wordEl); tokRow.appendChild(cell);
             });
             mDiv.appendChild(tokRow);
             wrap.appendChild(mDiv);
         });
-        // Closing bar line
         const endBar = document.createElement('div');
         endBar.className = 'rchg-bar-line rchg-bar-end';
         wrap.appendChild(endBar);
@@ -2978,11 +2890,13 @@
 
     /* --- Highlights --- */
     function _rchgHighlightMeasure(mIdx) {
+        if (rchgState && rchgState._vfActive) return;
         document.querySelectorAll('.rchg-measure').forEach((el, i) => {
             el.classList.toggle('rchg-measure-active', i === mIdx);
         });
     }
     function _rchgHighlightTok(mIdx, tIdx) {
+        if (rchgState && rchgState._vfActive) return;
         document.querySelectorAll('.rchg-measure').forEach((mEl, mi) => {
             mEl.querySelectorAll('.rchg-tok-cell').forEach(cell => {
                 const t = parseInt(cell.dataset.t);
@@ -3251,6 +3165,22 @@
         document.getElementById('rchgTapZone').style.display = '';
         _rchgSetStatus('跟住節奏打拍子！');
 
+        // Create scanner for VexFlow mode
+        if (rchgState._vfActive) {
+            const area = document.getElementById('rchgTrackArea');
+            let scanner = area && area.querySelector('.rchg-scanner');
+            if (!scanner && area) {
+                scanner = document.createElement('div');
+                scanner.className = 'rchg-scanner';
+                area.appendChild(scanner);
+            }
+            if (scanner) {
+                scanner.style.display = '';
+                scanner.style.height = (rchgState._vfStaveH || 130) + 'px';
+                rchgState._scanner = scanner;
+            }
+        }
+
         // Schedule highlights & beat tracking
         _rchgScheduleHighlights();
         _rchgStartBeatTracker();
@@ -3286,6 +3216,13 @@
             const beatInBar = Math.floor(beatFloat) % 4;
             _rchgPulseBeat(beatInBar);
 
+            // Move scanner in VexFlow mode
+            if (rchgState._vfActive && rchgState._scanner) {
+                const progress = Math.max(0, Math.min(1, beatFloat / totalBeats));
+                const x = rchgState._vfNoteStartX + (rchgState._vfNoteEndX - rchgState._vfNoteStartX) * progress;
+                rchgState._scanner.style.left = x + 'px';
+            }
+
             // Auto-detect misses for taps that have passed
             _rchgDetectMisses(elapsed);
 
@@ -3294,6 +3231,16 @@
             }
         }
         rchgState._animId = requestAnimationFrame(tick);
+    }
+
+    /* ============ VF NOTE COLORING ============ */
+    function _rchgColorVFNote(mIdx, tIdx, color, opacity) {
+        if (!rchgState || !rchgState._vfNoteData) return;
+        const entry = rchgState._vfNoteData.find(d => d.mIdx === mIdx && d.tIdx === tIdx);
+        if (entry && entry.vfNote) {
+            const el = entry.vfNote.getSVGElement ? entry.vfNote.getSVGElement() : null;
+            if (el) _vfColorNote(el, color, opacity);
+        }
     }
 
     /* ============ MISS DETECTION ============ */
@@ -3311,10 +3258,14 @@
                 rchgState.combo = 0;
                 _rchgUpdateCombo();
 
-                // Mark cell as missed
-                const cell = document.querySelector(`.rchg-tok-cell[data-m="${tap.mIdx}"][data-t="${tap.tIdx}"]`);
-                if (cell && !cell.classList.contains('rchg-tok-hit')) {
-                    cell.classList.add('rchg-tok-miss');
+                // Mark cell as missed (DOM fallback) or color VF note
+                if (rchgState._vfActive) {
+                    _rchgColorVFNote(tap.mIdx, tap.tIdx, '#EF4444', 0.45);
+                } else {
+                    const cell = document.querySelector(`.rchg-tok-cell[data-m="${tap.mIdx}"][data-t="${tap.tIdx}"]`);
+                    if (cell && !cell.classList.contains('rchg-tok-hit')) {
+                        cell.classList.add('rchg-tok-miss');
+                    }
                 }
                 _rchgUpdateGauge();
             }
@@ -3418,15 +3369,19 @@
         _rchgUpdateGauge();
 
         // Visual hit on token cell
-        const cell = document.querySelector(`.rchg-tok-cell[data-m="${tap.mIdx}"][data-t="${tap.tIdx}"]`);
-        if (cell) {
-            cell.classList.add('rchg-tok-hit');
-            cell.classList.remove('rchg-tok-miss');
-            const check = document.createElement('span');
-            check.className = 'rchg-hit-check';
-            check.textContent = tap._judgment === 'perfect' ? '★' : '✓';
-            check.style.color = color;
-            cell.appendChild(check);
+        if (rchgState._vfActive) {
+            _rchgColorVFNote(tap.mIdx, tap.tIdx, color, 1);
+        } else {
+            const cell = document.querySelector(`.rchg-tok-cell[data-m="${tap.mIdx}"][data-t="${tap.tIdx}"]`);
+            if (cell) {
+                cell.classList.add('rchg-tok-hit');
+                cell.classList.remove('rchg-tok-miss');
+                const check = document.createElement('span');
+                check.className = 'rchg-hit-check';
+                check.textContent = tap._judgment === 'perfect' ? '★' : '✓';
+                check.style.color = color;
+                cell.appendChild(check);
+            }
         }
 
         // Score float
@@ -3454,6 +3409,7 @@
         document.getElementById('rchgTapZone').style.display = 'none';
         _rchgClearHighlights();
         document.querySelectorAll('.rchg-beat-dot').forEach(d => d.classList.remove('rchg-beat-active'));
+        document.querySelectorAll('.rchg-scanner').forEach(el => el.remove());
         if (audio.ctx) audio.stopAllTicks && audio.stopAllTicks();
 
         // Build error/hit maps
@@ -3550,202 +3506,19 @@
             document.removeEventListener('keydown', rchgState.keyHandler);
             rchgState.keyHandler = null;
         }
+        document.querySelectorAll('.rchg-scanner').forEach(el => el.remove());
         rchgState = null;
         if (audio.ctx) audio.stopAllTicks && audio.stopAllTicks();
     }
 
     // ============================================================
-    // 🎲 Canvas 隨機挑戰模式
-    // ============================================================
 
-    function startRCChallengeMode(user, difficulty) {
-        difficulty = difficulty || 'easy';
-        const cfg = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.easy;
-        // Canvas challenge: 5 rounds, rhythm difficulty and BPM from selected difficulty
-        const ROUNDS = 5;
-        audio.init(); audio.warmUp(); audio.bgStop();
-        _rcStopPreview(); _rcRemoveGameKeyHandler();
-        const patterns = [];
-        for (let i = 0; i < ROUNDS; i++) {
-            // Generate 4 unique bars per round
-            const bars = [];
-            for (let b = 0; b < 4; b++) {
-                let bar, attempts = 0;
-                do { bar = _generateChallengeRhythm(cfg.tokenSet); attempts++; }
-                while (bars.includes(bar) && attempts < 30);
-                bars.push(bar);
-            }
-            patterns.push(bars);
-        }
-        rcChallengeState = {
-            user,
-            difficulty,
-            bpm:     cfg.bpm,
-            patterns,
-            cardIdx: 0,
-            totals:  { perfect: 0, great: 0, good: 0, miss: 0, score: 0, maxCombo: 0, noteCount: 0 }
-        };
-        _rcChalAdvance(0);
-    }
-
-    function _rcChalAdvance(idx) {
-        if (!rcChallengeState) return;
-        // Commit the previous round's pending result before advancing
-        const chal = rcChallengeState;
-        if (chal.pendingResult) {
-            const r = chal.pendingResult;
-            const ct = chal.totals;
-            ct.perfect  += r.perfect;
-            ct.great    += r.great;
-            ct.good    += r.good;
-            ct.miss     += r.miss;
-            ct.score    += r.score;
-            ct.maxCombo  = Math.max(ct.maxCombo, r.maxCombo);
-            ct.noteCount += r.noteCount;
-            chal.pendingResult = null;
-        }
-        rcChallengeState.cardIdx = idx;
-        const card = { bars: chal.patterns[idx], num: null, level: 0 };
-        showRCReadPhase(card, chal.bpm, chal.user);
-    }
-
-    function _rcChalFinishAll() {
-        const chal = rcChallengeState;
-        rcChallengeState = null; // clear so next endRCGame won't re-intercept
-        // Commit the final round's pending result
-        if (chal.pendingResult) {
-            const r = chal.pendingResult;
-            const ct = chal.totals;
-            ct.perfect  += r.perfect;
-            ct.great    += r.great;
-            ct.good     += r.good;
-            ct.miss     += r.miss;
-            ct.score    += r.score;
-            ct.maxCombo  = Math.max(ct.maxCombo, r.maxCombo);
-            ct.noteCount += r.noteCount;
-        }
-        const { totals, patterns, user, bpm, difficulty } = chal;
-        const { perfect, great, good, miss, score, maxCombo, noteCount: total } = totals;
-        const hitCount  = perfect + great + good;
-        const accuracy  = total > 0 ? Math.round(hitCount / total * 100) : 0;
-        const qualAcc   = total > 0 ? Math.round((perfect + great) / total * 100) : 0;
-
-        let grade    = '🌟 S';
-        let gradeMsg = '完美挑戰！你係節奏王者！👑';
-        let stars    = 3;
-        if (qualAcc < 100) { gradeMsg = '超棒！幾乎完美！✨'; }
-        if (qualAcc < 90)  { grade = '🥇 A'; gradeMsg = '出色！節奏感一流！🎵'; stars = 2; }
-        if (qualAcc < 75)  { grade = '🥈 B'; gradeMsg = '很好！繼續練習！💪'; stars = 2; }
-        if (qualAcc < 60)  { grade = '🥉 C'; gradeMsg = '加油！每次都在進步！🙌'; stars = 1; }
-        if (qualAcc < 40)  { stars = 0; }
-
-        const starsEl = document.getElementById('rcResultStars');
-        starsEl.innerHTML = '';
-        for (let i = 0; i < 3; i++) {
-            const s = document.createElement('span');
-            s.className = 'rc-star' + (i < stars ? ' rc-star-on' : '');
-            s.textContent = i < stars ? '⭐' : '☆';
-            s.style.animationDelay = (i * 0.15) + 's';
-            starsEl.appendChild(s);
-        }
-
-        document.getElementById('rcResultGrade').textContent    = grade;
-        document.getElementById('rcResultTitle').textContent    = gradeMsg;
-        document.getElementById('rcResultAccuracy').textContent = `準確度 ${accuracy}%（${hitCount}/${total} 拍）`;
-
-        const statEls = document.querySelectorAll('#screen-rc-result .rc-stat-item');
-        statEls.forEach((el, i) => {
-            el.style.opacity = '0'; el.style.transform = 'translateY(16px)';
-            setTimeout(() => {
-                el.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
-                el.style.opacity    = '1';
-                el.style.transform  = 'translateY(0)';
-            }, 200 + i * 100);
-        });
-
-        const scoreEl = document.getElementById('rcResScore');
-        let countVal = 0;
-        const countStep  = Math.max(1, Math.ceil(score / 30));
-        const countTimer = setInterval(() => {
-            countVal = Math.min(countVal + countStep, score);
-            scoreEl.textContent = countVal;
-            if (countVal >= score) clearInterval(countTimer);
-        }, 25);
-
-        document.getElementById('rcResPerfect').textContent = perfect;
-        document.getElementById('rcResGreat').textContent   = great;
-        document.getElementById('rcResGood').textContent    = good;
-        document.getElementById('rcResMiss').textContent    = miss;
-        document.getElementById('rcResCombo').textContent   = maxCombo;
-
-        document.getElementById('rcResultRecap').innerHTML = `<div class="rc-result-recap-inner">
-            <div class="rc-result-recap-label">🎲 隨機挑戰 ${(DIFFICULTY_CONFIG[difficulty]||{}).emoji||''} ${(DIFFICULTY_CONFIG[difficulty]||{}).label||''} × ${patterns.length} 題</div>
-            <div style="font-size:0.72rem;line-height:1.6;">${
-                patterns.map((bars, i) =>
-                    `<div><span style="opacity:0.5;">第${i+1}題：</span>${
-                        (Array.isArray(bars) ? bars : [bars]).map(b => escHtml(b)).join(' / ')
-                    }</div>`
-                ).join('')
-            }</div>
-        </div>`;
-
-        const barEl = document.getElementById('rcAccuracyBar');
-        barEl.innerHTML = '';
-        [
-            { pct: perfect / (total || 1) * 100, color: '#53cf8a' },
-            { pct: great   / (total || 1) * 100, color: '#64b5f6' },
-            { pct: good    / (total || 1) * 100, color: '#ffb74d' },
-            { pct: miss    / (total || 1) * 100, color: '#ef5350' },
-        ].forEach((seg, i) => {
-            if (seg.pct <= 0) return;
-            const div = document.createElement('div');
-            div.className = 'rc-acc-seg';
-            div.style.cssText = `width:0%;background:${seg.color};transition:width 0.6s cubic-bezier(.4,0,.2,1) ${0.3 + i * 0.1}s;`;
-            barEl.appendChild(div);
-            requestAnimationFrame(() => requestAnimationFrame(() => { div.style.width = seg.pct + '%'; }));
-        });
-
-        saveLocalRank('game2', user, score, accuracy, maxCombo, difficulty);
-        if (typeof submitScoreToGAS === 'function') {
-            const diffLabel = (DIFFICULTY_CONFIG[difficulty]||{}).label || 'Easy';
-            submitScoreToGAS('game2', user, score, accuracy, maxCombo, '隨機挑戰·' + diffLabel);
-        }
-        recordGameResult(user, 'game2', score, accuracy, maxCombo, difficulty, { perfect, great, good, miss });
-
-        document.getElementById('rcResReplay').textContent = '🔄 再挑戰';
-        document.getElementById('rcResReplay').onclick     = () => startRCChallengeMode(user, difficulty);
-        document.getElementById('rcResBack').textContent   = '← 返回設定';
-        document.getElementById('rcResBack').onclick       = () => { audio.bgPlay(); switchScreen('screen-g2-setup'); };
-        const rankBtn = document.getElementById('rcResViewRank');
-        if (rankBtn) {
-            rankBtn.style.display = '';
-            rankBtn.onclick = () => {
-                dom.leaderboardLayout.classList.add('view-only');
-                dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
-                const gf = document.getElementById('rankGameFilter');
-                if (gf) { gf.value = 'game2'; gf.dispatchEvent(new Event('change')); }
-                loadRanks();
-                switchScreen('screen-leaderboard');
-            };
-        }
-
-        switchScreen('screen-rc-result');
-    }
-
-    // ============================================================
-
-    function _rcSetFilterButtons(level) {
-        document.querySelectorAll('.rc-filter').forEach(btn => {
-            btn.classList.toggle('active', parseInt(btn.dataset.level || '0', 10) === level);
-        });
-    }
-
-    function _rcRenderLevels(filterLevel) {
+    function _rcRenderLevels() {
         const grid = document.getElementById('rcLevelGrid');
         if (!grid) return;
 
         grid.innerHTML = '';
-        const cards = filterLevel ? RC_CARDS.filter(card => card.level === filterLevel) : RC_CARDS;
+        const cards = RC_CARDS;
         cards.forEach(card => {
             const num = String(card.num).padStart(2, '0');
             const el = document.createElement('div');
@@ -3913,28 +3686,65 @@
         _rcStopPreview();
         switchScreen('screen-rc-game');
 
-        // Hide the "準備..." play-phase overlay during the read phase
         const msgEl = document.getElementById('rcMessageOverlay');
         if (msgEl) msgEl.style.display = 'none';
 
-        const canvas = document.getElementById('rcGameCanvas');
-        const wrap   = canvas.parentElement;
-        const overlay = document.getElementById('rcReadOverlay');
+        const canvas    = document.getElementById('rcGameCanvas');
+        const wrap      = canvas.parentElement;
+        const overlay   = document.getElementById('rcReadOverlay');
+        const vfDiv     = document.getElementById('rcOsmdContainer');
 
         const bars = card.bars && card.bars.length ? card.bars : [card.label || ''];
 
-        // Adaptive ROW_H: aim to fit all bars in ~68% of screen without scrolling.
-        // On phones this prevents bar 3/4 being hidden under the sticky button.
+        // Try VexFlow first; fall back to canvas if library not loaded
+        const useVF = typeof VexFlow !== 'undefined' && vfDiv;
+
+        if (useVF) {
+            canvas.style.display = 'none';
+            vfDiv.style.display = '';
+            vfDiv.innerHTML = '';
+
+            wrap.style.overflowY = 'auto';
+            wrap.style.maxHeight = 'none';
+            wrap.style.webkitOverflowScrolling = 'touch';
+
+            try {
+                _renderVexFlowBars(bars, vfDiv);
+            } catch (err) {
+                console.warn('VexFlow render failed, falling back to canvas:', err);
+                vfDiv.style.display = 'none';
+                _fallbackCanvasPreview(bars, canvas, wrap);
+            }
+        } else {
+            _fallbackCanvasPreview(bars, canvas, wrap);
+        }
+
+        overlay.style.display = '';
+        document.getElementById('rcReadStartBtn').onclick = () => {
+            overlay.style.display = 'none';
+            if (vfDiv) { vfDiv.style.display = 'none'; vfDiv.innerHTML = ''; }
+            canvas.style.display = '';
+            wrap.style.overflowY = '';
+            wrap.style.maxHeight = '';
+            wrap.style.minHeight = '';
+            wrap.style.webkitOverflowScrolling = '';
+            canvas.style.width  = '';
+            canvas.style.height = '';
+            startRCGame(card, bpm, user);
+        };
+    }
+
+    function _fallbackCanvasPreview(bars, canvas, wrap) {
+        canvas.style.display = '';
         const screenH = window.innerHeight;
-        const canvasAvailH = Math.round(screenH * 0.68);
+        const canvasAvailH = Math.round(screenH * 0.72);
         const idealROW_H = Math.floor((canvasAvailH - 60) / bars.length);
-        const ROW_H = Math.max(118, Math.min(172, idealROW_H));
-        const previewH = bars.length * ROW_H + 64; // 64px bottom so labels aren't under button
+        const ROW_H = Math.max(124, Math.min(180, idealROW_H));
+        const previewH = bars.length * ROW_H + 72;
 
         wrap.style.overflowY = 'auto';
-        wrap.style.maxHeight = 'none'; // lift CSS max-height during read phase
+        wrap.style.maxHeight = 'none';
         wrap.style.minHeight = Math.min(previewH, canvasAvailH) + 'px';
-        // Smooth scroll on iOS
         wrap.style.webkitOverflowScrolling = 'touch';
 
         const dpr = window.devicePixelRatio || 1;
@@ -3945,131 +3755,402 @@
         canvas.style.height = previewH + 'px';
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
-
         _rcDrawAllBarsPreview(bars, logW, previewH, ctx);
+    }
 
-        overlay.style.display = '';
-        document.getElementById('rcReadStartBtn').onclick = () => {
-            overlay.style.display = 'none';
-            wrap.style.overflowY = '';
-            wrap.style.maxHeight = ''; // restore CSS max-height for game phase
-            wrap.style.minHeight = '';
-            wrap.style.webkitOverflowScrolling = '';
-            canvas.style.width  = '';
-            canvas.style.height = '';
-            startRCGame(card, bpm, user);
+    /* ── VexFlow renderer for Kodály rhythm bars ── */
+    function _renderVexFlowBars(bars, container) {
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+
+        container.innerHTML = '';
+
+        const W = container.clientWidth || 360;
+        const STAVE_W = W - 20;
+        const STAVE_H = 110;
+        const totalH = bars.length * STAVE_H + 20;
+
+        const renderer = new Renderer(container, Renderer.Backends.SVG);
+        renderer.resize(W, totalH);
+        const context = renderer.getContext();
+
+        const durMap = {
+            0.25: '16',
+            0.5:  '8',
+            0.75: '8d',
+            1:    'q',
+            1.5:  'qd',
+            2:    'h',
+            3:    'hd',
         };
+
+        bars.forEach((barLabel, bi) => {
+            const y = bi * STAVE_H + 10;
+            const stave = new Stave(10, y, STAVE_W - 10);
+            stave.setNumLines(1);
+            if (bi === 0) stave.addTimeSignature('4/4');
+            stave.setContext(context).draw();
+
+            const notes = [];
+            const beamGroups = [];
+
+            barLabel.split(' ').forEach(token => {
+                const isRest = token === '休';
+                const compound = COMPOUND_TOKENS[token];
+
+                if (isRest) {
+                    const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
+                    note.addModifier(new Annotation('休止')
+                        .setVerticalJustification(3));
+                    notes.push(note);
+                } else if (compound) {
+                    const group = [];
+                    compound.forEach(sub => {
+                        const dur = durMap[sub.d];
+                        if (!dur) return;
+                        const note = new StaveNote({
+                            keys: ['b/4'],
+                            duration: dur,
+                            stem_direction: Stem.UP
+                        });
+                        if (dur.endsWith('d')) note.addDotToAll();
+                        note.addModifier(new Annotation(sub.l)
+                            .setVerticalJustification(3));
+                        notes.push(note);
+                        group.push(note);
+                    });
+                    if (group.length > 1) beamGroups.push(group);
+                } else {
+                    const tokenDur = getRhythmTokenDuration(token);
+                    const dur = durMap[tokenDur];
+                    if (!dur) return;
+                    const note = new StaveNote({
+                        keys: ['b/4'],
+                        duration: dur,
+                        stem_direction: Stem.UP
+                    });
+                    if (dur.endsWith('d')) note.addDotToAll();
+                    note.addModifier(new Annotation(token)
+                        .setVerticalJustification(3));
+                    notes.push(note);
+                }
+            });
+
+            const voice = new Voice({ num_beats: 4, beat_value: 4 });
+            voice.setMode(2); // SOFT mode — allow incomplete bars
+            voice.addTickables(notes);
+
+            new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+            voice.draw(context, stave);
+
+            beamGroups.forEach(group => {
+                new Beam(group).setContext(context).draw();
+            });
+        });
+    }
+
+    /* ── VexFlow renderer for game-phase (single bar + scanner) ── */
+    function _renderVexFlowGameBar(barLabel, container) {
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+        container.innerHTML = '';
+
+        const W = container.clientWidth || 360;
+        const STAVE_H = 140;
+        const PAD_LEFT = 10, PAD_RIGHT = 10;
+        const STAVE_W = W - PAD_LEFT - PAD_RIGHT;
+
+        const renderer = new Renderer(container, Renderer.Backends.SVG);
+        renderer.resize(W, STAVE_H);
+        const context = renderer.getContext();
+
+        const stave = new Stave(PAD_LEFT, 10, STAVE_W);
+        [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+        stave.addTimeSignature('4/4');
+        stave.setContext(context).draw();
+
+        const durMap = { 0.25: '16', 0.5: '8', 0.75: '8d', 1: 'q', 1.5: 'qd', 2: 'h', 3: 'hd' };
+        const vfNotes = [];
+        const beamGroups = [];
+        // Map: vfNotes index → array of game-note indices (for coloring)
+        const vfToGame = [];
+        let gameNoteIdx = 0;
+
+        barLabel.split(' ').forEach(token => {
+            const isRest = token === '休';
+            const compound = COMPOUND_TOKENS[token];
+
+            if (isRest) {
+                const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
+                note.addModifier(new Annotation('休止').setVerticalJustification(3));
+                vfNotes.push(note);
+                vfToGame.push([]); // no game note for rests
+            } else if (compound) {
+                const group = [];
+                compound.forEach(sub => {
+                    const dur = durMap[sub.d];
+                    if (!dur) return;
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                    if (dur.endsWith('d')) note.addDotToAll();
+                    note.addModifier(new Annotation(sub.l).setVerticalJustification(3));
+                    vfNotes.push(note);
+                    group.push(note);
+                    vfToGame.push([gameNoteIdx]);
+                    gameNoteIdx++;
+                });
+                if (group.length > 1) beamGroups.push(group);
+            } else {
+                const tokenDur = getRhythmTokenDuration(token);
+                const dur = durMap[tokenDur];
+                if (!dur) return;
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                if (dur.endsWith('d')) note.addDotToAll();
+                note.addModifier(new Annotation(token).setVerticalJustification(3));
+                vfNotes.push(note);
+                vfToGame.push([gameNoteIdx]);
+                gameNoteIdx++;
+            }
+        });
+
+        const voice = new Voice({ num_beats: 4, beat_value: 4 });
+        voice.setMode(2);
+        voice.addTickables(vfNotes);
+        new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
+        voice.draw(context, stave);
+        beamGroups.forEach(g => new Beam(g).setContext(context).draw());
+
+        // Collect SVG elements and X positions
+        const noteStartX = stave.getNoteStartX();
+        const noteEndX = stave.getNoteEndX();
+        const noteMap = []; // indexed by game-note index → {x, svgEl}
+        vfNotes.forEach((vfNote, vi) => {
+            const gameIndices = vfToGame[vi];
+            if (!gameIndices || !gameIndices.length) return;
+            const x = vfNote.getAbsoluteX();
+            const el = vfNote.getSVGElement ? vfNote.getSVGElement() : (vfNote.attrs && vfNote.attrs.el);
+            gameIndices.forEach(gi => {
+                noteMap[gi] = { x, el };
+            });
+        });
+
+        return { noteStartX, noteEndX, noteMap, staveH: STAVE_H };
+    }
+
+    /* ── Color a VexFlow SVG note element ── */
+    function _vfColorNote(svgEl, color, opacity) {
+        if (!svgEl) return;
+        svgEl.querySelectorAll('path, rect, ellipse, line').forEach(p => {
+            p.setAttribute('fill', color);
+            p.setAttribute('stroke', color);
+        });
+        if (opacity !== undefined) svgEl.style.opacity = opacity;
     }
 
     function _rcDrawAllBarsPreview(bars, W, totalH, ctx) {
         const n       = bars.length;
-        const ROW_H   = (totalH - 20) / n;
+        const ROW_H   = (totalH - 28) / n;
         const headRx  = 10, headRy = 7;
         const stemH   = 42;
         const beamThick = 4.5, beamGap = 8;
         const barBeats = 4;
-        const LABEL_W  = 44;
+        const LABEL_W  = 48;
         const laneLeft  = LABEL_W;
-        const laneRight = W - 14;
+        const laneRight = W - 16;
         const laneWidth = laneRight - laneLeft;
 
-        // Background
-        ctx.fillStyle = '#FAFCFF';
+        // ── Background with soft gradient ──
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, totalH);
+        bgGrad.addColorStop(0, '#F8FAFF');
+        bgGrad.addColorStop(0.5, '#F0F4FF');
+        bgGrad.addColorStop(1, '#E8EEFF');
+        ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, totalH);
 
-        // Title at very top
+        // Subtle decorative dots in background
+        ctx.globalAlpha = 0.04;
+        for (let dx = 0; dx < W; dx += 24) {
+            for (let dy = 0; dy < totalH; dy += 24) {
+                ctx.fillStyle = '#6366F1';
+                ctx.beginPath();
+                ctx.arc(dx, dy, 1.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // ── Title banner ──
+        const titleY = 2;
+        const titleH = 22;
+        // Title pill background
+        const titleText = '📖 先睇清楚節奏';
+        ctx.font = '900 13px Nunito, sans-serif';
+        const titleW = ctx.measureText(titleText).width + 28;
+        ctx.fillStyle = 'rgba(99,102,241,0.08)';
+        _roundRect(ctx, W / 2 - titleW / 2, titleY, titleW, titleH, 11);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(99,102,241,0.15)';
+        ctx.lineWidth = 1;
+        _roundRect(ctx, W / 2 - titleW / 2, titleY, titleW, titleH, 11);
+        ctx.stroke();
+        // Title text
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.font = '800 13px Nunito, sans-serif';
-        ctx.fillStyle = 'rgba(99,102,241,0.55)';
-        ctx.fillText('📖 先睇清楚節奏', W / 2, 3);
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(99,102,241,0.7)';
+        ctx.fillText(titleText, W / 2, titleY + titleH / 2);
 
         bars.forEach((barLabel, bi) => {
-            const rowTop = 18 + bi * ROW_H;
+            const rowTop = 28 + bi * ROW_H;
             const staffY = rowTop + ROW_H * 0.48;
             const beatX  = b => laneLeft + ((b + 0.5) / barBeats) * laneWidth;
 
-            // Row tint — subtle alternation
-            ctx.fillStyle = bi % 2 === 0 ? 'rgba(59,130,246,0.025)' : 'rgba(99,102,241,0.025)';
-            const tintR = 8;
-            _roundRect(ctx, laneLeft - 4, rowTop + 2, laneWidth + 8, ROW_H - 6, tintR);
+            // ── Row card background ──
+            const cardPad = 6;
+            const cardY = rowTop + 1;
+            const cardH = ROW_H - 4;
+            // White card with rounded corners
+            ctx.shadowColor = 'rgba(99,102,241,0.08)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 3;
+            ctx.fillStyle = bi % 2 === 0 ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.6)';
+            _roundRect(ctx, laneLeft - cardPad - 2, cardY, laneWidth + cardPad * 2 + 4, cardH, 12);
             ctx.fill();
+            // Card border
+            ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+            ctx.strokeStyle = bi === 0 ? 'rgba(255,140,66,0.18)' : 'rgba(99,102,241,0.10)';
+            ctx.lineWidth = 1.2;
+            _roundRect(ctx, laneLeft - cardPad - 2, cardY, laneWidth + cardPad * 2 + 4, cardH, 12);
+            ctx.stroke();
 
-            // Bar number badge
+            // ── Bar number badge (pill) ──
             ctx.textAlign  = 'center';
             ctx.textBaseline = 'middle';
-            const badgeY = staffY - stemH - 14;
-            const badgeW = 18, badgeH = 18, badgeR = 6;
-            ctx.fillStyle = bi === 0 ? 'rgba(255,140,66,0.18)' : 'rgba(99,102,241,0.10)';
-            _roundRect(ctx, laneLeft / 2 - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, badgeR);
+            const badgeCX = laneLeft / 2;
+            const badgeCY = staffY - 10;
+            const badgeW = 28, badgeH = 38, badgeR = 10;
+            // Badge background
+            const badgeGrad = ctx.createLinearGradient(badgeCX, badgeCY - badgeH / 2, badgeCX, badgeCY + badgeH / 2);
+            if (bi === 0) {
+                badgeGrad.addColorStop(0, 'rgba(255,160,80,0.22)');
+                badgeGrad.addColorStop(1, 'rgba(255,120,50,0.12)');
+            } else {
+                badgeGrad.addColorStop(0, 'rgba(99,102,241,0.12)');
+                badgeGrad.addColorStop(1, 'rgba(99,102,241,0.06)');
+            }
+            ctx.fillStyle = badgeGrad;
+            _roundRect(ctx, badgeCX - badgeW / 2, badgeCY - badgeH / 2, badgeW, badgeH, badgeR);
             ctx.fill();
-            ctx.font = '900 12px Nunito, sans-serif';
-            ctx.fillStyle = bi === 0 ? 'rgba(255,140,66,0.85)' : 'rgba(99,102,241,0.55)';
-            ctx.fillText(String(bi + 1), laneLeft / 2, badgeY);
-
+            ctx.strokeStyle = bi === 0 ? 'rgba(255,140,66,0.30)' : 'rgba(99,102,241,0.15)';
+            ctx.lineWidth = 1;
+            _roundRect(ctx, badgeCX - badgeW / 2, badgeCY - badgeH / 2, badgeW, badgeH, badgeR);
+            ctx.stroke();
+            // Number
+            ctx.font = '900 15px Nunito, sans-serif';
+            ctx.fillStyle = bi === 0 ? 'rgba(255,120,40,0.9)' : 'rgba(99,102,241,0.65)';
+            ctx.fillText(String(bi + 1), badgeCX, badgeCY - 6);
             // "小節" label
-            ctx.font = '700 9px Nunito, sans-serif';
-            ctx.fillStyle = 'rgba(99,102,241,0.32)';
-            ctx.fillText('小節', laneLeft / 2, badgeY + 14);
+            ctx.font = '800 8px Nunito, sans-serif';
+            ctx.fillStyle = bi === 0 ? 'rgba(255,140,66,0.55)' : 'rgba(99,102,241,0.35)';
+            ctx.fillText('小節', badgeCX, badgeCY + 11);
 
-            // Staff line
-            ctx.strokeStyle = 'rgba(0,0,0,0.14)';
-            ctx.lineWidth = 1.2;
+            // ── Staff line (thicker, subtle gradient illusion) ──
+            ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(laneLeft - 2, staffY);
             ctx.lineTo(laneRight + 2, staffY);
             ctx.stroke();
 
-            // Beat grid + count labels
+            // ── Beat grid + count labels ──
             for (let b = 0; b < barBeats; b++) {
                 const x = laneLeft + (b / barBeats) * laneWidth;
                 // Beat separator line
-                ctx.strokeStyle = b === 0 ? 'rgba(255,140,66,0.30)' : 'rgba(0,0,0,0.05)';
-                ctx.lineWidth   = b === 0 ? 1.5 : 0.8;
-                ctx.setLineDash(b === 0 ? [] : [3, 4]);
+                if (b === 0) {
+                    ctx.strokeStyle = 'rgba(255,140,66,0.35)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([]);
+                } else {
+                    ctx.strokeStyle = 'rgba(99,102,241,0.08)';
+                    ctx.lineWidth = 0.8;
+                    ctx.setLineDash([4, 5]);
+                }
                 ctx.beginPath();
-                ctx.moveTo(x, staffY - stemH - 6);
-                ctx.lineTo(x, staffY + 34);
+                ctx.moveTo(x, staffY - stemH - 8);
+                ctx.lineTo(x, staffY + 36);
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Beat number
-                const numX = beatX(b) - (0.5 / barBeats) * laneWidth;
+                // Beat number pill
+                const numCX = x + (laneWidth / barBeats) / 2;
+                const numY = staffY - stemH - 14;
+                const numPW = 20, numPH = 16, numPR = 5;
+                ctx.fillStyle = b === 0 ? 'rgba(255,140,66,0.12)' : 'rgba(59,130,246,0.07)';
+                _roundRect(ctx, numCX - numPW / 2, numY - numPH / 2, numPW, numPH, numPR);
+                ctx.fill();
                 ctx.textAlign    = 'center';
-                ctx.textBaseline = 'alphabetic';
-                ctx.font      = '900 14px Nunito, sans-serif';
-                ctx.fillStyle = b === 0 ? 'rgba(255,140,66,0.75)' : 'rgba(59,130,246,0.55)';
-                ctx.fillText(b + 1, x + (laneWidth / barBeats) / 2, staffY - stemH - 6);
+                ctx.textBaseline = 'middle';
+                ctx.font      = '900 13px Nunito, sans-serif';
+                ctx.fillStyle = b === 0 ? 'rgba(255,140,66,0.8)' : 'rgba(59,130,246,0.55)';
+                ctx.fillText(b + 1, numCX, numY);
             }
             // End barline
             ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.5;
             ctx.setLineDash([]);
             ctx.beginPath();
-            ctx.moveTo(laneRight, staffY - stemH - 6);
-            ctx.lineTo(laneRight, staffY + 34);
+            ctx.moveTo(laneRight, staffY - stemH - 8);
+            ctx.lineTo(laneRight, staffY + 36);
             ctx.stroke();
 
-            // Parse bar
+            // ── Parse bar ──
             const { units, segments } = parseRhythmUnits(barLabel);
 
-            // Rests
+            // ── Rests (refined sleeping character) ──
             segments.filter(s => s.isRest).forEach(s => {
                 const cx = beatX(s.start);
-                // Quarter rest symbol
-                ctx.fillStyle = 'rgba(100,116,139,0.5)';
-                ctx.font = '900 22px serif';
+                const rR = 15;
+                ctx.globalAlpha = 0.8;
+                // Shadow
+                ctx.shadowColor = 'rgba(100,116,139,0.2)';
+                ctx.shadowBlur = 8;
+                // Rest body
+                ctx.fillStyle = '#B8C4D0';
+                ctx.beginPath(); ctx.arc(cx, staffY, rR, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+                // Night cap
+                ctx.fillStyle = '#8B95A5';
+                ctx.beginPath();
+                ctx.moveTo(cx - 6, staffY - rR + 2);
+                ctx.lineTo(cx + 9, staffY - rR - 7);
+                ctx.lineTo(cx + 5, staffY - rR + 4);
+                ctx.closePath(); ctx.fill();
+                // Cap ball
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath(); ctx.arc(cx + 9, staffY - rR - 7, 2.5, 0, Math.PI * 2); ctx.fill();
+                // Sleeping eyes
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(cx - 6, staffY - 2); ctx.lineTo(cx - 1, staffY - 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 1, staffY - 2); ctx.lineTo(cx + 6, staffY - 2); ctx.stroke();
+                // Blush
+                ctx.fillStyle = 'rgba(255,150,150,0.30)';
+                ctx.beginPath(); ctx.arc(cx - 7, staffY + 3, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 7, staffY + 3, 3.5, 0, Math.PI * 2); ctx.fill();
+                // Zzz
+                ctx.fillStyle = 'rgba(107,114,128,0.55)';
+                ctx.font = '800 11px Nunito'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                ctx.fillText('z', cx + rR + 2, staffY - 4);
+                ctx.font = '800 9px Nunito';
+                ctx.fillText('z', cx + rR + 7, staffY - 10);
+                ctx.font = '800 7px Nunito';
+                ctx.fillText('z', cx + rR + 11, staffY - 15);
+                // Label
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('𝄾', cx, staffY);
-                // Rest label
-                ctx.font = '700 10px Nunito, sans-serif';
-                ctx.fillStyle = 'rgba(100,116,139,0.55)';
+                ctx.font = '800 10px Nunito, sans-serif';
+                ctx.fillStyle = 'rgba(100,116,139,0.6)';
                 ctx.textBaseline = 'top';
-                ctx.fillText('休止', cx, staffY + 14);
+                ctx.fillText('休止', cx, staffY + 16);
+                ctx.globalAlpha = 1;
             });
 
-            // Group notes by segment, then SPLIT at integer beat boundaries.
+            // ── Group notes by segment, split at beat boundaries ──
             const rawBySegment = {};
             units.forEach(u => {
                 if (!rawBySegment[u.segmentIndex]) rawBySegment[u.segmentIndex] = [];
@@ -4088,7 +4169,7 @@
                 if (sub.length > 0) segGroups.push(sub);
             });
 
-            const NC = '#1E293B'; // note colour
+            const NC = '#1E293B';
             segGroups.forEach(group => {
                 const isBeamed = group.length > 1;
 
@@ -4097,9 +4178,9 @@
                     const dur = note.durationBeats;
                     const filled = dur <= 1;
 
-                    // Notehead shadow
-                    ctx.shadowColor = 'rgba(30,41,59,0.12)';
-                    ctx.shadowBlur  = 6;
+                    // Notehead with shadow
+                    ctx.shadowColor = 'rgba(30,41,59,0.14)';
+                    ctx.shadowBlur  = 7;
                     ctx.save();
                     ctx.translate(cx, staffY);
                     ctx.rotate(-0.18);
@@ -4125,54 +4206,56 @@
                         ctx.moveTo(stemX, staffY - headRy + 2);
                         ctx.lineTo(stemX, staffY - stemH);
                         ctx.stroke();
-                        // Isolated flag (8th note or dotted-8th)
+                        // Isolated flag (8th / dotted-8th)
                         if (!isBeamed && (dur === 0.5 || dur === 0.75)) {
-                            ctx.lineWidth = 2;
+                            ctx.lineWidth = 2.2;
                             ctx.beginPath();
                             ctx.moveTo(stemX, staffY - stemH);
-                            ctx.bezierCurveTo(stemX + 8, staffY - stemH + 6, stemX + 14, staffY - stemH + 14, stemX + 5, staffY - stemH + 24);
+                            ctx.bezierCurveTo(stemX + 9, staffY - stemH + 6, stemX + 15, staffY - stemH + 14, stemX + 6, staffY - stemH + 24);
                             ctx.stroke();
                         }
                         // Double flag (16th)
                         if (!isBeamed && dur === 0.25) {
-                            ctx.lineWidth = 2;
+                            ctx.lineWidth = 2.2;
                             for (let f = 0; f < 2; f++) {
                                 const fy = staffY - stemH + f * beamGap;
                                 ctx.beginPath();
                                 ctx.moveTo(stemX, fy);
-                                ctx.bezierCurveTo(stemX + 8, fy + 6, stemX + 14, fy + 14, stemX + 5, fy + 24);
+                                ctx.bezierCurveTo(stemX + 9, fy + 6, stemX + 15, fy + 14, stemX + 6, fy + 24);
                                 ctx.stroke();
                             }
                         }
                     }
 
-                    // Kodály label
-                    ctx.fillStyle = 'rgba(120,80,40,0.85)';
+                    // ── Kodály label (with pill background) ──
+                    const labelY = staffY + 14;
+                    const labelText = note.label;
                     ctx.font = '900 11.5px Nunito, sans-serif';
+                    const lbW = ctx.measureText(labelText).width + 10;
+                    const lbH = 16;
+                    ctx.fillStyle = 'rgba(180,140,80,0.10)';
+                    _roundRect(ctx, cx - lbW / 2, labelY - 2, lbW, lbH, 5);
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(120,80,40,0.88)';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
-                    ctx.fillText(note.label, cx, staffY + 14);
+                    ctx.fillText(labelText, cx, labelY);
 
                     // Beat value
                     const vt = dur===0.25?'¼拍':dur===0.5?'½拍':dur===0.75?'¾拍':dur===1?'1拍':dur===1.5?'1½拍':dur===2?'2拍':dur===3?'3拍':`${dur}拍`;
-                    ctx.font = '700 9.5px Nunito, sans-serif';
-                    ctx.fillStyle = 'rgba(100,80,60,0.32)';
-                    ctx.fillText(vt, cx, staffY + 27);
+                    ctx.font = '700 9px Nunito, sans-serif';
+                    ctx.fillStyle = 'rgba(100,80,60,0.30)';
+                    ctx.fillText(vt, cx, staffY + 30);
                 });
 
-                // Beams
+                // ── Beams ──
                 if (isBeamed && group.length > 1) {
                     const x1 = beatX(group[0].beatPos) + headRx - 1;
                     const x2 = beatX(group[group.length - 1].beatPos) + headRx - 1;
                     const bY  = staffY - stemH;
                     ctx.fillStyle = NC;
-                    // Round beam caps
-                    ctx.beginPath();
-                    ctx.moveTo(x1, bY);
-                    ctx.lineTo(x2, bY);
-                    ctx.lineTo(x2, bY + beamThick);
-                    ctx.lineTo(x1, bY + beamThick);
-                    ctx.closePath();
+                    // Primary beam with rounded ends
+                    _roundRect(ctx, x1, bY, x2 - x1, beamThick, 2);
                     ctx.fill();
                     // Secondary beam (16ths)
                     let si = 0;
@@ -4183,17 +4266,31 @@
                             if (sj - si >= 2) {
                                 const rx1 = beatX(group[si].beatPos) + headRx - 1;
                                 const rx2 = beatX(group[sj-1].beatPos) + headRx - 1;
-                                ctx.fillRect(rx1, bY + beamGap, rx2 - rx1, beamThick);
+                                _roundRect(ctx, rx1, bY + beamGap, rx2 - rx1, beamThick, 2);
+                                ctx.fill();
                             } else {
                                 const sx = beatX(group[si].beatPos) + headRx - 1;
-                                if (si > 0) ctx.fillRect(sx - 12, bY + beamGap, 12, beamThick);
-                                else ctx.fillRect(sx, bY + beamGap, 12, beamThick);
+                                if (si > 0) { _roundRect(ctx, sx - 12, bY + beamGap, 12, beamThick, 2); ctx.fill(); }
+                                else { _roundRect(ctx, sx, bY + beamGap, 12, beamThick, 2); ctx.fill(); }
                             }
                             si = sj;
                         } else { si++; }
                     }
                 }
             });
+
+            // ── Row separator line between bars ──
+            if (bi < n - 1) {
+                const sepY = rowTop + ROW_H - 1;
+                ctx.strokeStyle = 'rgba(99,102,241,0.06)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.moveTo(laneLeft + 10, sepY);
+                ctx.lineTo(laneRight - 10, sepY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
         });
     }
 
@@ -4322,9 +4419,7 @@
 
         document.getElementById('rcGameTitle').textContent = card.num
             ? `節奏卡 No.${card.num}`
-            : (rcChallengeState
-                ? `⭐ 挑戰 ${rcChallengeState.cardIdx + 1} / ${rcChallengeState.patterns.length}`
-                : '節奏挑戰');
+            : '節奏挑戰';
         document.getElementById('rcGameBpm').textContent = `${bpm} BPM`;
         document.getElementById('rcGameScore').textContent = '0';
         document.getElementById('rcComboDisplay').textContent = '';
@@ -4334,6 +4429,18 @@
         document.getElementById('rcMessageOverlay').style.display = 'none';
         document.getElementById('rcGamePattern').textContent = card.bars ? card.bars[0] : card.label;
         document.getElementById('rcGameRep').textContent = card.bars ? `小節 1 / ${REPS}` : `第 1 / ${REPS} 次`;
+
+        // Show next-bar preview (shows bar[1] at game start so students can read ahead)
+        const nextBarStrip = document.getElementById('rcNextBarStrip');
+        const nextBarPat   = document.getElementById('rcNextBarPattern');
+        if (nextBarStrip && nextBarPat) {
+            if (card.bars && card.bars.length > 1) {
+                nextBarPat.textContent = card.bars[1];
+                nextBarStrip.style.display = '';
+            } else {
+                nextBarStrip.style.display = 'none';
+            }
+        }
         document.getElementById('rcMetronomeText').textContent = '跟住節拍器';
         const metroArm = document.getElementById('rcMetroArm');
         if (metroArm) metroArm.className = 'rc-metro-arm';
@@ -4368,10 +4475,54 @@
 
         const canvas = document.getElementById('rcGameCanvas');
         const wrap = canvas.parentElement;
-        canvas.width = wrap.clientWidth || 360;
-        canvas.height = wrap.clientHeight || 300;
-        rcGameState.canvas = canvas;
-        rcGameState.ctx = canvas.getContext('2d');
+        const vfDiv = document.getElementById('rcOsmdContainer');
+        const useVF = typeof VexFlow !== 'undefined' && vfDiv;
+
+        if (useVF) {
+            canvas.style.display = 'none';
+            vfDiv.style.display = '';
+            vfDiv.innerHTML = '';
+            wrap.style.overflowY = 'hidden';
+
+            // Create scanner line
+            let scanner = wrap.querySelector('.rc-scanner');
+            if (!scanner) {
+                scanner = document.createElement('div');
+                scanner.className = 'rc-scanner';
+                wrap.appendChild(scanner);
+            }
+            scanner.style.display = '';
+
+            // Render first bar
+            const firstBarLabel = card.bars && card.bars.length ? card.bars[0] : card.label;
+            try {
+                const vfData = _renderVexFlowGameBar(firstBarLabel, vfDiv);
+                rcGameState._vf = true;
+                rcGameState._vfDiv = vfDiv;
+                rcGameState._scanner = scanner;
+                rcGameState._vfNoteStartX = vfData.noteStartX;
+                rcGameState._vfNoteEndX = vfData.noteEndX;
+                rcGameState._vfNoteMap = vfData.noteMap;
+                rcGameState._vfStaveH = vfData.staveH;
+                scanner.style.height = vfData.staveH + 'px';
+            } catch (err) {
+                console.warn('VexFlow game render failed, falling back to canvas:', err);
+                vfDiv.style.display = 'none';
+                scanner.style.display = 'none';
+                canvas.style.display = '';
+                rcGameState._vf = false;
+                canvas.width = wrap.clientWidth || 360;
+                canvas.height = wrap.clientHeight || 300;
+                rcGameState.canvas = canvas;
+                rcGameState.ctx = canvas.getContext('2d');
+            }
+        } else {
+            rcGameState._vf = false;
+            canvas.width = wrap.clientWidth || 360;
+            canvas.height = wrap.clientHeight || 300;
+            rcGameState.canvas = canvas;
+            rcGameState.ctx = canvas.getContext('2d');
+        }
 
         rcGameState.animId = requestAnimationFrame(_rcGameLoop);
     }
@@ -4406,131 +4557,29 @@
     }
 
     function _rcGameLoop() {
-        const { canvas, ctx, notes, perfZero, beatMs, totalGameBeats, phase, barBeats, segments, barsSegments } = rcGameState;
-        if (!ctx || !canvas) return;
+        if (rcGameState._vf) { _rcGameLoopVF(); return; }
+        _rcGameLoopCanvas();
+    }
+
+    /* ── VexFlow game loop: scanner + SVG coloring ── */
+    function _rcGameLoopVF() {
+        const { notes, perfZero, beatMs, totalGameBeats, phase, barBeats, segments, barsSegments,
+                _scanner, _vfNoteStartX, _vfNoteEndX, _vfNoteMap, _vfDiv } = rcGameState;
+        if (!_scanner) return;
 
         const now = performance.now();
         const elapsed = now - perfZero;
-        const width = canvas.width;
-        const height = canvas.height;
-        const beatCount = Math.max(4, Math.ceil(barBeats));
         const currentRepIndex = Math.max(0, Math.min(REPS - 1, Math.floor(Math.max(elapsed, 0) / (barBeats * beatMs || 1))));
         const currentSegments = barsSegments ? barsSegments[currentRepIndex] : segments;
         const repStartMs = currentRepIndex * barBeats * beatMs;
         const repElapsed = elapsed - repStartMs;
         const repProgress = Math.max(0, Math.min(1, repElapsed / (barBeats * beatMs || 1)));
-        const laneLeft = 44;
-        const laneRight = width - 44;
-        const laneWidth = Math.max(120, laneRight - laneLeft);
-        const laneTop = height * 0.28;
-        const laneHeight = 120;
-        const laneMid = laneTop + laneHeight / 2;
-        const playheadX = laneLeft + laneWidth * repProgress;
 
-        ctx.clearRect(0, 0, width, height);
+        // Scanner position: interpolate between noteStartX and noteEndX
+        const scannerX = _vfNoteStartX + (_vfNoteEndX - _vfNoteStartX) * repProgress;
+        _scanner.style.left = scannerX + 'px';
 
-        // Light background
-        const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-        bgGrad.addColorStop(0, '#F8FAFF');
-        bgGrad.addColorStop(1, '#EEF2FF');
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, width, height);
-
-        // Subtle floating music symbols in background
-        ctx.globalAlpha = 0.06;
-        ctx.font = '24px serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#6366F1';
-        const symbols = ['♪', '♫', '♩', '♬'];
-        for (let i = 0; i < 6; i++) {
-            const sx = (width * (i + 0.5)) / 6 + Math.sin(now / 2000 + i * 1.3) * 12;
-            const sy = 20 + Math.sin(now / 1800 + i * 0.9) * 8 + (i % 2) * 14;
-            ctx.fillText(symbols[i % symbols.length], sx, sy);
-        }
-        ctx.globalAlpha = 1;
-
-        // ── Music notation constants ──
-        const staffY = laneTop + laneHeight * 0.50;       // horizontal staff line
-        const headRx = 9, headRy = 6.5;                   // notehead ellipse radii
-        const stemH = 42;                                  // stem height going UP
-        const beamThick = 5;                               // beam thickness
-        const beamGap = 7;                                 // gap between double beams
-        const noteSpacing = laneWidth / barBeats;          // px per beat
-
-        // Helper: x position for a beat
-        const beatX = b => laneLeft + (b / barBeats) * laneWidth;
-
-        // Helper: beat counting label  1 e & a 2 e & a …
-        function beatLabel(pos) {
-            const num = Math.floor(pos) + 1;
-            const sub = Math.round((pos % 1) * 4);
-            if (sub === 0) return String(num);
-            if (sub === 1) return 'e';
-            if (sub === 2) return '&';
-            if (sub === 3) return 'a';
-            return '';
-        }
-
-        // ── Lane background ──
-        ctx.fillStyle = 'rgba(59,130,246,0.04)';
-        ctx.strokeStyle = 'rgba(59,130,246,0.12)';
-        ctx.lineWidth = 1;
-        if (ctx.roundRect) {
-            ctx.beginPath(); ctx.roundRect(laneLeft - 8, laneTop - 10, laneWidth + 16, laneHeight + 20, 18); ctx.fill(); ctx.stroke();
-        } else {
-            ctx.fillRect(laneLeft - 8, laneTop - 10, laneWidth + 16, laneHeight + 20);
-        }
-
-        // ── Staff line ──
-        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(laneLeft - 4, staffY);
-        ctx.lineTo(laneLeft + laneWidth + 4, staffY);
-        ctx.stroke();
-
-        // ── Beat grid lines + counting labels ──
-        // Collect all unique beat positions where labels should appear
-        const allBeatPositions = new Set();
-        for (let b = 0; b < barBeats; b += 0.25) allBeatPositions.add(b);
-        // Also add note positions
-        const repNotes = notes.filter(n => n.repIndex === currentRepIndex);
-        repNotes.forEach(n => allBeatPositions.add(n.localBeatPos));
-        segments.filter(s => s.isRest).forEach(s => allBeatPositions.add(s.start));
-
-        // Draw only integer beat gridlines
-        for (let beat = 0; beat <= beatCount; beat++) {
-            const x = beatX(beat);
-            ctx.strokeStyle = beat === 0 ? 'rgba(255,140,66,0.5)' : 'rgba(0,0,0,0.08)';
-            ctx.lineWidth = beat === 0 ? 2 : 1;
-            ctx.beginPath();
-            ctx.moveTo(x, staffY - stemH - 30);
-            ctx.lineTo(x, staffY + 40);
-            ctx.stroke();
-        }
-
-        // Beat counting labels above (like "1 e & a 2 & 3 e & a 4 &")
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        const countY = staffY - stemH - 14;
-        // Only show labels that actually have notes/rests at that position
-        const labelPositions = new Set();
-        repNotes.forEach(n => labelPositions.add(n.localBeatPos));
-        segments.filter(s => s.isRest).forEach(s => labelPositions.add(s.start));
-        // Also add integer beats always
-        for (let b = 0; b < barBeats; b++) labelPositions.add(b);
-
-        [...labelPositions].sort((a, b) => a - b).forEach(pos => {
-            const lbl = beatLabel(pos);
-            if (!lbl) return;
-            const x = beatX(pos);
-            const isMain = pos === Math.floor(pos);
-            ctx.font = isMain ? '900 18px Nunito' : '800 15px Nunito';
-            ctx.fillStyle = isMain ? 'rgba(59,130,246,0.9)' : 'rgba(59,130,246,0.5)';
-            ctx.fillText(lbl, x, countY);
-        });
-
-        // ── Miss detection (unchanged) ──
+        // ── Miss detection ──
         notes.forEach(note => {
             if (note.state === 'waiting' && elapsed - INPUT_LATENCY_MS > note.beatPos * beatMs + WIN_GOOD) {
                 note.state = 'miss';
@@ -4539,327 +4588,17 @@
                 rcGameState.combo = 0;
                 document.getElementById('rcComboDisplay').textContent = '';
                 _rcShowJudgment('MISS', '#EF4444');
-            }
-        });
-
-        // ── Draw rest symbols (cartoon sleeping character) ──
-        segments.filter(seg => seg.isRest).forEach(seg => {
-            const cx = beatX(seg.start);
-            const rR = 14; // rest radius
-            ctx.globalAlpha = 0.75;
-            // Soft shadow
-            ctx.shadowColor = 'rgba(156,163,175,0.3)';
-            ctx.shadowBlur = 10;
-            // Rest body (grey circle)
-            ctx.fillStyle = '#B0B8C4';
-            ctx.beginPath(); ctx.arc(cx, staffY, rR, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            // Night cap (triangle on top)
-            ctx.fillStyle = '#8B95A5';
-            ctx.beginPath();
-            ctx.moveTo(cx - 6, staffY - rR + 2);
-            ctx.lineTo(cx + 8, staffY - rR - 6);
-            ctx.lineTo(cx + 4, staffY - rR + 4);
-            ctx.closePath(); ctx.fill();
-            // Cap ball
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath(); ctx.arc(cx + 8, staffY - rR - 6, 2.5, 0, Math.PI * 2); ctx.fill();
-            // Sleeping eyes (—  —)
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(cx - 6, staffY - 2); ctx.lineTo(cx - 1, staffY - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx + 1, staffY - 2); ctx.lineTo(cx + 6, staffY - 2); ctx.stroke();
-            // Blush
-            ctx.fillStyle = 'rgba(255,150,150,0.35)';
-            ctx.beginPath(); ctx.arc(cx - 7, staffY + 3, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(cx + 7, staffY + 3, 3, 0, Math.PI * 2); ctx.fill();
-            // Animated Zzz
-            const zPhase = (now / 800) % 1;
-            ctx.fillStyle = 'rgba(107,114,128,' + (0.6 + 0.3 * Math.sin(zPhase * Math.PI * 2)) + ')';
-            ctx.font = '800 11px Nunito';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('z', cx + rR + 2, staffY - 4 - zPhase * 4);
-            ctx.font = '800 9px Nunito';
-            ctx.fillText('z', cx + rR + 7, staffY - 10 - zPhase * 4);
-            ctx.font = '800 7px Nunito';
-            ctx.fillText('z', cx + rR + 11, staffY - 15 - zPhase * 4);
-            // Label below
-            ctx.textAlign = 'center';
-            ctx.font = '800 11px Nunito';
-            ctx.fillStyle = 'rgba(100,100,100,0.7)';
-            ctx.fillText('休止', cx, staffY + rR + 14);
-            ctx.globalAlpha = 1;
-        });
-
-        // ── Draw music notes ──
-        // Group notes by segmentIndex for beaming
-        const segGroups = {};
-        repNotes.forEach(note => {
-            const key = note.segmentIndex;
-            if (!segGroups[key]) segGroups[key] = [];
-            segGroups[key].push(note);
-        });
-
-        // Helper: draw a filled notehead
-        function drawHead(cx, cy, filled, color) {
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.rotate(-0.2);
-            ctx.beginPath();
-            ctx.ellipse(0, 0, headRx, headRy, 0, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            if (filled) {
-                ctx.fill();
-            } else {
-                ctx.lineWidth = 2.5;
-                ctx.strokeStyle = color;
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-
-        // Helper: draw cartoon face on notehead
-        function drawNoteFace(cx, cy, note) {
-            const s = 0.85; // scale
-            ctx.save();
-            ctx.translate(cx, cy);
-            if (note.state === 'hit') {
-                // Happy face ^_^
-                const eyeColor = '#fff';
-                ctx.fillStyle = eyeColor;
-                // Left eye (happy arc)
-                ctx.beginPath();
-                ctx.arc(-3.5 * s, -1.5 * s, 1.8 * s, Math.PI, 0);
-                ctx.lineWidth = 1.2;
-                ctx.strokeStyle = eyeColor;
-                ctx.stroke();
-                // Right eye (happy arc)
-                ctx.beginPath();
-                ctx.arc(3.5 * s, -1.5 * s, 1.8 * s, Math.PI, 0);
-                ctx.stroke();
-                // Smile
-                ctx.beginPath();
-                ctx.arc(0, 1 * s, 3 * s, 0.1, Math.PI - 0.1);
-                ctx.stroke();
-            } else if (note.state === 'miss') {
-                // Dizzy face X_X
-                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-                ctx.lineWidth = 1.2;
-                // Left X
-                ctx.beginPath(); ctx.moveTo(-5 * s, -3 * s); ctx.lineTo(-2 * s, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(-2 * s, -3 * s); ctx.lineTo(-5 * s, 0); ctx.stroke();
-                // Right X
-                ctx.beginPath(); ctx.moveTo(2 * s, -3 * s); ctx.lineTo(5 * s, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(5 * s, -3 * s); ctx.lineTo(2 * s, 0); ctx.stroke();
-                // Wavy mouth
-                ctx.beginPath();
-                ctx.moveTo(-3 * s, 2.5 * s);
-                ctx.quadraticCurveTo(-1.5 * s, 1 * s, 0, 2.5 * s);
-                ctx.quadraticCurveTo(1.5 * s, 4 * s, 3 * s, 2.5 * s);
-                ctx.stroke();
-            } else {
-                // Waiting face — cute dots eyes + small mouth
-                ctx.fillStyle = 'rgba(255,255,255,0.85)';
-                ctx.beginPath(); ctx.arc(-3 * s, -1 * s, 1.5 * s, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(3 * s, -1 * s, 1.5 * s, 0, Math.PI * 2); ctx.fill();
-                // Pupils
-                ctx.fillStyle = '#1E293B';
-                ctx.beginPath(); ctx.arc(-3 * s, -1 * s, 0.7 * s, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(3 * s, -1 * s, 0.7 * s, 0, Math.PI * 2); ctx.fill();
-                // Small O mouth
-                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-                ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.arc(0, 2 * s, 1.5 * s, 0, Math.PI * 2); ctx.stroke();
-            }
-            ctx.restore();
-        }
-
-        // Helper: get note color based on state
-        function noteColor(note) {
-            if (note.state === 'hit') return '#10B981';
-            if (note.state === 'miss') return '#EF4444';
-            return '#1E293B';
-        }
-
-        Object.values(segGroups).forEach(group => {
-            group.sort((a, b) => a.localBeatPos - b.localBeatPos);
-            const isBeamed = group.length > 1;
-
-            group.forEach((note, idx) => {
-                const cx = beatX(note.localBeatPos);
-                const color = noteColor(note);
-                const dur = note.durationBeats;
-                const alpha = note.state === 'miss' ? 0.4 : 1;
-                ctx.globalAlpha = alpha;
-
-                // Hit pop: scale up briefly on hit
-                let hitPop = 1;
-                if (note.state === 'hit' && note.hitTime) {
-                    const dt = now - note.hitTime;
-                    if (dt < 200) hitPop = 1 + 0.25 * (1 - dt / 200);
-                }
-                if (hitPop > 1) {
-                    ctx.save();
-                    ctx.translate(cx, staffY);
-                    ctx.scale(hitPop, hitPop);
-                    ctx.translate(-cx, -staffY);
-                }
-
-                if (note.state === 'waiting') {
-                    ctx.shadowColor = 'rgba(59,130,246,0.35)';
-                    ctx.shadowBlur = 12;
-                } else if (note.state === 'hit') {
-                    ctx.shadowColor = 'rgba(16,185,129,0.4)';
-                    ctx.shadowBlur = 14;
-                }
-
-                // Notehead: filled for ≤1 beat, open for >1 beat
-                const filled = dur <= 1;
-                drawHead(cx, staffY, filled, color);
-                if (filled) drawNoteFace(cx, staffY, note);
-                ctx.shadowBlur = 0;
-
-                // Dot for dotted notes (0.75 = dotted eighth, 1.5 = dotted quarter)
-                if (dur === 0.75 || dur === 1.5) {
-                    ctx.beginPath();
-                    ctx.arc(cx + headRx + 5, staffY, 3, 0, Math.PI * 2);
-                    ctx.fillStyle = color;
-                    ctx.fill();
-                }
-
-                // Stem (all notes except whole notes get stems)
-                if (dur < 4) {
-                    const stemX = cx + headRx - 1;
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 2.5;
-                    ctx.beginPath();
-                    ctx.moveTo(stemX, staffY - headRy + 2);
-                    ctx.lineTo(stemX, staffY - stemH);
-                    ctx.stroke();
-
-                    // Flag for isolated eighth note (not beamed)
-                    if (!isBeamed && dur === 0.5) {
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 2.5;
-                        ctx.beginPath();
-                        ctx.moveTo(stemX, staffY - stemH);
-                        ctx.quadraticCurveTo(stemX + 14, staffY - stemH + 12, stemX + 4, staffY - stemH + 24);
-                        ctx.stroke();
-                    }
-                    // Double flag for isolated sixteenth
-                    if (!isBeamed && dur === 0.25) {
-                        for (let f = 0; f < 2; f++) {
-                            const fy = staffY - stemH + f * beamGap;
-                            ctx.strokeStyle = color;
-                            ctx.lineWidth = 2.5;
-                            ctx.beginPath();
-                            ctx.moveTo(stemX, fy);
-                            ctx.quadraticCurveTo(stemX + 14, fy + 12, stemX + 4, fy + 24);
-                            ctx.stroke();
-                        }
+                // Color SVG note red (only if note belongs to current displayed bar)
+                if (note.repIndex === currentRepIndex) {
+                    const repNoteIdx = _rcLocalNoteIndex(note, notes, currentRepIndex);
+                    if (_vfNoteMap[repNoteIdx]) {
+                        _vfColorNote(_vfNoteMap[repNoteIdx].el, '#EF4444', 0.45);
                     }
                 }
-
-                // Kodály label below note
-                ctx.fillStyle = note.state === 'hit' ? '#10B981' : 'rgba(120,80,40,0.85)';
-                ctx.font = '900 13px Nunito';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillText(note.label, cx, staffY + 14);
-
-                // Beat value below Kodály label
-                const valText = dur === 0.25 ? '¼拍' : dur === 0.5 ? '½拍' : dur === 0.75 ? '¾拍' : dur === 1.5 ? '1½拍' : `${dur}拍`;
-                ctx.font = '700 11px Nunito';
-                ctx.fillStyle = note.state === 'hit' ? 'rgba(16,185,129,0.7)' : 'rgba(100,80,60,0.45)';
-                ctx.fillText(valText, cx, staffY + 29);
-
-                ctx.globalAlpha = 1;
-                if (hitPop > 1) ctx.restore();
-            });
-
-            // Draw beams connecting grouped notes
-            if (isBeamed && group.length > 1) {
-                const first = group[0], last = group[group.length - 1];
-                const x1 = beatX(first.localBeatPos) + headRx - 1;
-                const x2 = beatX(last.localBeatPos) + headRx - 1;
-                const beamY = staffY - stemH;
-                const bColor = group.some(n => n.state === 'waiting') ? '#1E293B' : '#10B981';
-                const bAlpha = group.some(n => n.state === 'miss') ? 0.4 : 0.9;
-                ctx.globalAlpha = bAlpha;
-                ctx.fillStyle = bColor;
-
-                // Primary beam (eighth-note level)
-                ctx.fillRect(x1, beamY, x2 - x1, beamThick);
-
-                // Secondary beam (sixteenth-note level): between consecutive 16th sub-notes
-                let si = 0;
-                while (si < group.length) {
-                    if (group[si].durationBeats <= 0.25) {
-                        let sj = si;
-                        while (sj < group.length && group[sj].durationBeats <= 0.25) sj++;
-                        if (sj - si >= 2) {
-                            const rx1 = beatX(group[si].localBeatPos) + headRx - 1;
-                            const rx2 = beatX(group[sj - 1].localBeatPos) + headRx - 1;
-                            ctx.fillRect(rx1, beamY + beamGap, rx2 - rx1, beamThick);
-                        } else {
-                            const sx = beatX(group[si].localBeatPos) + headRx - 1;
-                            const stub = 12;
-                            if (si > 0) ctx.fillRect(sx - stub, beamY + beamGap, stub, beamThick);
-                            else ctx.fillRect(sx, beamY + beamGap, stub, beamThick);
-                        }
-                        si = sj;
-                    } else { si++; }
-                }
-                ctx.globalAlpha = 1;
             }
         });
 
-        // ── Floating judgment text ──
-        repNotes.filter(n => n.state === 'hit' && n.hitTime).forEach(note => {
-            const age = now - note.hitTime;
-            if (age > 600) return;
-            const cx = beatX(note.localBeatPos);
-            const floatY = staffY - stemH - 28 - (age / 600) * 24;
-            const alpha = Math.max(0, 1 - age / 600);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = note.judgmentColor || '#10B981';
-            ctx.font = '900 15px Nunito';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            const jText = (note.judgment || '').toUpperCase();
-            ctx.fillText(jText === 'PERFECT' ? '✦ PERFECT' : jText, cx, floatY);
-            ctx.globalAlpha = 1;
-        });
-
-        // ── Sweep bar (wide translucent highlight) ──
-        const sweepW = 20;
-        const sweepGrad = ctx.createLinearGradient(playheadX - sweepW / 2, 0, playheadX + sweepW / 2, 0);
-        sweepGrad.addColorStop(0, 'rgba(59,130,246,0)');
-        sweepGrad.addColorStop(0.3, 'rgba(59,130,246,0.2)');
-        sweepGrad.addColorStop(0.5, 'rgba(59,130,246,0.4)');
-        sweepGrad.addColorStop(0.7, 'rgba(59,130,246,0.2)');
-        sweepGrad.addColorStop(1, 'rgba(59,130,246,0)');
-        ctx.fillStyle = sweepGrad;
-        ctx.fillRect(playheadX - sweepW / 2, staffY - stemH - 36, sweepW, stemH + 80);
-
-        // Center line of sweep bar
-        ctx.strokeStyle = 'rgba(59,130,246,0.8)';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(playheadX, staffY - stemH - 36);
-        ctx.lineTo(playheadX, staffY + 44);
-        ctx.stroke();
-
-        // Arrow indicator at bottom of sweep
-        ctx.fillStyle = 'rgba(59,130,246,0.9)';
-        ctx.beginPath();
-        ctx.moveTo(playheadX, staffY + 48);
-        ctx.lineTo(playheadX - 6, staffY + 56);
-        ctx.lineTo(playheadX + 6, staffY + 56);
-        ctx.closePath();
-        ctx.fill();
-
+        // ── Bar/rep change: re-render VexFlow for new bar ──
         if (elapsed > 0) {
             const beatIdx = Math.floor(elapsed / beatMs) % 4;
             if (beatIdx !== rcGameState._lastBeatBox) {
@@ -4867,7 +4606,6 @@
                 document.querySelectorAll('#rcGameBeats .rc-beat-box').forEach((box, idx) => {
                     box.classList.toggle('active', idx === beatIdx);
                 });
-
                 const arm = document.getElementById('rcMetroArm');
                 const text = document.getElementById('rcMetronomeText');
                 if (arm) {
@@ -4880,15 +4618,38 @@
 
             const repIndex = Math.min(REPS, currentRepIndex + 1);
 
-            // Detect rep/bar change → update token row + pattern label for multi-bar
             if (currentRepIndex !== rcGameState._lastRepIndex) {
                 rcGameState._lastRepIndex = currentRepIndex;
                 rcGameState._activeSegmentIndex = -1;
+
+                // Re-render VexFlow for new bar
+                const barLabel = barsSegments
+                    ? (rcGameState._card.bars ? rcGameState._card.bars[currentRepIndex] : rcGameState._card.label)
+                    : rcGameState._card.label;
+                try {
+                    const vfData = _renderVexFlowGameBar(barLabel, _vfDiv);
+                    rcGameState._vfNoteStartX = vfData.noteStartX;
+                    rcGameState._vfNoteEndX = vfData.noteEndX;
+                    rcGameState._vfNoteMap = vfData.noteMap;
+                } catch (err) { console.warn('VexFlow re-render failed:', err); }
+
                 if (barsSegments) {
                     _rcRenderGameTokensFromSegs(barsSegments[currentRepIndex]);
                     document.querySelectorAll('#rcGameTokenRow .rc-game-token').forEach(el => el.classList.remove('active'));
                     const patEl = document.getElementById('rcGamePattern');
                     if (patEl && rcGameState._card.bars) patEl.textContent = rcGameState._card.bars[currentRepIndex];
+
+                    const nextStrip = document.getElementById('rcNextBarStrip');
+                    const nextPat   = document.getElementById('rcNextBarPattern');
+                    if (nextStrip && nextPat) {
+                        const nextIdx = currentRepIndex + 1;
+                        if (nextIdx < rcGameState._card.bars.length) {
+                            nextPat.textContent = rcGameState._card.bars[nextIdx];
+                            nextStrip.style.display = '';
+                        } else {
+                            nextStrip.style.display = 'none';
+                        }
+                    }
                 }
                 document.getElementById('rcGameRep').textContent = barsSegments
                     ? `小節 ${repIndex} / ${REPS}`
@@ -4916,6 +4677,260 @@
             endRCGame();
             return;
         }
+
+        rcGameState.animId = requestAnimationFrame(_rcGameLoop);
+    }
+
+    /* ── Helper: find local note index within current rep ── */
+    function _rcLocalNoteIndex(note, notes, currentRepIndex) {
+        let idx = 0;
+        for (const n of notes) {
+            if (n === note) return idx;
+            if (n.repIndex === currentRepIndex) idx++;
+            if (n.repIndex > currentRepIndex) break;
+        }
+        return -1;
+    }
+
+    /* ── Canvas fallback game loop (original) ── */
+    function _rcGameLoopCanvas() {
+        const { canvas, ctx, notes, perfZero, beatMs, totalGameBeats, phase, barBeats, segments, barsSegments } = rcGameState;
+        if (!ctx || !canvas) return;
+
+        const now = performance.now();
+        const elapsed = now - perfZero;
+        const width = canvas.width;
+        const height = canvas.height;
+        const beatCount = Math.max(4, Math.ceil(barBeats));
+        const currentRepIndex = Math.max(0, Math.min(REPS - 1, Math.floor(Math.max(elapsed, 0) / (barBeats * beatMs || 1))));
+        const currentSegments = barsSegments ? barsSegments[currentRepIndex] : segments;
+        const repStartMs = currentRepIndex * barBeats * beatMs;
+        const repElapsed = elapsed - repStartMs;
+        const repProgress = Math.max(0, Math.min(1, repElapsed / (barBeats * beatMs || 1)));
+        const laneLeft = 44;
+        const laneRight = width - 44;
+        const laneWidth = Math.max(120, laneRight - laneLeft);
+        const laneTop = height * 0.28;
+        const laneHeight = 120;
+        const laneMid = laneTop + laneHeight / 2;
+        const playheadX = laneLeft + laneWidth * repProgress;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        const staffY = laneTop + laneHeight * 0.50;
+        const headRx = 9, headRy = 6.5;
+        const stemH = 42;
+        const beamThick = 5;
+        const beamGap = 7;
+
+        const beatX = b => laneLeft + (b / barBeats) * laneWidth;
+
+        function beatLabel(pos) {
+            const num = Math.floor(pos) + 1;
+            const sub = Math.round((pos % 1) * 4);
+            if (sub === 0) return String(num);
+            if (sub === 1) return 'e';
+            if (sub === 2) return '&';
+            if (sub === 3) return 'a';
+            return '';
+        }
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(laneLeft - 4, staffY);
+        ctx.lineTo(laneLeft + laneWidth + 4, staffY);
+        ctx.stroke();
+
+        const repNotes = notes.filter(n => n.repIndex === currentRepIndex);
+        const labelPositions = new Set();
+        repNotes.forEach(n => labelPositions.add(n.localBeatPos));
+        segments.filter(s => s.isRest).forEach(s => labelPositions.add(s.start));
+        for (let b = 0; b < barBeats; b++) labelPositions.add(b);
+
+        for (let beat = 0; beat <= beatCount; beat++) {
+            const x = beatX(beat);
+            ctx.strokeStyle = (beat === 0 || beat === beatCount) ? '#000' : 'rgba(0,0,0,0.12)';
+            ctx.lineWidth = (beat === 0 || beat === beatCount) ? 1.5 : 0.8;
+            ctx.beginPath();
+            ctx.moveTo(x, staffY - stemH - 10);
+            ctx.lineTo(x, staffY + 10);
+            ctx.stroke();
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const countY = staffY - stemH - 14;
+        [...labelPositions].sort((a, b) => a - b).forEach(pos => {
+            const lbl = beatLabel(pos);
+            if (!lbl) return;
+            const x = beatX(pos);
+            const isMain = pos === Math.floor(pos);
+            ctx.font = isMain ? '900 18px Nunito' : '800 15px Nunito';
+            ctx.fillStyle = isMain ? 'rgba(59,130,246,0.9)' : 'rgba(59,130,246,0.5)';
+            ctx.fillText(lbl, x, countY);
+        });
+
+        // Miss detection
+        notes.forEach(note => {
+            if (note.state === 'waiting' && elapsed - INPUT_LATENCY_MS > note.beatPos * beatMs + WIN_GOOD) {
+                note.state = 'miss';
+                note.judgment = 'miss';
+                rcGameState.counts.miss++;
+                rcGameState.combo = 0;
+                document.getElementById('rcComboDisplay').textContent = '';
+                _rcShowJudgment('MISS', '#EF4444');
+            }
+        });
+
+        // Rests
+        const curSegs = barsSegments ? barsSegments[currentRepIndex] : segments;
+        curSegs.filter(seg => seg.isRest).forEach(seg => {
+            const cx = beatX(seg.start);
+            ctx.save();
+            ctx.translate(cx, staffY);
+            ctx.fillStyle = '#1E293B';
+            ctx.beginPath();
+            const s = 1.4;
+            ctx.moveTo(-3*s, -16*s); ctx.lineTo(3*s, -10*s); ctx.lineTo(-2*s, -4*s); ctx.lineTo(4*s, 2*s);
+            ctx.quadraticCurveTo(2*s, 7*s, -2*s, 8*s); ctx.quadraticCurveTo(2*s, 6*s, 1*s, 3*s);
+            ctx.lineTo(-4*s, -3*s); ctx.lineTo(3*s, -9*s); ctx.lineTo(-3*s, -16*s);
+            ctx.fill(); ctx.restore();
+            ctx.textAlign = 'center'; ctx.font = '700 12px "Noto Sans TC", sans-serif';
+            ctx.fillStyle = 'rgba(80,80,80,0.7)'; ctx.textBaseline = 'top';
+            ctx.fillText('休止', cx, staffY + 14);
+        });
+
+        // Notes
+        const segGroups = {};
+        repNotes.forEach(note => { const key = note.segmentIndex; if (!segGroups[key]) segGroups[key] = []; segGroups[key].push(note); });
+
+        function drawHead(cx, cy, filled, color) {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.18);
+            ctx.beginPath(); ctx.ellipse(0, 0, headRx, headRy, 0, 0, Math.PI * 2);
+            if (filled) { ctx.fillStyle = color; ctx.fill(); }
+            else { ctx.lineWidth = 2; ctx.strokeStyle = color; ctx.stroke(); }
+            ctx.restore();
+        }
+        function noteColor(note) {
+            if (note.state === 'hit') return '#10B981';
+            if (note.state === 'miss') return '#EF4444';
+            return '#1E293B';
+        }
+
+        Object.values(segGroups).forEach(group => {
+            group.sort((a, b) => a.localBeatPos - b.localBeatPos);
+            const isBeamed = group.length > 1;
+            group.forEach((note) => {
+                const cx = beatX(note.localBeatPos);
+                const color = noteColor(note);
+                const dur = note.durationBeats;
+                ctx.globalAlpha = note.state === 'miss' ? 0.45 : 1;
+                if (note.state === 'hit' && note.hitTime) {
+                    const dt = now - note.hitTime;
+                    if (dt < 300) { const ga = 0.35 * (1 - dt / 300); ctx.fillStyle = 'rgba(16,185,129,' + ga + ')'; ctx.beginPath(); ctx.arc(cx, staffY, headRx + 8, 0, Math.PI * 2); ctx.fill(); }
+                }
+                drawHead(cx, staffY, dur <= 1, color);
+                if (dur === 0.75 || dur === 1.5 || dur === 3) { ctx.beginPath(); ctx.arc(cx + headRx + 5, staffY, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
+                if (dur < 4) {
+                    const stemX = cx + headRx - 1;
+                    ctx.strokeStyle = color; ctx.lineWidth = 1.8;
+                    ctx.beginPath(); ctx.moveTo(stemX, staffY - headRy + 2); ctx.lineTo(stemX, staffY - stemH); ctx.stroke();
+                    if (!isBeamed && dur === 0.5) { ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(stemX, staffY - stemH); ctx.quadraticCurveTo(stemX + 12, staffY - stemH + 10, stemX + 3, staffY - stemH + 22); ctx.quadraticCurveTo(stemX + 8, staffY - stemH + 14, stemX, staffY - stemH + 8); ctx.fill(); }
+                    if (!isBeamed && dur === 0.25) { for (let f = 0; f < 2; f++) { const fy = staffY - stemH + f * (beamGap + 1); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(stemX, fy); ctx.quadraticCurveTo(stemX + 12, fy + 10, stemX + 3, fy + 20); ctx.quadraticCurveTo(stemX + 8, fy + 12, stemX, fy + 7); ctx.fill(); } }
+                }
+                ctx.fillStyle = note.state === 'hit' ? '#10B981' : '#3C3C3C';
+                ctx.font = '600 13px "Noto Sans TC", Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText(note.label, cx, staffY + 14);
+                ctx.globalAlpha = 1;
+            });
+            if (isBeamed && group.length > 1) {
+                const first = group[0], last = group[group.length - 1];
+                const x1 = beatX(first.localBeatPos) + headRx - 1;
+                const x2 = beatX(last.localBeatPos) + headRx - 1;
+                const beamY = staffY - stemH;
+                const bColor = group.some(n => n.state === 'hit') ? '#10B981' : group.some(n => n.state === 'miss') ? '#EF4444' : '#1E293B';
+                ctx.globalAlpha = group.some(n => n.state === 'miss') ? 0.45 : 1;
+                ctx.fillStyle = bColor;
+                ctx.fillRect(x1, beamY, x2 - x1, beamThick);
+                let si = 0;
+                while (si < group.length) {
+                    if (group[si].durationBeats <= 0.25) {
+                        let sj = si;
+                        while (sj < group.length && group[sj].durationBeats <= 0.25) sj++;
+                        if (sj - si >= 2) { ctx.fillRect(beatX(group[si].localBeatPos) + headRx - 1, beamY + beamGap, beatX(group[sj-1].localBeatPos) + headRx - 1 - (beatX(group[si].localBeatPos) + headRx - 1), beamThick); }
+                        else { const sx = beatX(group[si].localBeatPos) + headRx - 1; const stub = 12; if (si > 0) ctx.fillRect(sx - stub, beamY + beamGap, stub, beamThick); else ctx.fillRect(sx, beamY + beamGap, stub, beamThick); }
+                        si = sj;
+                    } else { si++; }
+                }
+                ctx.globalAlpha = 1;
+            }
+        });
+
+        // Floating judgment text
+        repNotes.filter(n => n.state === 'hit' && n.hitTime).forEach(note => {
+            const age = now - note.hitTime; if (age > 600) return;
+            const cx = beatX(note.localBeatPos);
+            const floatY = staffY - stemH - 28 - (age / 600) * 24;
+            ctx.globalAlpha = Math.max(0, 1 - age / 600);
+            ctx.fillStyle = note.judgmentColor || '#10B981'; ctx.font = '900 15px Nunito'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            const jText = (note.judgment || '').toUpperCase();
+            ctx.fillText(jText === 'PERFECT' ? '✦ PERFECT' : jText, cx, floatY);
+            ctx.globalAlpha = 1;
+        });
+
+        // Playhead
+        ctx.strokeStyle = 'rgba(59,130,246,0.85)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(playheadX, staffY - stemH - 16); ctx.lineTo(playheadX, staffY + 30); ctx.stroke();
+        ctx.strokeStyle = 'rgba(59,130,246,0.15)'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(playheadX, staffY - stemH - 16); ctx.lineTo(playheadX, staffY + 30); ctx.stroke();
+        ctx.fillStyle = 'rgba(59,130,246,0.8)';
+        ctx.beginPath(); ctx.moveTo(playheadX, staffY + 32); ctx.lineTo(playheadX - 5, staffY + 39); ctx.lineTo(playheadX + 5, staffY + 39); ctx.closePath(); ctx.fill();
+
+        if (elapsed > 0) {
+            const beatIdx = Math.floor(elapsed / beatMs) % 4;
+            if (beatIdx !== rcGameState._lastBeatBox) {
+                rcGameState._lastBeatBox = beatIdx;
+                document.querySelectorAll('#rcGameBeats .rc-beat-box').forEach((box, idx) => { box.classList.toggle('active', idx === beatIdx); });
+                const arm = document.getElementById('rcMetroArm');
+                const text = document.getElementById('rcMetronomeText');
+                if (arm) { arm.classList.remove('tick-left', 'tick-right'); void arm.offsetWidth; arm.classList.add(beatIdx % 2 === 0 ? 'tick-left' : 'tick-right'); }
+                if (text) text.textContent = beatIdx === 0 ? '強拍！' : `第 ${beatIdx + 1} 拍`;
+            }
+            const repIndex = Math.min(REPS, currentRepIndex + 1);
+            if (currentRepIndex !== rcGameState._lastRepIndex) {
+                rcGameState._lastRepIndex = currentRepIndex;
+                rcGameState._activeSegmentIndex = -1;
+                if (barsSegments) {
+                    _rcRenderGameTokensFromSegs(barsSegments[currentRepIndex]);
+                    document.querySelectorAll('#rcGameTokenRow .rc-game-token').forEach(el => el.classList.remove('active'));
+                    const patEl = document.getElementById('rcGamePattern');
+                    if (patEl && rcGameState._card.bars) patEl.textContent = rcGameState._card.bars[currentRepIndex];
+                    const nextStrip = document.getElementById('rcNextBarStrip');
+                    const nextPat   = document.getElementById('rcNextBarPattern');
+                    if (nextStrip && nextPat) {
+                        const nextIdx = currentRepIndex + 1;
+                        if (nextIdx < rcGameState._card.bars.length) { nextPat.textContent = rcGameState._card.bars[nextIdx]; nextStrip.style.display = ''; }
+                        else { nextStrip.style.display = 'none'; }
+                    }
+                }
+                document.getElementById('rcGameRep').textContent = barsSegments ? `小節 ${repIndex} / ${REPS}` : `第 ${repIndex} / ${REPS} 次`;
+            }
+            const beatInBar = (elapsed / beatMs) % barBeats;
+            const activeSegmentIndex = currentSegments.findIndex(segment => beatInBar >= segment.start && beatInBar < segment.start + segment.duration);
+            if (activeSegmentIndex !== rcGameState._activeSegmentIndex) {
+                rcGameState._activeSegmentIndex = activeSegmentIndex;
+                document.querySelectorAll('#rcGameTokenRow .rc-game-token').forEach(el => { el.classList.toggle('active', parseInt(el.dataset.segmentIndex || '-1', 10) === activeSegmentIndex); });
+            }
+        }
+
+        if (elapsed > 0 && totalGameBeats > 0) { const pct = Math.min(elapsed / (totalGameBeats * beatMs) * 100, 100); document.getElementById('rcProgressFill').style.width = pct + '%'; }
+
+        const allDone = notes.every(note => note.state !== 'waiting');
+        const lastBeatMs = notes[notes.length - 1]?.beatPos * beatMs || 0;
+        if (phase === 'playing' && allDone && elapsed > lastBeatMs + 800) { endRCGame(); return; }
 
         rcGameState.animId = requestAnimationFrame(_rcGameLoop);
     }
@@ -4990,6 +5005,15 @@
         rcGameState.score += earned;
         bestNote.judgment = label.split(' ')[0].toLowerCase();
         bestNote.judgmentColor = color;
+
+        // VexFlow mode: color SVG note green
+        if (rcGameState._vf && rcGameState._vfNoteMap) {
+            const currentRepIndex = Math.max(0, Math.min(REPS - 1, Math.floor(Math.max(elapsed, 0) / (rcGameState.barBeats * rcGameState.beatMs || 1))));
+            const repNoteIdx = _rcLocalNoteIndex(bestNote, rcGameState.notes, currentRepIndex);
+            if (rcGameState._vfNoteMap[repNoteIdx]) {
+                _vfColorNote(rcGameState._vfNoteMap[repNoteIdx].el, color, 1);
+            }
+        }
 
         document.getElementById('rcGameScore').textContent = rcGameState.score;
         // Combo display with milestone celebrations
@@ -5082,13 +5106,22 @@
             clearTimeout(rcGameState._startTimer);
             rcGameState._startTimer = null;
         }
+        _rcCleanupVF();
         _rcRemoveGameKeyHandler();
         audio.stopAllTicks();
-        if (rcChallengeState) {
-            rcChallengeState = null;
-            switchScreen('screen-g2-setup');
-        } else {
-            switchScreen('screen-rc-levels');
+        switchScreen('screen-rc-levels');
+    }
+
+    function _rcCleanupVF() {
+        if (rcGameState._vf) {
+            const vfDiv = document.getElementById('rcOsmdContainer');
+            if (vfDiv) { vfDiv.style.display = 'none'; vfDiv.innerHTML = ''; }
+            const scanner = rcGameState._scanner;
+            if (scanner) scanner.style.display = 'none';
+            const canvas = document.getElementById('rcGameCanvas');
+            if (canvas) canvas.style.display = '';
+            rcGameState._vf = false;
+            rcGameState._vfNoteMap = null;
         }
     }
 
@@ -5109,6 +5142,7 @@
             clearTimeout(rcGameState._startTimer);
             rcGameState._startTimer = null;
         }
+        _rcCleanupVF();
         _rcRemoveGameKeyHandler();
         audio.stopAllTicks();
 
@@ -5187,38 +5221,12 @@
             requestAnimationFrame(() => requestAnimationFrame(() => { div.style.width = seg.pct + '%'; }));
         });
 
-        if (rcChallengeState) {
-            // Store this round's result — committed to totals when player advances
-            const chal = rcChallengeState;
-            chal.pendingResult = {
-                perfect: counts.perfect, great: counts.great, good: counts.good,
-                miss: counts.miss, score, maxCombo, noteCount: notes.length,
-            };
-            const cIdx    = chal.cardIdx;
-            const cTotal  = chal.patterns.length;
-            const nextIdx = cIdx + 1;
-            const isLast  = nextIdx >= cTotal;
-            if (isLast) {
-                _rcChalFinishAll();
-                return;
-            }
-            document.getElementById('rcResultTitle').textContent = `第 ${cIdx + 1} / ${cTotal} 題完成！繼續加油！`;
-            document.getElementById('rcResReplay').textContent = '🔁 重試這題';
-            document.getElementById('rcResReplay').onclick = () => {
-                chal.pendingResult = null; // discard this round's result on retry
-                const card = { bars: chal.patterns[cIdx], num: null, level: 0 };
-                showRCReadPhase(card, chal.bpm, chal.user);
-            };
-            document.getElementById('rcResBack').textContent = `▶ 下一題 (${nextIdx + 1} / ${cTotal})`;
-            document.getElementById('rcResBack').onclick = () => _rcChalAdvance(nextIdx);
-        } else {
-            document.getElementById('rcResReplay').textContent = '🔄 再挑戰';
-            document.getElementById('rcResReplay').onclick = () => startRCGame(rcGameState._card, rcGameState._bpm, rcGameState._user);
-            document.getElementById('rcResBack').textContent  = '← 返回設定';
-            document.getElementById('rcResBack').onclick     = () => _openRCDetail(rcGameState._card, rcGameState._user);
-            const rankBtn = document.getElementById('rcResViewRank');
-            if (rankBtn) rankBtn.style.display = 'none';
-        }
+        document.getElementById('rcResReplay').textContent = '🔄 再挑戰';
+        document.getElementById('rcResReplay').onclick = () => startRCGame(rcGameState._card, rcGameState._bpm, rcGameState._user);
+        document.getElementById('rcResBack').textContent  = '← 返回設定';
+        document.getElementById('rcResBack').onclick     = () => _openRCDetail(rcGameState._card, rcGameState._user);
+        const rankBtn = document.getElementById('rcResViewRank');
+        if (rankBtn) rankBtn.style.display = 'none';
 
         switchScreen('screen-rc-result');
     }
@@ -5368,4 +5376,343 @@
         { cat:'tempo',    sym:'Presto',    name:'Presto',       meaning:'急板（極快）',   grade:5 },
         { cat:'tempo',    sym:'rit.',      name:'Ritardando',   meaning:'漸慢',           grade:4 },
         { cat:'tempo',    sym:'accel.',    name:'Accelerando',  meaning:'漸快',           grade:4 },
-        { cat:'tempo',    sym:'a tempo',   name:'A tempo',      meaning:'回原速',  
+        { cat:'tempo',    sym:'a tempo',   name:'A tempo',      meaning:'回原速',         grade:4 },
+        { cat:'tempo',    sym:'più mosso', name:'Più mosso',    meaning:'更快地',         grade:6 },
+        // 奏法 (Articulation)
+        { cat:'articulation', sym:'~',   name:'Legato',    meaning:'連奏',             grade:2 },
+        { cat:'articulation', sym:'·',   name:'Staccato',  meaning:'斷奏',             grade:2, img:'img/cards/sym-art-staccato.png' },
+        { cat:'articulation', sym:'>',   name:'Accent',    meaning:'重音',             grade:3, img:'img/cards/sym-art-accent.png' },
+        { cat:'articulation', sym:'—',   name:'Tenuto',    meaning:'持音（保持音值）', grade:5, img:'img/cards/sym-art-tenuto.png' },
+        { cat:'articulation', sym:'𝄐',   name:'Fermata',   meaning:'延長號',           grade:5, img:'img/cards/sym-art-fermata.png' },
+        { cat:'articulation', sym:'^',   name:'Marcato',   meaning:'強奏',             grade:6 },
+        // 調號 (Key Signatures) — use extracted PDF images
+        { cat:'keysig', sym:'0♯ 0♭', name:'C大調 / a小調', meaning:'無升降號',         grade:1, img:'img/cards/keysig-0n.png' },
+        { cat:'keysig', sym:'1♯',    name:'G大調 / e小調', meaning:'升 Fa（F♯）',      grade:3, img:'img/cards/keysig-1s.png' },
+        { cat:'keysig', sym:'2♯',    name:'D大調 / b小調', meaning:'升 Fa、Do',        grade:4, img:'img/cards/keysig-2s.png' },
+        { cat:'keysig', sym:'3♯',    name:'A大調 / f♯小調',meaning:'升 Fa、Do、Sol',   grade:5, img:'img/cards/keysig-3s.png' },
+        { cat:'keysig', sym:'4♯',    name:'E大調 / c♯小調',meaning:'升 Fa Do Sol Re', grade:6, img:'img/cards/keysig-4s.png' },
+        { cat:'keysig', sym:'1♭',    name:'F大調 / d小調', meaning:'降 Si（B♭）',      grade:3, img:'img/cards/keysig-1f.png' },
+        { cat:'keysig', sym:'2♭',    name:'B♭大調 / g小調',meaning:'降 Si、Mi',        grade:4, img:'img/cards/keysig-2f.png' },
+        { cat:'keysig', sym:'3♭',    name:'E♭大調 / c小調',meaning:'降 Si、Mi、La',    grade:5, img:'img/cards/keysig-3f.png' },
+        { cat:'keysig', sym:'4♭',    name:'A♭大調 / f小調',meaning:'降 Si Mi La Re',   grade:6, img:'img/cards/keysig-4f.png' },
+        // 曲式記號 (Form/Repeat)
+        { cat:'form', sym:'‖: :‖',  name:'反覆記號',  meaning:'重複演奏一段', grade:2, img:'img/cards/sym-bar-repeat-start.png' },
+        { cat:'form', sym:'1.  2.', name:'第一/二括', meaning:'第一/二次結尾',grade:3 },
+        { cat:'form', sym:'D.C.',   name:'Da Capo',   meaning:'從頭再奏',     grade:4 },
+        { cat:'form', sym:'D.S.',   name:'Dal Segno', meaning:'從記號重奏',   grade:4, img:'img/cards/sym-sym-segno.png' },
+        { cat:'form', sym:'Fine',   name:'Fine',      meaning:'樂曲結束',     grade:4 },
+        // 情緒/表情 (Expression/Character)
+        { cat:'expression', sym:'cantabile',  name:'Cantabile',  meaning:'如歌地',   grade:5 },
+        { cat:'expression', sym:'dolce',      name:'Dolce',      meaning:'甜美地',   grade:5 },
+        { cat:'expression', sym:'espressivo', name:'Espressivo', meaning:'有表情地', grade:6 },
+        { cat:'expression', sym:'maestoso',   name:'Maestoso',   meaning:'雄壯地',   grade:6 },
+        { cat:'expression', sym:'giocoso',    name:'Giocoso',    meaning:'嬉戲地',   grade:6 },
+        { cat:'expression', sym:'tranquillo', name:'Tranquillo', meaning:'平靜地',   grade:6 },
+    ];
+
+    const CAT_LABELS = { dynamics:'力度', tempo:'速度', articulation:'奏法', keysig:'調號', form:'記號', expression:'情緒' };
+
+    let g3StudyActiveCat = 'all';
+    let g3StudyActiveGrade = 0;
+
+    function renderStudyGrid() {
+        const grid = document.getElementById('g3TermsGrid');
+        if (!grid) return;
+        const filtered = FULL_TERMS_TABLE.filter(t =>
+            (g3StudyActiveCat === 'all' || t.cat === g3StudyActiveCat) &&
+            (g3StudyActiveGrade === 0 || t.grade === g3StudyActiveGrade)
+        );
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div class="study-terms-empty">此篩選條件下沒有術語 🎵</div>';
+            return;
+        }
+        grid.innerHTML = filtered.map(t => {
+            let visual = '';
+            if (t.img) {
+                visual = `<img src="${escHtml(t.img)}" class="study-term-img" alt="${escHtml(t.sym)}" loading="lazy">`;
+            } else if (t.cat === 'form' && FORM_SVG[t.sym]) {
+                visual = FORM_SVG[t.sym];
+            } else {
+                visual = `<div class="study-term-sym">${escHtml(t.sym)}</div>`;
+            }
+            const showSym = (t.img || t.cat === 'keysig' || t.cat === 'form') ? '' : '';
+            const nameHtml = t.cat === 'keysig'
+                ? `<div class="study-term-name study-ks-name"><strong>${escHtml(t.name)}</strong></div>`
+                : `<div class="study-term-name">${escHtml(t.name)}</div>`;
+            const meaningHtml = t.cat === 'keysig'
+                ? `<div class="study-term-meaning study-ks-notes">${escHtml(t.meaning)}</div>`
+                : `<div class="study-term-meaning">${escHtml(t.meaning)}</div>`;
+            return `<div class="study-term-card cat-${escHtml(t.cat)}">
+                ${visual}
+                ${nameHtml}
+                ${meaningHtml}
+            </div>`;
+        }).join('');
+    }
+
+    function openStudyScreen() {
+        g3StudyActiveCat = 'all';
+        g3StudyActiveGrade = 0;
+        // Reset tab/grade button states
+        document.querySelectorAll('.study-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+        document.querySelectorAll('.study-grade-btn').forEach(b => b.classList.toggle('active', b.dataset.grade === '0'));
+        renderStudyGrid();
+        switchScreen('screen-g3-study');
+    }
+
+    // Tab & grade filter listeners (set up once)
+    document.querySelectorAll('.study-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            g3StudyActiveCat = btn.dataset.cat;
+            document.querySelectorAll('.study-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStudyGrid();
+        });
+    });
+    document.querySelectorAll('.study-grade-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            g3StudyActiveGrade = Number(btn.dataset.grade);
+            document.querySelectorAll('.study-grade-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStudyGrid();
+        });
+    });
+    document.getElementById('g3StudyBack').addEventListener('click', () => switchScreen('screen-g3-setup'));
+    document.getElementById('g3StudyStartBtn').addEventListener('click', () => switchScreen('screen-g3-setup'));
+
+    // Rank filter listeners — set up once (use current game state for user)
+    document.getElementById('g3RankClass').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
+    document.getElementById('g3RankGrade').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
+
+    let g3State = {};
+    let g3TimerHandle = null;
+
+    function makeKeySigSvg(count, type) {
+        // Staff lines: 5 lines, y = 12 20 28 36 44 (gap=8), bottom=E4 top=F5
+        // Sharp order F C G D A E B → positions on treble staff
+        const sharpY = [12, 24,  8, 20, 32, 16, 28]; // F5 C5 G5 D5 A4 E5 B4
+        // Flat order  B E A D G C F → positions on treble staff
+        const flatY  = [28, 16, 32, 20, 36, 24, 40]; // B4 E5 A4 D5 G4 C5 F4
+        const positions = type === 'sharp' ? sharpY : flatY;
+        const sym = type === 'sharp' ? '\u266F' : '\u266D'; // ♯ or ♭
+        const xStart = 26, xGap = 16;
+        const W = Math.max(xStart + (count - 1) * xGap + 36, 80);
+        const H = 60;
+        const lineY = [12, 20, 28, 36, 44];
+        const staff = lineY.map(y =>
+            `<line x1="4" y1="${y}" x2="${W - 4}" y2="${y}" stroke="#555" stroke-width="1.3"/>`
+        ).join('');
+        const dy = type === 'sharp' ? 7 : 9; // baseline offset to centre on staff position
+        const accs = Array.from({length: count}, (_, i) => {
+            const x = xStart + i * xGap;
+            const y = positions[i];
+            return `<text x="${x}" y="${y + dy}" font-size="19" font-weight="900" fill="#1E293B" font-family="serif" text-anchor="middle">${sym}</text>`;
+        }).join('');
+        return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="keysig-quiz-svg">${staff}${accs}</svg>`;
+    }
+
+    const G3_DIFF_POOL = {
+        easy:   () => TERMS_BANK.easy.slice(),
+        normal: () => TERMS_BANK.easy.concat(TERMS_BANK.medium),
+        hard:   () => TERMS_BANK.medium.concat(TERMS_BANK.hard),
+        expert: () => TERMS_BANK.easy.concat(TERMS_BANK.medium, TERMS_BANK.hard),
+    };
+
+    function startGame3(user, mode, difficulty) {
+        mode = mode || 'challenge';
+        difficulty = difficulty || 'easy';
+        const isChallenge = mode === 'challenge';
+        g3State = { user, mode, difficulty, score: 0, combo: 0, maxCombo: 0, qIdx: 0, wrong: 0, correct: 0, questions: [], totalTime: isChallenge ? 60 : Infinity, globalTimeLeft: isChallenge ? 60 : Infinity, mistakes: [] };
+        if (g3TimerHandle) clearInterval(g3TimerHandle);
+        audio.init(); audio.warmUp();
+
+        const pool = (G3_DIFF_POOL[difficulty] || G3_DIFF_POOL.easy)();
+        // For challenge mode, we need a large shuffled pool; recycle if needed
+        for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+        g3State.questions = pool;
+        g3State._pool = pool; // keep reference for recycling
+
+        const modeLabel = isChallenge ? '⏱️ 限時挑戰 (60秒)' : '📝 練習模式';
+        const diffEmoji = (DIFFICULTY_CONFIG[difficulty] || {}).emoji || '';
+        document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 音樂術語 ${modeLabel} ${diffEmoji}`;
+        document.getElementById('g3EndBtn').onclick = () => endGame3();
+        document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
+        switchScreen('screen-game3');
+
+        // Start global countdown for challenge mode
+        if (isChallenge) {
+            const timerEl = document.getElementById('g3Timer');
+            const g3timerFill = document.getElementById('g3TimerFill');
+            if (g3timerFill) { g3timerFill.style.width = '100%'; g3timerFill.classList.remove('urgent'); }
+            const updateGlobalTimer = () => {
+                if (timerEl) timerEl.textContent = g3State.globalTimeLeft + 's';
+                const pct = (g3State.globalTimeLeft / g3State.totalTime) * 100;
+                if (g3timerFill) { g3timerFill.style.width = pct + '%'; if (g3State.globalTimeLeft <= 10) g3timerFill.classList.add('urgent'); else g3timerFill.classList.remove('urgent'); }
+                if (timerEl) { if (g3State.globalTimeLeft <= 10) timerEl.style.color = 'var(--primary-red)'; else timerEl.style.color = ''; }
+            };
+            updateGlobalTimer();
+            g3TimerHandle = setInterval(() => {
+                g3State.globalTimeLeft--;
+                updateGlobalTimer();
+                if (g3State.globalTimeLeft <= 0) {
+                    clearInterval(g3TimerHandle); g3TimerHandle = null;
+                    document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+                    setTimeout(() => endGame3(), 400);
+                }
+            }, 1000);
+        }
+        renderG3Question();
+    }
+
+    function _getG3Question() {
+        // Get next question, recycle pool if exhausted
+        if (g3State.qIdx >= g3State.questions.length) {
+            // Reshuffle and reset index
+            const pool = g3State._pool.slice();
+            for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+            g3State.questions = pool;
+            g3State.qIdx = 0;
+        }
+        return g3State.questions[g3State.qIdx];
+    }
+
+    function renderG3Question() {
+        const isChallenge = g3State.mode === 'challenge';
+        // For challenge, check if time is up
+        if (isChallenge && g3State.globalTimeLeft <= 0) { endGame3(); return; }
+        // For practice, stop after 10 questions
+        if (!isChallenge && g3State.qIdx >= 10) { endGame3(); return; }
+
+        const q = _getG3Question();
+        const totalAnswered = g3State.correct + g3State.wrong;
+        if (isChallenge) {
+            document.getElementById('g3Progress').textContent = `${totalAnswered}題`;
+            document.getElementById('g3QNum').textContent = `已答 ${totalAnswered} 題`;
+        } else {
+            document.getElementById('g3Progress').textContent = `${g3State.qIdx+1}/10`;
+            document.getElementById('g3QNum').textContent = `第 ${g3State.qIdx+1} 題 / 共 10 題`;
+        }
+        document.getElementById('g3Score').textContent = g3State.score;
+        document.getElementById('g3Combo').textContent = g3State.combo;
+
+        // Progress bar for practice mode only
+        const g3pfill = document.getElementById('g3ProgressFill');
+        if (g3pfill) g3pfill.style.width = (isChallenge ? 0 : (g3State.qIdx / 10) * 100) + '%';
+
+        // Timer for practice mode (no per-question timer, show infinity)
+        if (!isChallenge) {
+            const timerEl = document.getElementById('g3Timer');
+            const g3timerFill = document.getElementById('g3TimerFill');
+            if (timerEl) timerEl.textContent = '∞';
+            if (g3timerFill) g3timerFill.style.width = '100%';
+        }
+
+        document.getElementById('g3Question').textContent = q.q;
+        document.getElementById('g3Visual').innerHTML = q.ksImg
+            ? `<div class="ks-quiz-visual"><img src="${escHtml(q.ksImg)}" class="ks-card-img" alt="調號卡" loading="eager">${q.ksCaption ? `<div class="ks-quiz-caption">${q.ksCaption}</div>` : ''}</div>`
+            : q.keySig
+            ? makeKeySigSvg(q.keySig.count, q.keySig.type)
+            : q.img
+            ? `<img src="${escHtml(q.img)}" class="quiz-card-img" alt="${escHtml(q.sym || '')}" loading="eager">`
+            : `<div class="term-display term-italic">${escHtml(q.sym || '')}</div>`;
+        document.getElementById('g3Message').textContent = '📖 快速選出正確答案！';
+        document.getElementById('g3Message').className = 'message-box';
+
+        const optEl = document.getElementById('g3Options');
+        optEl.innerHTML = '';
+        const G3_LETTERS = ['A', 'B', 'C', 'D'];
+        q.opts.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt-btn';
+            btn.dataset.answer = opt;
+            btn.innerHTML = `<span class="opt-letter">${G3_LETTERS[i]}</span><span class="opt-text">${escHtml(opt)}</span>`;
+            btn.addEventListener('click', () => handleG3Answer(opt, q.ans, btn, q));
+            optEl.appendChild(btn);
+        });
+    }
+
+    function handleG3Answer(chosen, correct, btn, q) {
+        const isCorrect = chosen === correct;
+        document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+        const msgEl = document.getElementById('g3Message');
+        if (isCorrect) {
+            btn.classList.add('correct');
+            g3State.combo++;
+            g3State.correct++;
+            if (g3State.combo > g3State.maxCombo) g3State.maxCombo = g3State.combo;
+            let pts = 10;
+            if (g3State.combo >= 5) pts += 10;
+            g3State.score += pts;
+            audio.playEffect && audio.playEffect('countdown');
+            msgEl.textContent = `✅ 答對！+${pts} 分`;
+            msgEl.className = 'message-box correct';
+        } else {
+            btn.classList.add('wrong');
+            document.querySelectorAll('.quiz-opt-btn').forEach(b => { if (b.dataset.answer === correct) b.classList.add('correct'); });
+            g3State.combo = 0; g3State.wrong++;
+            g3State.mistakes.push({ q: q.q, sym: q.sym, chosen, correct, explain: q.explain || '' });
+            audio.playEffect && audio.playEffect('wrong');
+            const explainText = q.explain ? `　💡 ${q.explain}` : '';
+            msgEl.textContent = `❌ 答錯！正確答案是「${correct}」${explainText}`;
+            msgEl.className = 'message-box wrong';
+        }
+        document.getElementById('g3Score').textContent = g3State.score;
+        document.getElementById('g3Combo').textContent = g3State.combo;
+        g3State.qIdx++;
+        const _isChallenge = g3State.mode === 'challenge';
+        setTimeout(() => renderG3Question(), _isChallenge ? 980 : 1300);
+    }
+
+    function endGame3() {
+        if (g3TimerHandle) { clearInterval(g3TimerHandle); g3TimerHandle = null; }
+        const { user, score, wrong, maxCombo, mode, difficulty, correct: correctCount } = g3State;
+        const totalAnswered = (correctCount || 0) + wrong;
+        const correct = correctCount || 0;
+        let finalScore = score;
+        if (mode !== 'practice' && wrong === 0 && totalAnswered > 0) finalScore += 20; // all correct bonus
+        g3State.score = finalScore;
+        const accuracy = totalAnswered > 0 ? Math.round((correct / totalAnswered) * 100) : 0;
+        const diffLabel = (DIFFICULTY_CONFIG[difficulty] || {}).label || 'Easy';
+        if (mode !== 'practice') {
+            saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
+            submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '音樂術語·' + diffLabel);
+            recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
+        }
+
+        const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
+        document.getElementById('g3ReportGrid').innerHTML = `
+            <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${totalAnswered}</div></div>
+            <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
+            <div class="report-item"><div class="report-label">正確率</div><div class="report-value">${accuracy}%</div></div>
+            <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
+            <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
+        document.getElementById('g3Weakness').innerHTML = wrong === 0
+            ? '<div>🌟 全部答對！你係音樂術語小專家！🎉</div>'
+            : `<div>繼續練習加油！正確 ${correct}/${totalAnswered} 題。</div>`;
+
+        // Render mistake review
+        const g3MistakeEl = document.getElementById('g3MistakeReview');
+        if (g3MistakeEl) {
+            if (g3State.mistakes.length > 0) {
+                g3MistakeEl.innerHTML = '<div class="mistake-review-title">📝 錯題回顧</div>' +
+                    g3State.mistakes.map(m => `<div class="mistake-item">
+                        <div class="mistake-q">${escHtml(m.q)}</div>
+                        <div class="mistake-detail"><span class="mistake-wrong">你的答案：${escHtml(String(m.chosen))}</span> → <span class="mistake-correct">正確：${escHtml(String(m.correct))}</span></div>
+                        ${m.explain ? `<div class="mistake-explain">💡 ${escHtml(m.explain)}</div>` : ''}
+                    </div>`).join('');
+            } else {
+                g3MistakeEl.innerHTML = '';
+            }
+        }
+
+        renderLocalRankList('game3', 'g3RankList', user, difficulty);
+        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 2500);
+        document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
+        document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
+        switchScreen('screen-game3-result');
+    }
+
+})();
+
+
+
