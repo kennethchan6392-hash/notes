@@ -633,70 +633,40 @@
     <!-- ===================================== -->
     <!-- 節奏挑戰 — 按年級自動難度              -->
     <!-- ===================================== -->
-    <div id="screen-rc-grade" class="screen rchg-screen">
-        <div class="rchg-game-header">
-            <button class="rchg-exit-btn" id="rchgBack">✕</button>
-            <div class="rchg-header-center">
-                <div class="rchg-title-small">🥁 節奏挑戰</div>
-                <div class="rchg-meta" id="rchgMeta">小6 · 88 BPM</div>
+    <div id="screen-rc-grade" class="screen rchal-screen">
+        <div class="rchal-header">
+            <button class="rchal-exit" id="rchalExit">✕</button>
+            <div class="rchal-header-center">
+                <div class="rchal-title" id="rchalTitle">Lv.1 初學者</div>
+                <div class="rchal-meta" id="rchalMeta">60 BPM · 2小節</div>
             </div>
-            <div class="rchg-score-display" id="rchgScore">0</div>
+            <div class="rchal-score" id="rchalScore">0</div>
         </div>
-
-        <!-- Progress / Gauge bar -->
-        <div class="rchg-gauge-wrap">
-            <div class="rchg-gauge-fill" id="rchgGaugeFill"></div>
-            <div class="rchg-gauge-label" id="rchgGaugeLabel">0%</div>
+        <div class="rchal-hp-wrap"><div class="rchal-hp-fill" id="rchalHpFill"></div></div>
+        <div class="rchal-track" id="rchalTrack">
+            <div class="rchal-scanner" id="rchalScanner"></div>
+            <div class="rchal-notes" id="rchalNotes"></div>
         </div>
-
-        <!-- Beat indicator strip -->
-        <div class="rchg-beat-strip" id="rchgBeatStrip">
-            <div class="rchg-beat-dot rchg-beat-accent" data-beat="0">1</div>
-            <div class="rchg-beat-dot" data-beat="1">2</div>
-            <div class="rchg-beat-dot" data-beat="2">3</div>
-            <div class="rchg-beat-dot" data-beat="3">4</div>
+        <div class="rchal-feedback">
+            <div class="rchal-combo" id="rchalCombo"></div>
+            <div class="rchal-judgment" id="rchalJudgment"></div>
         </div>
-
-        <!-- Scrolling measure display with bar lines -->
-        <div class="rchg-track-area" id="rchgTrackArea">
-            <div class="rchg-measures-wrap" id="rchgMeasuresWrap"></div>
+        <div class="rchal-beats" id="rchalBeats">
+            <div class="rchal-beat-dot rchal-beat-accent">1</div>
+            <div class="rchal-beat-dot">2</div>
+            <div class="rchal-beat-dot">3</div>
+            <div class="rchal-beat-dot">4</div>
         </div>
-
-        <!-- Combo + Judgment -->
-        <div class="rchg-feedback-row">
-            <div class="rchg-combo" id="rchgCombo"></div>
-            <div class="rchg-judgment" id="rchgJudgment"></div>
+        <div class="rchal-tap" id="rchalTap">
+            <span class="rchal-tap-emoji">🥁</span>
+            <span class="rchal-tap-label">拍打這裡</span>
         </div>
-
-        <!-- Countdown overlay -->
-        <div class="rchg-countdown-overlay" id="rchgCountdownOverlay" style="display:none">
-            <div class="rchg-cdn-num" id="rchgCdnNum">4</div>
+        <div class="rchal-btn-row" id="rchalBtnRow">
+            <button class="btn-start" id="rchalStartBtn" style="display:none;">🥁 開始！</button>
         </div>
-
-        <!-- Status text -->
-        <div class="rchg-status" id="rchgStatus">看清楚四個小節的節奏，準備好就按下面的按鈕！</div>
-
-        <!-- Tap zone -->
-        <div id="rchgTapZone" class="rchg-tap-zone" style="display:none">
-            <span class="rchg-tap-emoji">🥁</span>
-            <div class="rchg-tap-hint">👆 拍打這裡 或 按空白鍵</div>
-        </div>
-
-        <!-- Buttons -->
-        <div class="rchg-btn-row">
-            <button class="btn-start" id="rchgStartBtn">🥁 準備好了，開始！</button>
-            <button class="btn-action" id="rchgRetryBtn" style="display:none">🔄 再試一次</button>
-            <button class="btn-action" id="rchgNewBtn" style="display:none">🎲 換一組節奏</button>
-        </div>
-
-        <!-- Result bar -->
-        <div id="rchgResultBar" class="rchg-result-bar" style="display:none">
-            <div class="rchg-result-stars" id="rchgResultStars"></div>
-            <div class="rchg-result-grade" id="rchgResultGrade"></div>
-            <div class="rchg-result-text" id="rchgResultText"></div>
-            <div class="rchg-result-stats" id="rchgResultStats"></div>
-            <div class="rchg-result-sub" id="rchgResultSub"></div>
-        </div>
+        <div class="rchal-status" id="rchalStatus"></div>
+        <div class="rchal-result" id="rchalResult" style="display:none;"></div>
+        <div class="rchal-overlay" id="rchalOverlay" style="display:none;"></div>
     </div>
 
     <!-- ===================================== -->
