@@ -2203,17 +2203,14 @@
 
             let g2SelectedMode = 'practice';
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
-            const g2DiffSel = document.getElementById('g2DiffSelector');
             g2ModeCards.forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === 'practice');
                 c.onclick = () => {
                     g2ModeCards.forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
                     g2SelectedMode = c.dataset.mode;
-                    if (g2DiffSel) g2DiffSel.style.display = g2SelectedMode === 'practice' ? '' : 'none';
                 };
             });
-            if (g2DiffSel) g2DiffSel.style.display = '';
 
             document.getElementById('g2StartBtn').onclick = () => {
                 if (g2SelectedMode === 'challenge') {
@@ -2749,8 +2746,7 @@
         startTime: 0,
         timers: [],
         stars: {},           // levelId → 0-3
-        currentPage: 0,      // current 4-bar page being displayed
-        barsPerPage: 4,
+        rowRanges: [],       // per-row y/h for highlighting
     };
 
     function _rchalGetStars(lvl) { return rchalState.stars[lvl] || 0; }
@@ -2827,7 +2823,6 @@
         rchalState.phase = 'preview';
         rchalState.score = 0; rchalState.combo = 0; rchalState.maxCombo = 0; rchalState.hp = 100;
         rchalState.counts = { perfect: 0, great: 0, good: 0, miss: 0 };
-        rchalState.currentPage = 0;
 
         // Generate measures
         const measures = [];
@@ -2836,7 +2831,6 @@
         }
         rchalState.measures = measures;
 
-        const totalPages = Math.ceil(lvl.bars / rchalState.barsPerPage);
         const container = document.getElementById('screen-rc-grade');
         container.innerHTML = `
             <div class="rchal-header">
@@ -2848,8 +2842,6 @@
                 <div class="rchal-score" id="rchalScore">0</div>
             </div>
             <div class="rchal-hp-wrap"><div class="rchal-hp-fill" id="rchalHpFill"></div></div>
-            <div class="rchal-progress-bar"><div class="rchal-progress-fill" id="rchalProgressFill"></div></div>
-            <div class="rchal-bar-info" id="rchalBarInfo">第 1–${Math.min(rchalState.barsPerPage, lvl.bars)} / ${lvl.bars} 小節</div>
             <div class="rchal-track" id="rchalTrack">
                 <div class="rchal-notes" id="rchalNotes"></div>
             </div>
@@ -2874,8 +2866,9 @@
 
         document.getElementById('rchalExitBtn').onclick = () => _rchalShowSelect();
 
-        // Render first page of notation
-        _rchalRenderPage(0);
+        // Render all 16 bars as 4 rows × 4 bars
+        rchalState.noteMap = [];
+        _rchalRenderNotes(measures, lvl.bars);
 
         // Build taps for ALL bars
         _rchalBuildTaps(measures, lvl);
@@ -2887,70 +2880,54 @@
         _rchalDrawHP();
     }
 
-    /* ── Render a page of bars (4 bars per page) ── */
-    function _rchalRenderPage(pageIdx) {
-        const lvl = rchalState.level;
-        const bpp = rchalState.barsPerPage;
-        const startBar = pageIdx * bpp;
-        const endBar = Math.min(startBar + bpp, lvl.bars);
-        const pageMeasures = rchalState.measures.slice(startBar, endBar);
-        const numBarsOnPage = pageMeasures.length;
-
-        // Calculate tapIdx offset for this page
-        let tapIdxOffset = 0;
-        for (let i = 0; i < startBar; i++) {
-            const label = rchalState.measures[i];
-            label.split(' ').forEach(token => {
-                if (token === '休') return;
-                const compound = COMPOUND_TOKENS[token];
-                if (compound) { tapIdxOffset += compound.length; }
-                else { tapIdxOffset++; }
-            });
-        }
-
-        _rchalRenderNotes(pageMeasures, numBarsOnPage, tapIdxOffset);
-        rchalState.currentPage = pageIdx;
-
-        // Update bar info
-        const barInfo = document.getElementById('rchalBarInfo');
-        if (barInfo) barInfo.textContent = `第 ${startBar + 1}–${endBar} / ${lvl.bars} 小節`;
-
-        // Update progress
-        const progFill = document.getElementById('rchalProgressFill');
-        if (progFill) progFill.style.width = ((endBar / lvl.bars) * 100) + '%';
-    }
-
-    /* ── Render notes via VexFlow ── */
-    function _rchalRenderNotes(measures, numBars, tapIdxOffset) {
-        tapIdxOffset = tapIdxOffset || 0;
+    /* ── Render notes via VexFlow — 4 rows × 4 bars ── */
+    function _rchalRenderNotes(measures, numBars) {
         const notesEl = document.getElementById('rchalNotes');
         notesEl.innerHTML = '';
         const trackEl = document.getElementById('rchalTrack');
         const W = trackEl.clientWidth || 360;
-        const STAVE_H = 130;
-        trackEl.style.height = STAVE_H + 'px';
+        const BARS_PER_ROW = 4;
+        const numRows = Math.ceil(numBars / BARS_PER_ROW);
+        const totalH = trackEl.clientHeight || (numRows * 65);
+        const ROW_H = totalH / numRows;
 
         if (typeof VexFlow === 'undefined') return;
         const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
 
         const renderer = new Renderer(notesEl, Renderer.Backends.SVG);
-        renderer.resize(W, STAVE_H);
+        renderer.resize(W, totalH);
         const context = renderer.getContext();
 
         const durMap = { 0.25: '16', 0.5: '8', 0.75: '8', 1: 'q', 1.5: 'q', 2: 'h', 3: 'h' };
         const dotSet = new Set([0.75, 1.5, 3]);
-        const PAD_LEFT = 4, PAD_RIGHT = 4;
-        const totalStaveW = W - PAD_LEFT - PAD_RIGHT;
-        const barW = totalStaveW / numBars;
+        const PAD = 4;
+        const barW = (W - PAD * 2) / BARS_PER_ROW;
 
-        const allNoteMap = []; // tapIdx → { x, el }
-        let tapIdx = tapIdxOffset;
-        const staveData = [];
+        const allNoteMap = [];
+        let tapIdx = 0;
+
+        // Store row boundaries for highlighting during play
+        rchalState.rowRanges = [];
 
         measures.forEach((barLabel, bi) => {
+            const row = Math.floor(bi / BARS_PER_ROW);
+            const col = bi % BARS_PER_ROW;
+            const x = PAD + col * barW;
+            const y = row * ROW_H;
+
+            // Track which row each bar belongs to
+            if (!rchalState.rowRanges[row]) rchalState.rowRanges[row] = { startBar: bi, endBar: bi, y: y, h: ROW_H };
+            rchalState.rowRanges[row].endBar = bi;
+
+            const stave = new Stave(x, y + 2, barW);
+            [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+            if (col === 0 && row === 0) stave.addTimeSignature('4/4');
+            stave.setContext(context).draw();
+
             const vfNotes = [];
             const beamGroups = [];
             const noteGameMap = [];
+            const barTapStart = tapIdx;
 
             barLabel.split(' ').forEach(token => {
                 const isRest = token === '休';
@@ -2987,47 +2964,46 @@
                     tapIdx++;
                 }
             });
-            staveData.push({ vfNotes, beamGroups, noteGameMap });
-        });
-
-        let globalNoteStartX = Infinity, globalNoteEndX = 0;
-
-        staveData.forEach((sd, bi) => {
-            const x = PAD_LEFT + bi * barW;
-            const stave = new Stave(x, 5, barW);
-            [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
-            if (bi === 0) stave.addTimeSignature('4/4');
-            stave.setContext(context).draw();
 
             const nsx = stave.getNoteStartX();
-            const nex = stave.getNoteEndX();
-            if (nsx < globalNoteStartX) globalNoteStartX = nsx;
-            if (nex > globalNoteEndX) globalNoteEndX = nex;
-
             const voice = new Voice({ num_beats: 4, beat_value: 4 });
             voice.setMode(2);
-            voice.addTickables(sd.vfNotes);
-            new Formatter().joinVoices([voice]).format([voice], barW - (nsx - x) - 20);
-            const beams = sd.beamGroups.map(g => new Beam(g));
+            voice.addTickables(vfNotes);
+            new Formatter().joinVoices([voice]).format([voice], barW - (nsx - x) - 16);
+            const beams = beamGroups.map(g => new Beam(g));
             voice.draw(context, stave);
             beams.forEach(b => b.setContext(context).draw());
 
-            sd.vfNotes.forEach((vfNote, vi) => {
-                const gameIndices = sd.noteGameMap[vi];
+            // Map beam SVG elements to their note indices
+            const beamElMap = new Map();
+            beamGroups.forEach((group, gi) => {
+                const bEl = beams[gi] && beams[gi].attrs ? beams[gi].attrs.el : null;
+                if (!bEl && beams[gi] && beams[gi].getSVGElement) {
+                    beamElMap.set(gi, beams[gi].getSVGElement());
+                } else if (bEl) {
+                    beamElMap.set(gi, bEl);
+                }
+            });
+
+            vfNotes.forEach((vfNote, vi) => {
+                const gameIndices = noteGameMap[vi];
                 if (!gameIndices || !gameIndices.length) return;
-                const absX = vfNote.getAbsoluteX();
                 const el = vfNote.getSVGElement ? vfNote.getSVGElement() : (vfNote.attrs && vfNote.attrs.el);
+                // Find which beam group this note belongs to
+                let beamEl = null;
+                beamGroups.forEach((group, gi) => {
+                    if (group.includes(vfNote)) beamEl = beamElMap.get(gi);
+                });
                 gameIndices.forEach(gi => {
-                    allNoteMap[gi] = { x: absX, el: el };
+                    allNoteMap[gi] = { el: el, bar: bi, row: row, beamEl: beamEl };
                 });
             });
+
+            // Store rest elements for pass-through coloring
+            /* rests not colored */
         });
 
-        // Store note map for hit detection (merge with existing)
-        if (!rchalState.noteMap) rchalState.noteMap = [];
-        allNoteMap.forEach((nm, gi) => {
-            if (nm) rchalState.noteMap[gi] = nm;
-        });
+        rchalState.noteMap = allNoteMap;
         rchalState.trackW = W;
     }
 
@@ -3102,15 +3078,10 @@
         rchalState.phase = 'playing';
         rchalState.startTime = performance.now();
         rchalState.nextTapIdx = 0;
-        rchalState.noteMap = [];
-        // Re-render page 0 so noteMap is fresh
-        _rchalRenderPage(0);
         const lvl = rchalState.level;
         const beatMs = 60000 / lvl.bpm;
         const totalBeats = lvl.bars * 4;
         const totalMs = totalBeats * beatMs;
-        const bpp = rchalState.barsPerPage;
-        const totalPages = Math.ceil(lvl.bars / bpp);
 
         // Show tap zone
         const tapEl = document.getElementById('rchalTap');
@@ -3122,14 +3093,33 @@
         // Keyboard
         document.addEventListener('keydown', _rchalKeyHandler);
 
-        // Schedule page switches at the start of each 4-bar group
-        for (let p = 1; p < totalPages; p++) {
-            const pageStartBeat = p * bpp * 4;
-            const pageStartMs = pageStartBeat * beatMs;
+        // Add row highlight overlay
+        const trackEl = document.getElementById('rchalTrack');
+        const rowHL = document.createElement('div');
+        rowHL.id = 'rchalRowHL';
+        rowHL.className = 'rchal-row-highlight';
+        trackEl.appendChild(rowHL);
+
+        // Schedule row highlighting
+        const BARS_PER_ROW = 4;
+        const rows = rchalState.rowRanges || [];
+        let currentRow = -1;
+        const updateRow = (barIdx) => {
+            const newRow = Math.floor(barIdx / BARS_PER_ROW);
+            if (newRow !== currentRow && rows[newRow]) {
+                currentRow = newRow;
+                rowHL.style.top = rows[newRow].y + 'px';
+                rowHL.style.height = rows[newRow].h + 'px';
+                rowHL.style.opacity = '1';
+            }
+        };
+        updateRow(0);
+        for (let b = 0; b < lvl.bars; b++) {
+            const barStartMs = b * 4 * beatMs;
             rchalState.timers.push(setTimeout(() => {
                 if (rchalState.phase !== 'playing') return;
-                _rchalRenderPage(p);
-            }, pageStartMs - 150)); // switch slightly early for visual prep
+                updateRow(b);
+            }, barStartMs));
         }
 
         // Pre-schedule metronome via Web Audio for drift-free timing
@@ -3178,7 +3168,10 @@
                 _rchalShowJudgment('MISS', 'miss');
                 document.getElementById('rchalCombo').textContent = '';
                 const nm = rchalState.noteMap && rchalState.noteMap[tap.idx];
-                if (nm && nm.el) _vfColorNote(nm.el, '#EF4444', 0.35);
+                if (nm && nm.el) {
+                    _vfColorNote(nm.el, '#EF4444', 0.5);
+                    if (nm.beamEl) _vfColorNote(nm.beamEl, '#EF4444', 0.5);
+                }
                 rchalState.nextTapIdx++;
                 if (rchalState.hp <= 0) { _rchalFinish(); return; }
             }
@@ -3250,13 +3243,19 @@
 
         // Mark note as hit (VexFlow SVG)
         const nm = rchalState.noteMap && rchalState.noteMap[best.idx];
-        if (nm && nm.el) _vfColorNote(nm.el, '#34D399');
+        if (nm && nm.el) {
+            _vfColorNote(nm.el, '#34D399');
+            if (nm.beamEl) _vfColorNote(nm.beamEl, '#34D399');
+        }
 
-        // Score float
+        // Score float — position near the note's row
         const track = document.getElementById('rchalTrack');
         const float = document.createElement('div');
         float.className = 'rchal-score-float ' + jClass;
         float.textContent = `+${earned}`;
+        if (nm && nm.row !== undefined && rchalState.rowRanges[nm.row]) {
+            float.style.top = rchalState.rowRanges[nm.row].y + 'px';
+        }
         track.appendChild(float);
         setTimeout(() => float.remove(), 700);
     }
@@ -3796,16 +3795,14 @@
     /* ── Color a VexFlow SVG note element ── */
     function _vfColorNote(svgEl, color, opacity) {
         if (!svgEl) return;
-        svgEl.querySelectorAll('path, rect, ellipse, line').forEach(p => {
+        svgEl.querySelectorAll('path, rect, ellipse, line, circle, polygon').forEach(p => {
             p.setAttribute('fill', color);
             p.setAttribute('stroke', color);
         });
+        svgEl.querySelectorAll('text').forEach(t => {
+            t.setAttribute('fill', color);
+        });
         if (opacity !== undefined) svgEl.style.opacity = opacity;
-        // Add a pop animation for hit feedback
-        svgEl.style.transition = 'transform 0.15s ease-out';
-        svgEl.style.transformOrigin = 'center center';
-        svgEl.style.transform = 'scale(1.35)';
-        setTimeout(() => { svgEl.style.transform = 'scale(1)'; }, 150);
     }
 
     function _rcDrawAllBarsPreview(bars, W, totalH, ctx) {
