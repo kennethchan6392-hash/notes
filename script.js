@@ -729,6 +729,81 @@
                     try { this._metroBus.disconnect(); } catch(e) { /* ignore */ }
                     this._metroBus = null;
                 }
+            },
+            playInstrumentSound(instrId) {
+                if (!this.ctx || !this.enabled) return;
+                this.resume();
+                const g = this.getSfxGain();
+                const now = this.ctx.currentTime;
+                const inst = typeof INSTRUMENT_BANK !== 'undefined' && INSTRUMENT_BANK.find(i => i.id === instrId);
+                if (!inst) return;
+                const p = inst.synthParams;
+
+                if (p.noise) {
+                    // Unpitched percussion — white noise shaped with filter + envelope
+                    const bufLen = this.ctx.sampleRate * (p.dur || 0.3);
+                    const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+                    const src = this.ctx.createBufferSource();
+                    src.buffer = buf;
+                    const filt = this.ctx.createBiquadFilter();
+                    filt.type = p.filterType || 'bandpass';
+                    filt.frequency.value = p.filterFreq || 3000;
+                    filt.Q.value = p.filterQ || 1;
+                    const gain = this.ctx.createGain();
+                    src.connect(filt); filt.connect(gain); gain.connect(this.ctx.destination);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime((p.vol || 0.3) * g, now + 0.005);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (p.dur || 0.3));
+                    src.start(now); src.stop(now + (p.dur || 0.3));
+                    return;
+                }
+
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+                osc.type = p.wave || 'sine';
+                osc.frequency.setValueAtTime(p.freq, now);
+                if (p.freqEnd) osc.frequency.exponentialRampToValueAtTime(p.freqEnd, now + (p.dur || 0.8));
+
+                let lastNode = osc;
+
+                // Optional filter
+                if (p.filterType) {
+                    const filt = this.ctx.createBiquadFilter();
+                    filt.type = p.filterType;
+                    filt.frequency.value = p.filterFreq || 2000;
+                    filt.Q.value = p.filterQ || 1;
+                    lastNode.connect(filt);
+                    lastNode = filt;
+                }
+
+                // Optional vibrato LFO
+                if (p.vibRate) {
+                    const lfo = this.ctx.createOscillator();
+                    const lfoGain = this.ctx.createGain();
+                    lfo.frequency.value = p.vibRate;
+                    lfoGain.gain.value = p.vibDepth || 3;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc.frequency);
+                    lfo.start(now); lfo.stop(now + (p.dur || 0.8));
+                }
+
+                lastNode.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+
+                const vol = (p.vol || 0.3) * g;
+                const attack = p.attack || 0.02;
+                const dur = p.dur || 0.8;
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(vol, now + attack);
+                if (p.sustain) {
+                    gainNode.gain.setValueAtTime(vol * (p.sustain), now + attack + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                } else {
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                }
+                osc.start(now); osc.stop(now + dur);
             }
         };
     }
@@ -2241,6 +2316,8 @@
             document.getElementById('g2StartBtn').onclick = () => {
                 if (g2SelectedMode === 'challenge') {
                     startRhythmChallenge(user);
+                } else if (g2SelectedMode === '1min') {
+                    _omLaunch(user);
                 } else {
                     enterRCGame(user);
                 }
@@ -2291,10 +2368,67 @@
             document.getElementById('g3StudyBtn').onclick = () => openStudyScreen();
             document.getElementById('g3BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
             document.getElementById('g3SetupViewRanks').onclick = () => {
+                const layout = document.getElementById('g3LeaderboardLayout');
+                if (layout) layout.classList.add('view-only');
+                const backBtn = document.getElementById('g3ResultBack');
+                if (backBtn) { backBtn.style.display = ''; backBtn.onclick = () => { backBtn.style.display = 'none'; switchScreen('screen-g3-setup'); }; }
                 renderLocalRankList('game3', 'g3RankList', user, g3SelectedDiff);
                 switchScreen('screen-game3-result');
             };
             switchScreen('screen-g3-setup');
+        });
+
+        // ── Game 4 Hub Entry ──
+        document.getElementById('enterGame4').addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            const user = getHubUser();
+            const badgeText = document.getElementById('g4PlayerBadgeText');
+            if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
+
+            let g4SelectedMode = 'practice';
+
+            document.querySelectorAll('#g4ModeCards .mode-card').forEach(c => {
+                c.classList.toggle('active', c.dataset.mode === 'practice');
+                c.onclick = () => {
+                    g4SelectedMode = c.dataset.mode;
+                    document.querySelectorAll('#g4ModeCards .mode-card').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
+                };
+            });
+
+            document.getElementById('g4StartBtn').onclick = () => startGame4(user, g4SelectedMode);
+
+            // Study button
+            document.getElementById('g4StudyBtn').onclick = () => {
+                let studyFamily = 'all';
+                renderG4Study(studyFamily);
+
+                // Family tabs
+                document.querySelectorAll('#screen-g4-study .study-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.cat === 'all');
+                    tab.onclick = () => {
+                        studyFamily = tab.dataset.cat;
+                        document.querySelectorAll('#screen-g4-study .study-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        renderG4Study(studyFamily);
+                    };
+                });
+
+                document.getElementById('g4StudyBack').onclick = () => switchScreen('screen-g4-setup');
+                document.getElementById('g4StudyStartBtn').onclick = () => switchScreen('screen-g4-setup');
+                switchScreen('screen-g4-study');
+            };
+
+            document.getElementById('g4BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
+            document.getElementById('g4SetupViewRanks').onclick = () => {
+                const layout = document.getElementById('g4LeaderboardLayout');
+                if (layout) layout.classList.add('view-only');
+                const backBtn = document.getElementById('g4ResultBack');
+                if (backBtn) { backBtn.style.display = ''; backBtn.onclick = () => { backBtn.style.display = 'none'; switchScreen('screen-g4-setup'); }; }
+                renderLocalRankList('game4', 'g4RankList', user);
+                switchScreen('screen-game4-result');
+            };
+            switchScreen('screen-g4-setup');
         });
 
         document.getElementById('hubViewRanksBtn').addEventListener('click', () => {
@@ -2516,7 +2650,7 @@
         'ti-ti':       [{l:'ti',o:0,d:0.5},{l:'ti',o:0.5,d:0.5}],
         'ti-ri-ti-ri': [{l:'ti',o:0,d:0.25},{l:'ri',o:0.25,d:0.25},{l:'ti',o:0.5,d:0.25},{l:'ri',o:0.75,d:0.25}],
         'ti-ri':       [{l:'ti',o:0,d:0.75},{l:'ri',o:0.75,d:0.25}],
-        'ti-ti-ri':    [{l:'ti',o:0,d:0.5},{l:'ri',o:0.5,d:0.25},{l:'ri',o:0.75,d:0.25}],
+        'ti-ti-ri':    [{l:'ti',o:0,d:0.5},{l:'ti',o:0.5,d:0.25},{l:'ri',o:0.75,d:0.25}],
         'ti-ri-ti':    [{l:'ti',o:0,d:0.25},{l:'ri',o:0.25,d:0.25},{l:'ti',o:0.5,d:0.5}],
         'ri-ti-ri':    [{l:'ri',o:0,d:0.25},{l:'ti',o:0.25,d:0.5},{l:'ri',o:0.75,d:0.25}],
     };
@@ -2603,7 +2737,7 @@
     }
 
     // ==========================================
-    // 🎴 RC Canvas Game — 節奏卡打擊
+    // 🎴 RC Canvas Game — 節奏打擊
     // ==========================================
     const WIN_PERFECT = 50;
     const WIN_GREAT   = 115;
@@ -2892,12 +3026,16 @@
 
         document.getElementById('rchalExitBtn').onclick = () => _rchalShowSelect();
 
-        // Render all 16 bars as 4 rows × 4 bars
-        rchalState.noteMap = [];
-        _rchalRenderNotes(measures, lvl.bars);
-
-        // Build taps for ALL bars
+        // Build taps for ALL bars (doesn't depend on DOM layout)
         _rchalBuildTaps(measures, lvl);
+
+        // Defer rendering to next frame so the DOM is fully laid out
+        // (trackEl.clientWidth / clientHeight need accurate values)
+        requestAnimationFrame(() => {
+            // Render all 16 bars as 4 rows × 4 bars
+            rchalState.noteMap = [];
+            _rchalRenderNotes(measures, lvl.bars);
+        });
 
         // Start button
         document.getElementById('rchalStartBtn').onclick = () => _rchalCountdown();
@@ -2906,16 +3044,25 @@
         _rchalDrawHP();
     }
 
-    /* ── Render notes via VexFlow — 4 rows × 4 bars ── */
+    /* ── Render notes via VexFlow — adaptive rows ── */
     function _rchalRenderNotes(measures, numBars) {
         const notesEl = document.getElementById('rchalNotes');
+        if (!notesEl) return;
         notesEl.innerHTML = '';
         const trackEl = document.getElementById('rchalTrack');
         const W = trackEl.clientWidth || 360;
-        const BARS_PER_ROW = 4;
+        const MIN_BAR_W = 90;   // minimum px per bar for readable notation
+        const BARS_PER_ROW = Math.max(2, Math.min(4, Math.floor((W - 8) / MIN_BAR_W)));
+        rchalState.barsPerRow = BARS_PER_ROW;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const totalH = trackEl.clientHeight || (numRows * 65);
+        const MIN_ROW_H = 58;
+        const computedH = trackEl.clientHeight;
+        const totalH = Math.max(computedH || 0, numRows * MIN_ROW_H);
         const ROW_H = totalH / numRows;
+        // Resize track container to fit all rows if needed
+        if (totalH > (computedH || 0)) {
+            trackEl.style.minHeight = totalH + 'px';
+        }
 
         if (typeof VexFlow === 'undefined') return;
         const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
@@ -2991,14 +3138,19 @@
                 }
             });
 
+            try {
             const nsx = stave.getNoteStartX();
             const voice = new Voice({ num_beats: 4, beat_value: 4 });
             voice.setMode(2);
             voice.addTickables(vfNotes);
-            new Formatter().joinVoices([voice]).format([voice], barW - (nsx - x) - 16);
-            const beams = beamGroups.map(g => new Beam(g));
+            new Formatter().joinVoices([voice]).format([voice], Math.max(barW - (nsx - x) - 16, 40));
+            const beams = [];
+            beamGroups.forEach(g => {
+                try { beams.push(new Beam(g)); }
+                catch (e) { beams.push(null); }
+            });
             voice.draw(context, stave);
-            beams.forEach(b => b.setContext(context).draw());
+            beams.forEach(b => { if (b) b.setContext(context).draw(); });
 
             // Map beam SVG elements to their note indices
             const beamElMap = new Map();
@@ -3024,9 +3176,9 @@
                     allNoteMap[gi] = { el: el, bar: bi, row: row, beamEl: beamEl };
                 });
             });
-
-            // Store rest elements for pass-through coloring
-            /* rests not colored */
+            } catch (err) {
+                console.warn('[rchal] bar', bi, 'render failed:', err, '| tokens:', barLabel);
+            }
         });
 
         rchalState.noteMap = allNoteMap;
@@ -3127,7 +3279,7 @@
         trackEl.appendChild(rowHL);
 
         // Schedule row highlighting
-        const BARS_PER_ROW = 4;
+        const BARS_PER_ROW = rchalState.barsPerRow || 4;
         const rows = rchalState.rowRanges || [];
         let currentRow = -1;
         const updateRow = (barIdx) => {
@@ -3137,6 +3289,8 @@
                 rowHL.style.top = rows[newRow].y + 'px';
                 rowHL.style.height = rows[newRow].h + 'px';
                 rowHL.style.opacity = '1';
+                // Auto-scroll track to keep current row visible
+                trackEl.scrollTo({ top: Math.max(0, rows[newRow].y - 4), behavior: 'smooth' });
             }
         };
         updateRow(0);
@@ -3384,6 +3538,373 @@
             document.getElementById('rchalBackToLevels').onclick = () => _rchalShowSelect();
         }, 600);
     }
+
+    // ══════════════════════════════════════════
+    // ⏱️ 1分鐘挑戰 — Note Value Fill-in Game
+    // ══════════════════════════════════════════
+    const omState = {
+        user: null, score: 0, correct: 0, wrong: 0, total: 0,
+        timer: null, startTime: 0, duration: 60000,
+        currentAnswer: null, locked: false
+    };
+
+    // Note value options: duration in quarter-note beats
+    const OM_NOTE_OPTIONS = [
+        { id: 'whole', beats: 4, label: '全音符',  vfDur: 'w' },
+        { id: 'half',  beats: 2, label: '二分音符', vfDur: 'h' },
+        { id: 'quarter', beats: 1, label: '四分音符', vfDur: 'q' },
+        { id: 'eighth', beats: 0.5, label: '八分音符', vfDur: '8' },
+    ];
+
+    // Generate a random measure for a given time signature
+    function _omGenerateMeasure(totalBeats) {
+        const pool = OM_NOTE_OPTIONS.filter(n => n.beats <= totalBeats);
+        let remaining = totalBeats;
+        const notes = [];
+        let safety = 0;
+        while (remaining > 0.001 && safety++ < 50) {
+            const eligible = pool.filter(n => n.beats <= remaining + 0.001);
+            if (!eligible.length) break;
+            const pick = eligible[Math.floor(Math.random() * eligible.length)];
+            notes.push({ ...pick });
+            remaining = Math.round((remaining - pick.beats) * 1000) / 1000;
+        }
+        // Must have at least 2 notes to blank one
+        if (notes.length < 2) return _omGenerateMeasure(totalBeats);
+        return notes;
+    }
+
+    // Render a measure with one note blanked, return the blanked note's info
+    function _omRenderQuestion(container, timeSig, notes, blankIdx) {
+        container.innerHTML = '';
+        if (typeof VexFlow === 'undefined') return;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem } = VexFlow;
+
+        const W = container.clientWidth || 340;
+        const H = 100;
+        const renderer = new Renderer(container, Renderer.Backends.SVG);
+        renderer.resize(W, H);
+        const context = renderer.getContext();
+
+        const stave = new Stave(0, 0, W - 4);
+        stave.addClef('percussion');
+        stave.addTimeSignature(timeSig);
+        stave.setContext(context).draw();
+
+        const durMap = { 4: 'w', 2: 'h', 1: 'q', 0.5: '8' };
+        const vfNotes = [];
+
+        notes.forEach((n, i) => {
+            const dur = durMap[n.beats] || 'q';
+            if (i === blankIdx) {
+                // Render as invisible note (will overlay with blank marker)
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                vfNotes.push(note);
+            } else {
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                vfNotes.push(note);
+            }
+        });
+
+        const [num] = timeSig.split('/').map(Number);
+        const voice = new Voice({ num_beats: num, beat_value: 4 });
+        voice.setMode(2);
+        voice.addTickables(vfNotes);
+        const nsx = stave.getNoteStartX();
+        new Formatter().joinVoices([voice]).format([voice], W - nsx - 20);
+        voice.draw(context, stave);
+
+        // Draw blank placeholder over the hidden note
+        const blankNote = vfNotes[blankIdx];
+        const bb = blankNote.getBoundingBox();
+        if (bb) {
+            const svg = container.querySelector('svg');
+            const ns = 'http://www.w3.org/2000/svg';
+            const rect = document.createElementNS(ns, 'rect');
+            const pad = 6;
+            rect.setAttribute('x', bb.x - pad);
+            rect.setAttribute('y', bb.y - pad);
+            rect.setAttribute('width', bb.w + pad * 2);
+            rect.setAttribute('height', bb.h + pad * 2);
+            rect.setAttribute('class', 'om-blank-rect');
+            svg.appendChild(rect);
+
+            // Question mark inside
+            const txt = document.createElementNS(ns, 'text');
+            txt.setAttribute('x', bb.x + bb.w / 2);
+            txt.setAttribute('y', bb.y + bb.h / 2 + 5);
+            txt.setAttribute('text-anchor', 'middle');
+            txt.setAttribute('font-size', '18');
+            txt.setAttribute('font-weight', '900');
+            txt.setAttribute('fill', '#6366f1');
+            txt.textContent = '？';
+            svg.appendChild(txt);
+        }
+    }
+
+    // Render a small SVG note icon for option buttons
+    function _omRenderNoteIcon(duration) {
+        if (typeof VexFlow === 'undefined') return '';
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem } = VexFlow;
+
+        const div = document.createElement('div');
+        div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:60px;height:52px;';
+        document.body.appendChild(div);
+
+        const renderer = new Renderer(div, Renderer.Backends.SVG);
+        renderer.resize(60, 52);
+        const context = renderer.getContext();
+
+        const stave = new Stave(-10, -16, 80);
+        // Hide all staff lines
+        [0, 1, 2, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+        stave.setContext(context).draw();
+
+        const note = new StaveNote({ keys: ['b/4'], duration: duration, stem_direction: Stem.UP });
+        const voice = new Voice({ num_beats: 4, beat_value: 4 });
+        voice.setMode(2);
+        voice.addTickables([note]);
+        new Formatter().joinVoices([voice]).format([voice], 40);
+        voice.draw(context, stave);
+
+        const svgEl = div.querySelector('svg');
+        const svgHTML = svgEl ? svgEl.outerHTML : '';
+        document.body.removeChild(div);
+        return svgHTML;
+    }
+
+    function _omNextQuestion() {
+        if (omState.locked) return;
+        // Random time signature
+        const timeSigs = ['2/4', '3/4', '4/4'];
+        const timeSig = timeSigs[Math.floor(Math.random() * timeSigs.length)];
+        const totalBeats = parseInt(timeSig);
+
+        const notes = _omGenerateMeasure(totalBeats);
+        const blankIdx = Math.floor(Math.random() * notes.length);
+        omState.currentAnswer = notes[blankIdx];
+        omState.total++;
+
+        // Update time signature display
+        const tsEl = document.getElementById('omTimeSig');
+        if (tsEl) tsEl.textContent = timeSig;
+
+        // Update question number
+        const qnEl = document.getElementById('omQNum');
+        if (qnEl) qnEl.textContent = `第 ${omState.total} 題`;
+
+        // Render
+        const wrap = document.getElementById('omStaffWrap');
+        if (wrap) _omRenderQuestion(wrap, timeSig, notes, blankIdx);
+
+        // Reset option states
+        document.querySelectorAll('.om-opt-btn').forEach(b => {
+            b.classList.remove('correct', 'wrong');
+            b.disabled = false;
+        });
+
+        // Clear feedback
+        const fb = document.getElementById('omFeedback');
+        if (fb) { fb.className = 'om-feedback-text'; fb.textContent = ''; }
+    }
+
+    function _omHandleAnswer(optId) {
+        if (omState.locked || !omState.currentAnswer) return;
+        omState.locked = true;
+
+        const isCorrect = optId === omState.currentAnswer.id;
+        const fb = document.getElementById('omFeedback');
+
+        // Highlight buttons
+        document.querySelectorAll('.om-opt-btn').forEach(b => {
+            b.disabled = true;
+            if (b.dataset.id === omState.currentAnswer.id) {
+                b.classList.add('correct');
+            } else if (b.dataset.id === optId && !isCorrect) {
+                b.classList.add('wrong');
+            }
+        });
+
+        if (isCorrect) {
+            omState.correct++;
+            omState.score += 10;
+            if (fb) { fb.textContent = '✓ 答對了！'; fb.className = 'om-feedback-text show correct'; }
+            const scoreEl = document.getElementById('omScore');
+            if (scoreEl) scoreEl.textContent = omState.score;
+            // Float +10
+            const floater = document.createElement('div');
+            floater.className = 'om-score-float';
+            floater.textContent = '+10';
+            document.querySelector('.om-header').appendChild(floater);
+            setTimeout(() => floater.remove(), 750);
+        } else {
+            omState.wrong++;
+            if (fb) { fb.textContent = '✗ 答錯了'; fb.className = 'om-feedback-text show wrong'; }
+        }
+
+        // Next question after brief delay
+        setTimeout(() => {
+            omState.locked = false;
+            if (omState.timer) _omNextQuestion();
+        }, 600);
+    }
+
+    function _omStartTimer() {
+        omState.startTime = performance.now();
+        const fill = document.getElementById('omTimerFill');
+        const timeText = document.getElementById('omTimeLeft');
+
+        function tick() {
+            const elapsed = performance.now() - omState.startTime;
+            const remaining = Math.max(0, omState.duration - elapsed);
+            const pct = (remaining / omState.duration) * 100;
+            if (fill) {
+                fill.style.width = pct + '%';
+                fill.classList.toggle('warn', pct < 40 && pct >= 15);
+                fill.classList.toggle('danger', pct < 15);
+            }
+            if (timeText) timeText.textContent = Math.ceil(remaining / 1000) + 's';
+
+            if (remaining <= 0) {
+                _omEndGame();
+                return;
+            }
+            omState.timer = requestAnimationFrame(tick);
+        }
+        omState.timer = requestAnimationFrame(tick);
+    }
+
+    function _omEndGame() {
+        if (omState.timer) { cancelAnimationFrame(omState.timer); omState.timer = null; }
+        omState.locked = true;
+
+        // Disable option buttons
+        document.querySelectorAll('.om-opt-btn').forEach(b => b.disabled = true);
+
+        const container = document.getElementById('screen-rc-1min');
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'om-result';
+        const emoji = omState.score >= 80 ? '🏆' : omState.score >= 50 ? '⭐' : '💪';
+        const accuracy = omState.total > 0 ? Math.round((omState.correct / omState.total) * 100) : 0;
+        resultDiv.innerHTML = `
+            <div class="om-result-emoji">${emoji}</div>
+            <div class="om-result-title">挑戰結束！</div>
+            <div class="om-result-score">${omState.score}</div>
+            <div class="om-result-label">最終得分</div>
+            <div class="om-result-stats">
+                <div class="om-result-stat"><div class="val">${omState.total}</div><div class="lbl">作答</div></div>
+                <div class="om-result-stat"><div class="val" style="color:var(--primary-green-dark)">${omState.correct}</div><div class="lbl">答對</div></div>
+                <div class="om-result-stat"><div class="val" style="color:var(--primary-red)">${omState.wrong}</div><div class="lbl">答錯</div></div>
+            </div>
+            <div class="om-result-btns">
+                <button class="om-btn-retry" id="omRetry">🔄 再玩一次</button>
+                <button class="om-btn-back" id="omBack">← 返回</button>
+            </div>
+        `;
+        container.appendChild(resultDiv);
+        document.getElementById('omRetry').onclick = () => _omLaunch(omState.user);
+        document.getElementById('omBack').onclick = () => {
+            resultDiv.remove();
+            switchScreen('screen-g2-setup');
+        };
+    }
+
+    function _omCleanup() {
+        if (omState.timer) { cancelAnimationFrame(omState.timer); omState.timer = null; }
+        omState.score = 0; omState.correct = 0; omState.wrong = 0;
+        omState.total = 0; omState.currentAnswer = null; omState.locked = false;
+    }
+
+    function _omLaunch(user) {
+        _omCleanup();
+        omState.user = user;
+        const container = document.getElementById('screen-rc-1min');
+
+        // Pre-render note icons
+        const noteIcons = {};
+        OM_NOTE_OPTIONS.forEach(opt => { noteIcons[opt.id] = _omRenderNoteIcon(opt.vfDur); });
+
+        container.innerHTML = `
+            <div class="om-header">
+                <button class="om-exit" id="omExitBtn">✕</button>
+                <div class="om-header-center">
+                    <div class="om-title">⏱️ 1分鐘挑戰</div>
+                    <span class="om-time-left" id="omTimeLeft">60s</span>
+                </div>
+                <div class="om-score-wrap">
+                    <div class="om-score-val" id="omScore">0</div>
+                    <div class="om-score-label">得分</div>
+                </div>
+            </div>
+            <div class="om-timer-wrap"><div class="om-timer-fill" id="omTimerFill"></div></div>
+            <div class="om-timesig-row"><span class="om-timesig-badge" id="omTimeSig">4/4</span></div>
+            <div class="om-qnum" id="omQNum"></div>
+            <div class="om-staff-wrap" id="omStaffWrap"></div>
+            <div class="om-feedback"><div class="om-feedback-text" id="omFeedback"></div></div>
+            <div class="om-prompt">空位是什麼音符？</div>
+            <div class="om-options" id="omOptions">
+                ${OM_NOTE_OPTIONS.map(opt => `
+                    <button class="om-opt-btn" data-id="${opt.id}">
+                        <div class="om-opt-icon">${noteIcons[opt.id]}</div>
+                        <div class="om-opt-label">${opt.label}</div>
+                    </button>
+                `).join('')}
+            </div>
+            <div class="om-status" id="omStatus">準備好就按「開始」！</div>
+            <button class="om-start-btn" id="omStartBtn">⏱️ 開始！</button>
+        `;
+
+        switchScreen('screen-rc-1min');
+
+        document.getElementById('omExitBtn').onclick = () => {
+            _omCleanup();
+            switchScreen('screen-g2-setup');
+        };
+
+        // Bind option clicks
+        document.querySelectorAll('.om-opt-btn').forEach(btn => {
+            btn.onclick = () => _omHandleAnswer(btn.dataset.id);
+            btn.disabled = true;
+        });
+
+        document.getElementById('omStartBtn').onclick = () => {
+            document.getElementById('omStartBtn').style.display = 'none';
+            document.getElementById('omStatus').textContent = '';
+            // Countdown 3-2-1
+            _omCountdown(() => {
+                // Enable options and start
+                document.querySelectorAll('.om-opt-btn').forEach(b => b.disabled = false);
+                _omStartTimer();
+                _omNextQuestion();
+            });
+        };
+    }
+
+    function _omCountdown(cb) {
+        const container = document.getElementById('screen-rc-1min');
+        let count = 3;
+        const overlay = document.createElement('div');
+        overlay.className = 'om-countdown';
+        overlay.textContent = count;
+        container.appendChild(overlay);
+
+        const iv = setInterval(() => {
+            count--;
+            if (count <= 0) {
+                clearInterval(iv);
+                overlay.remove();
+                cb();
+            } else {
+                overlay.textContent = count;
+                overlay.style.animation = 'none';
+                overlay.offsetHeight; // reflow
+                overlay.style.animation = 'omPulse 0.6s ease';
+            }
+        }, 700);
+    }
+
     function _rcRenderLevels() {
         const grid = document.getElementById('rcLevelGrid');
         if (!grid) return;
@@ -5131,8 +5652,8 @@
     function renderLocalRankList(gameKey, listId, currentUser, difficulty) {
         const listEl = document.getElementById(listId);
         if (!listEl) return;
-        const clsEl = document.getElementById(gameKey === 'game2' ? 'g2RankClass' : 'g3RankClass');
-        const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : 'g3RankGrade');
+        const clsEl = document.getElementById(gameKey === 'game2' ? 'g2RankClass' : gameKey === 'game4' ? 'g4RankClass' : 'g3RankClass');
+        const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : gameKey === 'game4' ? 'g4RankGrade' : 'g3RankGrade');
         // Prefer GAS data; fall back to localStorage if not yet loaded
         let data = state.allRanks.filter(r => r.game === gameKey || r.mode === gameKey);
         if (!data.length) data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
@@ -5167,74 +5688,132 @@
     // ==========================================
     // 📖 Game 3 — 音樂術語辨識遊戲
     // ==========================================
-    const TERMS_BANK = {
+    // ==========================================
+    // 📖 Game 3 — Dynamic Question Generator
+    // ==========================================
+    // Hand-crafted special questions (key signatures, comparisons, symbol recognition)
+    const G3_SPECIAL_Q = {
         easy: [
-            { q: '「f」代表甚麼？', sym: 'f', ans: '強', opts: ['強','弱','中強','中弱'], img: 'img/cards/others-p08.png' },
-            { q: '「p」代表甚麼？', sym: 'p', ans: '弱', opts: ['強','弱','中強','中弱'], img: 'img/cards/others-p05.png' },
-            { q: '「mf」代表甚麼？', sym: 'mf', ans: '中強', opts: ['強','弱','中強','漸強'], img: 'img/cards/others-p07.png' },
-            { q: '「mp」代表甚麼？', sym: 'mp', ans: '中弱', opts: ['強','弱','中強','中弱'], img: 'img/cards/others-p06.png' },
-            { q: '「ff」代表甚麼？', sym: 'ff', ans: '很強', opts: ['很強','很弱','中強','漸強'], img: 'img/cards/others-p09.png' },
-            { q: '「pp」代表甚麼？', sym: 'pp', ans: '很弱', opts: ['很強','很弱','中強','漸弱'], img: 'img/cards/others-p04.png' },
-            { q: '「cresc.」代表甚麼？', sym: 'cresc.', ans: '漸強', opts: ['漸強','漸弱','漸快','漸慢'], img: 'img/cards/others-p10.png' },
-            { q: '「decresc.」代表甚麼？', sym: 'decresc.', ans: '漸弱', opts: ['漸強','漸弱','漸快','漸慢'], img: 'img/cards/others-p11.png' },
-            { q: '「Forte」是甚麼意思？', sym: 'Forte', ans: '強', opts: ['強','弱','快','慢'], img: 'img/cards/others-p08.png' },
-            { q: '「Piano」（力度）是甚麼意思？', sym: 'Piano', ans: '弱', opts: ['強','弱','快','慢'], img: 'img/cards/others-p05.png' },
-            { q: '「< 」漸強記號跟哪個術語一樣？', sym: '<', ans: 'cresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「<」形邊 = 聲音由小到大 = 漸強 = crescendo。' },
-            { q: '「> 」漸弱記號跟哪個術語一樣？', sym: '>', ans: 'decresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「>」形邊 = 聲音由大到小 = 漸弱 = decrescendo。' },
-            { q: '以下力度術語由弱到強排序，哪個在中間？', sym: 'p _ f', ans: 'mf', opts: ['mf','mp','ff','pp'], isText: true, explain: 'pp → p → mp → mf → f → ff，p 后 f 前是 mf。' },
-            { q: 'C大調的調號有多少個升降號？', ans: '沒有（0個）', opts: ['沒有（0個）','1個升號','1個降號','2個升號'], ksImg:'img/cards/keysig-0n.png', ksCaption:'<strong class="ks-major">C大調 / a小調</strong>', explain: 'C大調是唯一沒有升降號的大調，五線譜上乾乾淨淨。' },
+            { q: '「< 」漸強記號跟哪個術語一樣？', sym: '<', ans: 'cresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「<」形狀 = 聲音由小到大 = 漸強 = crescendo。' },
+            { q: '「> 」漸弱記號跟哪個術語一樣？', sym: '>', ans: 'decresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「>」形狀 = 聲音由大到小 = 漸弱 = decrescendo。' },
+            { q: '以下力度術語由弱到強排序，哪個在中間？', sym: 'p _ f', ans: 'mf', opts: ['mf','mp','ff','pp'], isText: true, explain: 'pp → p → mp → mf → f → ff，p 和 f 之間是 mf。' },
+            { q: '以下哪個力度最弱？', sym: 'pp  p  mp', ans: 'pp', opts: ['pp','p','mp','mf'], isText: true, explain: 'pp = pianissimo = 很弱，是三者中最弱的。' },
+            { q: '以下哪個力度最強？', sym: 'f  mf  ff', ans: 'ff', opts: ['f','mf','ff','mp'], isText: true, explain: 'ff = fortissimo = 很強，是三者中最強的。' },
+            { q: 'C大調的調號有多少個升降號？', ans: '沒有（0個）', opts: ['沒有（0個）','1個升號','1個降號','2個升號'], ksImg:'img/cards/keysig-0n.png', ksCaption:'<strong class="ks-major">C大調 / a小調</strong>', explain: 'C大調是唯一沒有升降號的大調。' },
         ],
-        medium: [
-            { q: '「Andante」是甚麼速度？', sym: 'Andante', ans: '行板（中慢速）', opts: ['行板（中慢速）','急板（很快）','柔板（很慢）','小行板（稍慢）'] },
-            { q: '「Allegro」是甚麼速度？', sym: 'Allegro', ans: '快板', opts: ['快板','行板','柔板','慢板'] },
-            { q: '「Adagio」是甚麼速度？', sym: 'Adagio', ans: '柔板（很慢）', opts: ['行板（中慢速）','快板','柔板（很慢）','急板'] },
-            { q: '「Moderato」是甚麼速度？', sym: 'Moderato', ans: '中板', opts: ['快板','中板','柔板','行板'] },
-            { q: '「staccato」（·）代表甚麼？', sym: '·', ans: '斷奏', opts: ['連奏','斷奏','強奏','漸弱'] },
-            { q: '「legato」代表甚麼？', sym: 'legato', ans: '連奏', opts: ['連奏','斷奏','強奏','漸弱'] },
+        normal: [
+            { q: '以下哪個速度最慢？', sym: 'Andante · Allegro · Moderato', ans: 'Andante', opts: ['Andante','Allegro','Moderato','Adagio'], isText: true, explain: 'Adagio < Andante < Moderato < Allegro。Andante 是三者中最慢的。' },
+            { q: '以下哪個速度最快？', sym: 'Adagio · Moderato · Allegro', ans: 'Allegro', opts: ['Adagio','Moderato','Allegro','Andante'], isText: true, explain: 'Allegro（快板）是三者中最快的。' },
+            { q: '「rit.」和「accel.」是甚麼關係？', sym: 'rit. ↔ accel.', ans: '相反（漸慢 vs 漸快）', opts: ['相反（漸慢 vs 漸快）','意思一樣','一個是力度一個是速度','沒有關係'], isText: true, explain: 'rit. = 漸慢，accel. = 漸快，兩者相反。' },
+            { q: '「反覆記號」的作用是甚麼？', sym: '|: :|', ans: '重複演奏一段', opts: ['樂曲結束','重複演奏一段','從頭再奏','從記號重奏'], isText: true, explain: '|: :| = 將括號內的樂段重複演奏一次。' },
             { q: '這個調號是哪個大調？', ans: 'G大調', opts: ['C大調','G大調','D大調','F大調'], ksImg:'img/cards/keysig-1s.png', ksCaption:'<span class="ks-notes">升 Fa</span>', explain: 'G大調有1個升號，升Fa（F♯）。' },
-            { q: 'G大調的關係小調是哪個？', ans: 'e小調', opts: ['a小調','e小調','b小調','d小調'], ksImg:'img/cards/keysig-1s.png', ksCaption:'<strong class="ks-major">G大調</strong>', explain: 'G大調的關係小調是e小調，兩者共享同一個調號（1♯）。' },
+            { q: 'G大調的關係小調是哪個？', ans: 'e小調', opts: ['a小調','e小調','b小調','d小調'], ksImg:'img/cards/keysig-1s.png', ksCaption:'<strong class="ks-major">G大調</strong>', explain: 'G大調的關係小調是e小調。' },
             { q: '這個調號是哪個大調？', ans: 'F大調', opts: ['C大調','G大調','F大調','B♭大調'], ksImg:'img/cards/keysig-1f.png', ksCaption:'<span class="ks-notes">降 Si</span>', explain: 'F大調有1個降號，降Si（B♭）。' },
             { q: 'F大調的關係小調是哪個？', ans: 'd小調', opts: ['a小調','d小調','g小調','e小調'], ksImg:'img/cards/keysig-1f.png', ksCaption:'<strong class="ks-major">F大調</strong>', explain: 'F大調的關係小調是d小調。' },
-            { q: '「accent」（>）是甚麼意思？', sym: '>', ans: '重音', opts: ['重音','強音','斷奏','漸強'] },
-            { q: '「sfz」代表甚麼？', sym: 'sfz', ans: '突強', opts: ['突強','漸強','強','中強'] },
-            { q: '「Andantino」速度比 Andante 如何？', sym: 'Andantino', ans: '稍快一點', opts: ['稍快一點','慢很多','一樣','快很多'], isText: true, explain: 'Andantino = 小行板，比行板稍快少許。' },
-            { q: '以下旋律記號中，「連結線」代表甚麼？', sym: '͡', ans: '圓滑地連唱', opts: ['斷奏','圓滑地連唱','重音','漸慢'], isText: true, explain: '連結線 = legato，將音符圓滑地連接。' },
-            { q: '「rit.」需要彈奏者怎樣做？', sym: 'rit.', ans: '慢慢變慢', opts: ['慢慢變快','慢慢變慢','突然停','慢慢變強'], isText: true, explain: 'rit. = ritardando = 漸慢。' },
-            { q: '「a tempo」代表甚麼？', sym: 'a tempo', ans: '回原速', opts: ['漸快','漸慢','回原速','更快'], isText: true, explain: 'a tempo = 回到原來的速度。' },
-            { q: '「反覆記號」的作用是甚麼？', sym: '|: :|', ans: '重複演奏一段', opts: ['樂曲結束','重複演奏一段','從頭再奏','從記號重奏'], isText: true, explain: '|: :| = 將括號內的樂段重複演奏一次。' },
         ],
         hard: [
-            { q: '這個調號是哪個大調？', ans: 'D大調', opts: ['D大調','A大調','E大調','G大調'], ksImg:'img/cards/keysig-2s.png', ksCaption:'<span class="ks-notes">升 Fa、Do</span>', explain: 'D大調有2個升號，升Fa、Do（F♯、C♯）。' },
-            { q: 'D大調的關係小調是哪個？', ans: 'b小調', opts: ['e小調','b小調','f♯小調','g小調'], ksImg:'img/cards/keysig-2s.png', ksCaption:'<strong class="ks-major">D大調</strong>', explain: 'D大調的關係小調是b小調。' },
-            { q: '「D大調 / b小調」調號升了哪些音？', ans: '升 Fa、Do', opts: ['升 Fa','升 Fa、Do','升 Fa、Do、Sol','降 Si、Mi'], ksImg:'img/cards/keysig-2s.png', ksCaption:'<strong class="ks-major">D大調</strong><span class="ks-minor"> / b小調</span>', explain: 'D大調（b小調）有2個升號：F♯（升Fa）和C♯（升Do）。' },
-            { q: '這個調號是哪個大調？', ans: 'B♭大調', opts: ['B♭大調','E♭大調','A♭大調','F大調'], ksImg:'img/cards/keysig-2f.png', ksCaption:'<span class="ks-notes">降 Si、Mi</span>', explain: 'B♭大調有2個降號，降Si、Mi（B♭、E♭）。' },
-            { q: 'B♭大調的關係小調是哪個？', ans: 'g小調', opts: ['d小調','g小調','c小調','f小調'], ksImg:'img/cards/keysig-2f.png', ksCaption:'<strong class="ks-major">B♭大調</strong>', explain: 'B♭大調的關係小調是g小調。' },
-            { q: '「Presto」是甚麼速度？', sym: 'Presto', ans: '急板（極快）', opts: ['行板','快板','急板（極快）','慢板'] },
-            { q: '「Largo」是甚麼速度？', sym: 'Largo', ans: '廣板（極慢）', opts: ['廣板（極慢）','行板','中板','快板'] },
-            { q: '「Da Capo（D.C.）」代表甚麼？', sym: 'D.C.', ans: '從頭再奏', opts: ['從頭再奏','從記號重奏','跳至結尾','速度加快'] },
-            { q: '「Dal Segno（D.S.）」代表甚麼？', sym: 'D.S.', ans: '從記號重奏', opts: ['從頭再奏','從記號重奏','跳至結尾','速度減慢'] },
-            { q: '「Fine」代表甚麼？', sym: 'Fine', ans: '樂曲結束', opts: ['樂曲結束','從頭再奏','漸弱','反覆記號'] },
-            { q: '這個調號是哪個大調？', ans: 'A大調', opts: ['A大調','E大調','D大調','G大調'], ksImg:'img/cards/keysig-3s.png', ksCaption:'<span class="ks-notes">升 Fa、Do、Sol</span>', explain: 'A大調有3個升號，升Fa、Do、Sol（F♯、C♯、G♯）。' },
-            { q: 'A大調的關係小調是哪個？', ans: 'f♯小調', opts: ['b小調','f♯小調','c♯小調','e小調'], ksImg:'img/cards/keysig-3s.png', ksCaption:'<strong class="ks-major">A大調</strong>', explain: 'A大調的關係小調是f♯小調。' },
-            { q: '「A大調 / f♯小調」調號升了哪些音？', ans: '升 Fa、Do、Sol', opts: ['升 Fa、Do','升 Fa、Do、Sol','升 Fa Do Sol Re','降 Si、Mi、La'], ksImg:'img/cards/keysig-3s.png', ksCaption:'<strong class="ks-major">A大調</strong><span class="ks-minor"> / f♯小調</span>', explain: 'A大調（f♯小調）有3個升號：F♯、C♯、G♯，即升Fa、Do、Sol。' },
-            { q: '這個調號是哪個大調？', ans: 'E♭大調', opts: ['B♭大調','E♭大調','A♭大調','G大調'], ksImg:'img/cards/keysig-3f.png', ksCaption:'<span class="ks-notes">降 Si、Mi、La</span>', explain: 'E♭大調有3個降號，降Si、Mi、La（B♭、E♭、A♭）。' },
-            { q: 'E♭大調的關係小調是哪個？', ans: 'c小調', opts: ['d小調','g小調','c小調','f小調'], ksImg:'img/cards/keysig-3f.png', ksCaption:'<strong class="ks-major">E♭大調</strong>', explain: 'E♭大調的關係小調是c小調。' },
-            { q: '「Ritardando（rit.）」代表甚麼？', sym: 'rit.', ans: '漸慢', opts: ['漸慢','漸快','漸強','漸弱'] },
-            { q: '「Accelerando（accel.）」代表甚麼？', sym: 'accel.', ans: '漸快', opts: ['漸慢','漸快','漸強','漸弱'] },
-            { q: '「Coda（𝜺）」代表甚麼？', sym: '𝜺', ans: '跳至尾聲', opts: ['從頭再奏','從記號重奏','跳至尾聲','樂曲結束'], isText: true, explain: 'Coda = 尾聲記號，指示跳到樂曲的結束部分。' },
-            { q: '「cantabile」代表甚麼風格？', sym: 'cantabile', ans: '如歌地', opts: ['如歌地','甜美地','雄壯地','平靜地'], isText: true, explain: 'cantabile = 像唱歌一樣優美地演奏。' },
-            { q: '「Tenuto（—）」代表甚麼？', sym: '—', ans: '保持完整音值', opts: ['斷奏','重音','保持完整音值','漸強'], isText: true, explain: 'Tenuto = 把音符完整地彈完，不可縮短。' },
-            { q: '「Fermata（𝐐）」代表甚麼？', sym: '𝐐', ans: '自由延長', opts: ['斷奏','重音','自由延長','漸慢'], isText: true, explain: 'Fermata = 延長記號，讓演奏者自由延長該音符。' },
-            { q: '這個調號是哪個大調？', ans: 'E大調', opts: ['D大調','E大調','A大調','B大調'], ksImg:'img/cards/keysig-4s.png', ksCaption:'<span class="ks-notes">升 Fa Do Sol Re</span>', explain: '升號順序 = FCGDAEB，4個升號 = E大調。' },
-            { q: 'E大調的關係小調是哪個？', ans: 'c♯小調', opts: ['f♯小調','b小調','c♯小調','g♯小調'], ksImg:'img/cards/keysig-4s.png', ksCaption:'<strong class="ks-major">E大調</strong>', explain: 'E大調的關係小調是c♯小調。' },
-            { q: '這個調號是哪個大調？', ans: 'A♭大調', opts: ['E♭大調','A♭大調','D♭大調','B♭大調'], ksImg:'img/cards/keysig-4f.png', ksCaption:'<span class="ks-notes">降 Si Mi La Re</span>', explain: 'A♭大調有4個降號，降Si、Mi、La、Re（B♭、E♭、A♭、D♭）。' },
-            { q: 'A♭大調的關係小調是哪個？', ans: 'f小調', opts: ['c小調','f小調','g小調','b♭小調'], ksImg:'img/cards/keysig-4f.png', ksCaption:'<strong class="ks-major">A♭大調</strong>', explain: 'A♭大調的關係小調是f小調。' },
+            { q: '以下哪個速度最慢？', sym: 'Largo · Adagio · Presto', ans: 'Largo', opts: ['Largo','Adagio','Presto','Allegro'], isText: true, explain: 'Largo（廣板）是所有速度術語中最慢的之一。' },
+            { q: '以下哪個速度最快？', sym: 'Vivace · Allegro · Presto', ans: 'Presto', opts: ['Vivace','Allegro','Presto','Moderato'], isText: true, explain: 'Presto（急板）是三者中最快的。' },
+            { q: '「D.C. al Fine」代表怎樣演奏？', sym: 'D.C. al Fine', ans: '從頭再奏至 Fine 結束', opts: ['從頭再奏至 Fine 結束','從記號重奏','直接結束','跳至尾聲'], isText: true, explain: 'D.C. = 從頭再奏，al Fine = 直到標記 Fine 處結束。' },
+            { q: '「D.S. al Coda」代表怎樣演奏？', sym: 'D.S. al Coda', ans: '從記號重奏至 Coda 跳尾聲', opts: ['從記號重奏至 Coda 跳尾聲','從頭再奏','直接結束','重複一次'], isText: true, explain: 'D.S. = 從 Segno 記號重奏，al Coda = 到 Coda 記號跳尾聲。' },
             { q: '「molto」加在術語前代表甚麼？', sym: 'molto forte', ans: '非常（加強程度）', opts: ['非常（加強程度）','一點點','不太','稍微'], isText: true, explain: 'molto = 非常/很多，molto forte = 非常強。' },
             { q: '「poco a poco」代表甚麼？', sym: 'poco a poco', ans: '逐漸地', opts: ['突然','逐漸地','很快','一次過'], isText: true, explain: 'poco a poco = 一點一點地 = 逐漸地。' },
+            { q: '這個調號是哪個大調？', ans: 'D大調', opts: ['D大調','A大調','E大調','G大調'], ksImg:'img/cards/keysig-2s.png', ksCaption:'<span class="ks-notes">升 Fa、Do</span>', explain: 'D大調有2個升號。' },
+            { q: 'D大調的關係小調是哪個？', ans: 'b小調', opts: ['e小調','b小調','f♯小調','g小調'], ksImg:'img/cards/keysig-2s.png', ksCaption:'<strong class="ks-major">D大調</strong>', explain: 'D大調的關係小調是b小調。' },
+            { q: '這個調號是哪個大調？', ans: 'B♭大調', opts: ['B♭大調','E♭大調','A♭大調','F大調'], ksImg:'img/cards/keysig-2f.png', ksCaption:'<span class="ks-notes">降 Si、Mi</span>', explain: 'B♭大調有2個降號。' },
+            { q: 'B♭大調的關係小調是哪個？', ans: 'g小調', opts: ['d小調','g小調','c小調','f小調'], ksImg:'img/cards/keysig-2f.png', ksCaption:'<strong class="ks-major">B♭大調</strong>', explain: 'B♭大調的關係小調是g小調。' },
+            { q: '這個調號是哪個大調？', ans: 'A大調', opts: ['A大調','E大調','D大調','G大調'], ksImg:'img/cards/keysig-3s.png', ksCaption:'<span class="ks-notes">升 Fa、Do、Sol</span>', explain: 'A大調有3個升號。' },
+            { q: 'A大調的關係小調是哪個？', ans: 'f♯小調', opts: ['b小調','f♯小調','c♯小調','e小調'], ksImg:'img/cards/keysig-3s.png', ksCaption:'<strong class="ks-major">A大調</strong>', explain: 'A大調的關係小調是f♯小調。' },
+            { q: '這個調號是哪個大調？', ans: 'E♭大調', opts: ['B♭大調','E♭大調','A♭大調','G大調'], ksImg:'img/cards/keysig-3f.png', ksCaption:'<span class="ks-notes">降 Si、Mi、La</span>', explain: 'E♭大調有3個降號。' },
+            { q: 'E♭大調的關係小調是哪個？', ans: 'c小調', opts: ['d小調','g小調','c小調','f小調'], ksImg:'img/cards/keysig-3f.png', ksCaption:'<strong class="ks-major">E♭大調</strong>', explain: 'E♭大調的關係小調是c小調。' },
+            { q: '這個調號是哪個大調？', ans: 'E大調', opts: ['D大調','E大調','A大調','B大調'], ksImg:'img/cards/keysig-4s.png', ksCaption:'<span class="ks-notes">升 Fa Do Sol Re</span>', explain: '4個升號 = E大調。' },
+            { q: '這個調號是哪個大調？', ans: 'A♭大調', opts: ['E♭大調','A♭大調','D♭大調','B♭大調'], ksImg:'img/cards/keysig-4f.png', ksCaption:'<span class="ks-notes">降 Si Mi La Re</span>', explain: 'A♭大調有4個降號。' },
         ]
     };
 
-    const TERMS_GRADE_BANK = { 1:'easy',2:'easy',3:'medium',4:'medium',5:'hard',6:'hard' };
+    // Grade ranges for each difficulty tier
+    const G3_GRADE_RANGE = {
+        easy:   [1, 2],   // 小一至小二
+        normal: [1, 4],   // 小一至小四
+        hard:   [3, 6],   // 小三至小六
+        expert: [1, 6],   // 全部
+    };
+
+    // Distractor pools grouped by category
+    const G3_DISTRACTOR_POOLS = {
+        dynamics:     ['強','弱','中強','中弱','很強','很弱','漸強','漸弱','突強','強後即弱'],
+        tempo:        ['廣板（極慢）','莊板（極慢）','柔板（很慢）','行板（中慢）','小行板（稍慢）','中板','小快板','快板','活潑地（快）','急板（極快）','漸慢','漸快','回原速','更快地'],
+        articulation: ['連奏','斷奏','重音','持音（保持音值）','延長號','強奏'],
+        form:         ['重複演奏一段','第一/二次結尾','從頭再奏','從記號重奏','樂曲結束'],
+        expression:   ['如歌地','甜美地','有表情地','雄壯地','嬉戲地','平靜地'],
+    };
+
+    // Generate questions dynamically from FULL_TERMS_TABLE
+    function g3GenerateQuestions(difficulty) {
+        const [gradeMin, gradeMax] = G3_GRADE_RANGE[difficulty] || [1, 6];
+        // Filter terms by grade range (exclude keysig — handled by special Q)
+        const terms = FULL_TERMS_TABLE.filter(t =>
+            t.grade >= gradeMin && t.grade <= gradeMax && t.cat !== 'keysig'
+        );
+
+        const questions = [];
+
+        for (const t of terms) {
+            const pool = G3_DISTRACTOR_POOLS[t.cat] || [];
+            const distractors = pool.filter(d => d !== t.meaning);
+
+            // --- Type 1: "What does [symbol] mean?" (術語→意思) ---
+            if (distractors.length >= 3) {
+                const shuffled = distractors.slice().sort(() => Math.random() - 0.5);
+                const wrongOpts = shuffled.slice(0, 3);
+                const allOpts = [t.meaning, ...wrongOpts].sort(() => Math.random() - 0.5);
+                const qObj = {
+                    q: `「${t.sym}」代表甚麼？`,
+                    sym: t.sym,
+                    ans: t.meaning,
+                    opts: allOpts,
+                };
+                if (t.img) qObj.img = t.img;
+                questions.push(qObj);
+            }
+
+            // --- Type 2: "Which term means [meaning]?" (意思→術語) — reverse ---
+            // Only for terms with unique Italian names
+            if (t.cat !== 'form' && t.name && distractors.length >= 2) {
+                const sameCatTerms = terms.filter(x => x.cat === t.cat && x.name !== t.name);
+                if (sameCatTerms.length >= 3) {
+                    const wrongNames = sameCatTerms.sort(() => Math.random() - 0.5).slice(0, 3).map(x => x.name);
+                    const allOpts = [t.name, ...wrongNames].sort(() => Math.random() - 0.5);
+                    questions.push({
+                        q: `哪個術語代表「${t.meaning}」？`,
+                        sym: t.meaning,
+                        ans: t.name,
+                        opts: allOpts,
+                        isText: true,
+                    });
+                }
+            }
+        }
+
+        // Add special hand-crafted questions for this difficulty
+        const specials = G3_SPECIAL_Q[difficulty] || [];
+        // For normal: use easy + medium specials; for expert: use all
+        let allSpecials = specials;
+        if (difficulty === 'normal') allSpecials = (G3_SPECIAL_Q.easy || []).concat(specials);
+        if (difficulty === 'expert') allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || [], G3_SPECIAL_Q.hard || []);
+
+        questions.push(...allSpecials);
+        return questions;
+    }
+
+    const G3_DIFF_POOL = {
+        easy:   () => g3GenerateQuestions('easy'),
+        normal: () => g3GenerateQuestions('normal'),
+        hard:   () => g3GenerateQuestions('hard'),
+        expert: () => g3GenerateQuestions('expert'),
+    };
+
+    const TERMS_GRADE_BANK = { 1:'easy', 2:'easy', 3:'normal', 4:'normal', 5:'hard', 6:'hard' };
 
     // ==========================================
     // 📚 完整音樂術語參考表資料
@@ -5339,7 +5918,12 @@
             const meaningHtml = t.cat === 'keysig'
                 ? `<div class="study-term-meaning study-ks-notes">${escHtml(t.meaning)}</div>`
                 : `<div class="study-term-meaning">${escHtml(t.meaning)}</div>`;
+            const speakKey = G3_PRONUNCIATION[t.name] || G3_PRONUNCIATION[t.sym] || '';
+            const audioHtml = speakKey
+                ? `<button class="study-audio-btn" data-speak="${escHtml(speakKey)}" title="播放發音">🔊</button>`
+                : '';
             return `<div class="study-term-card cat-${escHtml(t.cat)}">
+                ${audioHtml}
                 ${visual}
                 ${nameHtml}
                 ${meaningHtml}
@@ -5356,6 +5940,22 @@
         renderStudyGrid();
         switchScreen('screen-g3-study');
     }
+
+    // 🔊 Event delegation for study card audio buttons
+    document.getElementById('g3TermsGrid').addEventListener('click', function(e) {
+        const btn = e.target.closest('.study-audio-btn');
+        if (!btn) return;
+        const text = btn.dataset.speak;
+        if (!text || !('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'it-IT';
+        utter.rate = 0.85;
+        btn.classList.add('playing');
+        utter.onend = () => btn.classList.remove('playing');
+        utter.onerror = () => btn.classList.remove('playing');
+        window.speechSynthesis.speak(utter);
+    });
 
     // Tab & grade filter listeners (set up once)
     document.querySelectorAll('.study-tab').forEach(btn => {
@@ -5408,12 +6008,58 @@
         return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="keysig-quiz-svg">${staff}${accs}</svg>`;
     }
 
-    const G3_DIFF_POOL = {
-        easy:   () => TERMS_BANK.easy.slice(),
-        normal: () => TERMS_BANK.easy.concat(TERMS_BANK.medium),
-        hard:   () => TERMS_BANK.medium.concat(TERMS_BANK.hard),
-        expert: () => TERMS_BANK.easy.concat(TERMS_BANK.medium, TERMS_BANK.hard),
+    // 🔊 Italian pronunciation map (symbol → full Italian word)
+    const G3_PRONUNCIATION = {
+        'f':'forte','p':'piano','mf':'mezzo forte','mp':'mezzo piano',
+        'ff':'fortissimo','pp':'pianissimo','cresc.':'crescendo','decresc.':'decrescendo',
+        'Forte':'forte','Piano':'piano','sfz':'sforzando','sf':'sforzando',
+        'fp':'forte piano',
+        'rit.':'ritardando','accel.':'accelerando',
+        'D.C.':'Da Capo','D.S.':'Dal Segno','Fine':'fine',
+        'a tempo':'a tempo','legato':'legato','cantabile':'cantabile',
+        'staccato':'staccato','molto forte':'molto forte','poco a poco':'poco a poco',
+        'Andante':'andante','Allegro':'allegro','Adagio':'adagio',
+        'Moderato':'moderato','Presto':'presto','Largo':'largo',
+        'Andantino':'andantino','Allegretto':'allegretto','Vivace':'vivace',
+        'Grave':'grave','più mosso':'più mosso',
+        'dolce':'dolce','espressivo':'espressivo','maestoso':'maestoso',
+        'giocoso':'giocoso','tranquillo':'tranquillo',
+        // Capitalized name lookups for study cards
+        'Pianissimo':'pianissimo','Mezzo-piano':'mezzo piano','Mezzo-forte':'mezzo forte',
+        'Fortissimo':'fortissimo','Sforzando':'sforzando','Forte-piano':'forte piano',
+        'Crescendo':'crescendo','Decrescendo':'decrescendo',
+        'Ritardando':'ritardando','Accelerando':'accelerando',
+        'A tempo':'a tempo','Più mosso':'più mosso',
+        'Legato':'legato','Staccato':'staccato','Accent':'accento',
+        'Tenuto':'tenuto','Fermata':'fermata','Marcato':'marcato',
+        'Da Capo':'da capo','Dal Segno':'dal segno',
+        'Cantabile':'cantabile','Dolce':'dolce','Espressivo':'espressivo',
+        'Maestoso':'maestoso','Giocoso':'giocoso','Tranquillo':'tranquillo',
+        '第一/二括':'primo e secondo','反覆記號':'ripetizione',
     };
+
+    let g3CurrentSym = null;
+
+    function g3PlayAudio() {
+        if (!g3CurrentSym) return;
+        const text = G3_PRONUNCIATION[g3CurrentSym] || g3CurrentSym;
+        // Only speak if it looks like a real word (not just symbols)
+        if (!text || /^[<>·—𝜺𝐐|:\s‖]+$/.test(text)) return;
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'it-IT';
+            utter.rate = 0.85;
+            utter.pitch = 1;
+            const btn = document.getElementById('g3AudioBtn');
+            if (btn) btn.classList.add('playing');
+            utter.onend = () => { if (btn) btn.classList.remove('playing'); };
+            utter.onerror = () => { if (btn) btn.classList.remove('playing'); };
+            window.speechSynthesis.speak(utter);
+        }
+    }
+
+    document.getElementById('g3AudioBtn').addEventListener('click', g3PlayAudio);
 
     function startGame3(user, mode, difficulty) {
         mode = mode || 'challenge';
@@ -5505,6 +6151,13 @@
         }
 
         document.getElementById('g3Question').textContent = q.q;
+        // 🔊 Audio button: show only when there's a speakable term
+        const audioBtn = document.getElementById('g3AudioBtn');
+        const sym = q.sym || '';
+        const hasSpeakable = sym && !/^[<>·—𝜺𝐐|:\s‖]+$/.test(sym) && (G3_PRONUNCIATION[sym] || /[a-zA-Z]/.test(sym));
+        g3CurrentSym = hasSpeakable ? sym : null;
+        if (audioBtn) audioBtn.classList.toggle('hidden', !hasSpeakable);
+
         document.getElementById('g3Visual').innerHTML = q.ksImg
             ? `<div class="ks-quiz-visual"><img src="${escHtml(q.ksImg)}" class="ks-card-img" alt="調號卡" loading="eager">${q.ksCaption ? `<div class="ks-quiz-caption">${q.ksCaption}</div>` : ''}</div>`
             : q.keySig
@@ -5606,7 +6259,447 @@
         if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 2500);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
+        const g3Layout = document.getElementById('g3LeaderboardLayout');
+        if (g3Layout) g3Layout.classList.remove('view-only');
+        const g3RBack = document.getElementById('g3ResultBack');
+        if (g3RBack) g3RBack.style.display = 'none';
         switchScreen('screen-game3-result');
+    }
+
+    // ==========================================
+    // 遊戲四：樂器辨別 (Instrument Identification)
+    // ==========================================
+
+    const INSTRUMENT_BANK = [
+        // ── 弦樂 Strings ──
+        { id:'violin',      nameZh:'小提琴',     nameEn:'Violin',       family:'strings',    familyZh:'弦樂', img:'img/instruments/violin.svg', desc:'弦樂家族中音域最高的樂器',
+          synthParams:{ wave:'sawtooth', freq:660, dur:1.0, attack:0.05, vol:0.25, filterType:'lowpass', filterFreq:2200, filterQ:1, vibRate:5.5, vibDepth:4 }},
+        { id:'viola',        nameZh:'中提琴',     nameEn:'Viola',        family:'strings',    familyZh:'弦樂', img:'img/instruments/viola.svg', desc:'比小提琴稍大，音色較溫暖',
+          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.06, vol:0.25, filterType:'lowpass', filterFreq:1800, filterQ:1, vibRate:5, vibDepth:3.5 }},
+        { id:'cello',        nameZh:'大提琴',     nameEn:'Cello',        family:'strings',    familyZh:'弦樂', img:'img/instruments/cello.svg', desc:'坐着演奏的大型弦樂器',
+          synthParams:{ wave:'sawtooth', freq:220, dur:1.2, attack:0.07, vol:0.28, filterType:'lowpass', filterFreq:1500, filterQ:0.8, vibRate:4.5, vibDepth:3 }},
+        { id:'double-bass',  nameZh:'低音大提琴', nameEn:'Double Bass',  family:'strings',    familyZh:'弦樂', img:'img/instruments/double-bass.svg', desc:'弦樂家族中最大最低沉的',
+          synthParams:{ wave:'sawtooth', freq:110, dur:1.2, attack:0.08, vol:0.3, filterType:'lowpass', filterFreq:1000, filterQ:0.7, vibRate:4, vibDepth:2 }},
+        { id:'harp',         nameZh:'豎琴',       nameEn:'Harp',         family:'strings',    familyZh:'弦樂', img:'img/instruments/harp.svg', desc:'用手指撥弦演奏的大型樂器',
+          synthParams:{ wave:'sine', freq:523, dur:1.5, attack:0.005, vol:0.3, sustain:0.3 }},
+        { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/guitar.svg', desc:'用手指或撥片彈奏的弦樂器',
+          synthParams:{ wave:'triangle', freq:330, dur:1.0, attack:0.005, vol:0.3, filterType:'lowpass', filterFreq:2500, filterQ:0.5 }},
+        { id:'bass-guitar',  nameZh:'低音結他',   nameEn:'Bass Guitar',  family:'strings',    familyZh:'弦樂', img:'img/instruments/bass-guitar.svg', desc:'電低音弦樂器，節奏的支柱',
+          synthParams:{ wave:'triangle', freq:165, dur:1.0, attack:0.005, vol:0.35, filterType:'lowpass', filterFreq:1200, filterQ:0.5 }},
+        { id:'ukulele',      nameZh:'烏克麗麗',   nameEn:'Ukulele',      family:'strings',    familyZh:'弦樂', img:'img/instruments/ukulele.svg', desc:'來自夏威夷的小型四弦琴',
+          synthParams:{ wave:'triangle', freq:440, dur:0.6, attack:0.003, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.5 }},
+        { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/banjo.svg', desc:'圓形共鳴體的撥弦樂器',
+          synthParams:{ wave:'triangle', freq:392, dur:0.5, attack:0.002, vol:0.28, filterType:'lowpass', filterFreq:3500, filterQ:0.8 }},
+        { id:'mandolin',     nameZh:'曼陀林',     nameEn:'Mandolin',     family:'strings',    familyZh:'弦樂', img:'img/instruments/mandolin.svg', desc:'淚滴形的小型弦樂器',
+          synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 }},
+
+        // ── 木管 Woodwind ──
+        { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.svg', desc:'橫吹的金屬管樂器，音色清亮',
+          synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 }},
+        { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.svg', desc:'用單簧片振動發聲',
+          synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 }},
+        { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.svg', desc:'音色尖銳明亮，用雙簧片發聲',
+          synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.02, vol:0.15, filterType:'bandpass', filterFreq:1200, filterQ:3, vibRate:5, vibDepth:3 }},
+        { id:'bassoon',      nameZh:'巴松管',     nameEn:'Bassoon',      family:'woodwind',   familyZh:'木管', img:'img/instruments/bassoon.svg', desc:'木管家族中音域最低',
+          synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
+        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.svg', desc:'音樂課最常見的樂器',
+          synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
+        { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.svg', desc:'比長笛更小，音域最高',
+          synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
+        { id:'harmonica',    nameZh:'口琴',       nameEn:'Harmonica',    family:'woodwind',   familyZh:'木管', img:'img/instruments/harmonica.svg', desc:'用嘴吹奏的小型簧片樂器',
+          synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.02, vol:0.18, filterType:'lowpass', filterFreq:2000, filterQ:1.5, vibRate:6, vibDepth:3 }},
+        { id:'bagpipes',     nameZh:'風笛',       nameEn:'Bagpipes',     family:'woodwind',   familyZh:'木管', img:'img/instruments/bagpipes.svg', desc:'蘇格蘭傳統的風袋管樂器',
+          synthParams:{ wave:'sawtooth', freq:466, dur:2.0, attack:0.1, vol:0.2, filterType:'bandpass', filterFreq:1000, filterQ:2, vibRate:3, vibDepth:2 }},
+        { id:'pan-flute',    nameZh:'排笛',       nameEn:'Pan Flute',    family:'woodwind',   familyZh:'木管', img:'img/instruments/pan-flute.svg', desc:'由長短不同的管子排成一排',
+          synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
+
+        // ── 銅管 Brass ──
+        { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.svg', desc:'音色明亮響亮的銅管樂器',
+          synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:3 }},
+        { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.svg', desc:'用滑管改變音高',
+          synthParams:{ wave:'sawtooth', freq:233, dur:1.0, attack:0.02, vol:0.25, filterType:'lowpass', filterFreq:2000, filterQ:2 }},
+        { id:'french-horn',  nameZh:'法國號',     nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.svg', desc:'圓形的銅管樂器，音色柔和',
+          synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:4, vibDepth:2 }},
+        { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.svg', desc:'銅管家族最大最低沉',
+          synthParams:{ wave:'sawtooth', freq:131, dur:1.0, attack:0.03, vol:0.3, filterType:'lowpass', filterFreq:800, filterQ:1.5 }},
+        { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.svg', desc:'比小號稍小，音色較柔和',
+          synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.2, filterType:'lowpass', filterFreq:2500, filterQ:2.5 }},
+
+        // ── 敲擊 Percussion ──
+        { id:'timpani',      nameZh:'定音鼓',     nameEn:'Timpani',      family:'percussion', familyZh:'敲擊', img:'img/instruments/timpani.svg', desc:'可調音高的大型鼓',
+          synthParams:{ wave:'sine', freq:150, freqEnd:80, dur:0.8, attack:0.005, vol:0.35 }},
+        { id:'snare',        nameZh:'小軍鼓',     nameEn:'Snare Drum',   family:'percussion', familyZh:'敲擊', img:'img/instruments/snare.svg', desc:'底部有響弦的小鼓',
+          synthParams:{ noise:true, dur:0.2, filterType:'highpass', filterFreq:2000, filterQ:0.5, vol:0.35 }},
+        { id:'bass-drum',    nameZh:'大鼓',       nameEn:'Bass Drum',    family:'percussion', familyZh:'敲擊', img:'img/instruments/bass-drum.svg', desc:'管弦樂中最大的鼓',
+          synthParams:{ wave:'sine', freq:80, freqEnd:40, dur:0.6, attack:0.005, vol:0.4 }},
+        { id:'xylophone',    nameZh:'木琴',       nameEn:'Xylophone',    family:'percussion', familyZh:'敲擊', img:'img/instruments/xylophone.svg', desc:'用小槌敲擊木條的樂器',
+          synthParams:{ wave:'sine', freq:880, dur:0.4, attack:0.002, vol:0.28, sustain:0.15 }},
+        { id:'triangle',     nameZh:'三角鐵',     nameEn:'Triangle',     family:'percussion', familyZh:'敲擊', img:'img/instruments/triangle-inst.svg', desc:'三角形的金屬棒，聲音清脆',
+          synthParams:{ wave:'sine', freq:2200, dur:1.2, attack:0.001, vol:0.15, sustain:0.2 }},
+        { id:'cymbals',      nameZh:'鈸',         nameEn:'Cymbals',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cymbals.svg', desc:'兩片圓形金屬板互擊',
+          synthParams:{ noise:true, dur:0.8, filterType:'highpass', filterFreq:5000, filterQ:0.3, vol:0.25 }},
+        { id:'tambourine',   nameZh:'鈴鼓',       nameEn:'Tambourine',   family:'percussion', familyZh:'敲擊', img:'img/instruments/tambourine.svg', desc:'有小鈸片的手鼓',
+          synthParams:{ noise:true, dur:0.35, filterType:'bandpass', filterFreq:6000, filterQ:1, vol:0.22 }},
+        { id:'glockenspiel', nameZh:'鐘琴',       nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'img/instruments/glockenspiel.svg', desc:'金屬音條，聲音像鐘聲',
+          synthParams:{ wave:'sine', freq:1760, dur:0.8, attack:0.001, vol:0.2, sustain:0.15 }},
+        { id:'marimba',      nameZh:'馬林巴琴',   nameEn:'Marimba',      family:'percussion', familyZh:'敲擊', img:'img/instruments/marimba.svg', desc:'大型木質音條敲擊樂器',
+          synthParams:{ wave:'sine', freq:440, dur:0.6, attack:0.003, vol:0.3, sustain:0.2 }},
+        { id:'vibraphone',   nameZh:'顫音琴',     nameEn:'Vibraphone',   family:'percussion', familyZh:'敲擊', img:'img/instruments/vibraphone.svg', desc:'金屬音條帶電動顫音效果',
+          synthParams:{ wave:'sine', freq:880, dur:1.0, attack:0.002, vol:0.22, vibRate:5, vibDepth:4, sustain:0.2 }},
+        { id:'drums',        nameZh:'爵士鼓',     nameEn:'Drums',        family:'percussion', familyZh:'敲擊', img:'img/instruments/drums.svg', desc:'包含多種鼓和鈸的套鼓',
+          synthParams:{ noise:true, dur:0.3, filterType:'highpass', filterFreq:3000, filterQ:0.5, vol:0.3 }},
+
+        // ── 鍵盤 Keyboard ──
+        { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.svg', desc:'最常見的鍵盤樂器',
+          synthParams:{ wave:'triangle', freq:523, dur:1.2, attack:0.005, vol:0.3, sustain:0.3 }},
+        { id:'keyboard',     nameZh:'電子琴',     nameEn:'Keyboard',     family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/keyboard.svg', desc:'電子鍵盤樂器，可模仿多種音色',
+          synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.005, vol:0.2, filterType:'lowpass', filterFreq:2000, filterQ:1 }},
+        { id:'organ',        nameZh:'管風琴',     nameEn:'Organ',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/organ.svg', desc:'用風管發聲的大型鍵盤樂器',
+          synthParams:{ wave:'sine', freq:262, dur:2.0, attack:0.05, vol:0.25, vibRate:3, vibDepth:2 }},
+        { id:'harpsichord',  nameZh:'大鍵琴',     nameEn:'Harpsichord',  family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/harpsichord.svg', desc:'撥弦發聲的古典鍵盤樂器',
+          synthParams:{ wave:'triangle', freq:523, dur:0.6, attack:0.002, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:1 }},
+        { id:'accordion',    nameZh:'手風琴',     nameEn:'Accordion',    family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/accordion.svg', desc:'用風箱和按鍵演奏的樂器',
+          synthParams:{ wave:'square', freq:440, dur:1.0, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:5, vibDepth:3 }},
+    ];
+
+    const G4_AUDIO_CHANCE = 0.35;  // 35% of questions involve audio
+
+    let g4State = null;
+
+    function generateG4Questions(count) {
+        const pool = INSTRUMENT_BANK;
+        const questions = [];
+        const usedCorrect = new Set();
+
+        for (let i = 0; i < count; i++) {
+            // Pick a random instrument, avoid consecutive duplicates
+            let correct;
+            let safety = 0;
+            do {
+                correct = pool[Math.floor(Math.random() * pool.length)];
+                safety++;
+            } while (usedCorrect.has(correct.id) && safety < 20 && pool.length > 3);
+            usedCorrect.add(correct.id);
+            if (usedCorrect.size > Math.min(5, Math.floor(pool.length * 0.6))) usedCorrect.clear();
+
+            // Decide question type
+            const roll = Math.random();
+            let type;
+            if (roll < G4_AUDIO_CHANCE) {
+                type = Math.random() < 0.6 ? 'audio-name' : 'audio-family';
+            } else {
+                type = Math.random() < 0.5 ? 'visual-name' : 'name-family';
+            }
+
+            // Generate wrong options
+            let opts, answerKey;
+            if (type === 'audio-name' || type === 'visual-name') {
+                answerKey = correct.nameZh;
+                let sameFamily = pool.filter(p => p.family === correct.family && p.id !== correct.id);
+                let diffFamily = pool.filter(p => p.family !== correct.family);
+                let wrongs = shuffle(sameFamily).slice(0, 2).map(w => w.nameZh);
+                if (wrongs.length < 3) wrongs = wrongs.concat(shuffle(diffFamily).slice(0, 3 - wrongs.length).map(w => w.nameZh));
+                while (wrongs.length < 3) wrongs.push(['鋼琴', '口琴', '二胡', '古箏'][wrongs.length]);
+                opts = shuffle([answerKey, ...wrongs.slice(0, 3)]);
+            } else if (type === 'audio-family' || type === 'name-family') {
+                answerKey = correct.familyZh;
+                opts = shuffle(['弦樂', '木管', '銅管', '敲擊', '鍵盤']);
+            }
+
+            questions.push({ instrument: correct, type, answer: answerKey, options: opts });
+        }
+        return questions;
+    }
+
+    function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function startGame4(user, mode) {
+        const count = mode === 'practice' ? 10 : 999;
+        const questions = generateG4Questions(Math.min(count, 40));
+
+        g4State = {
+            user, mode,
+            questions, currentIdx: 0,
+            score: 0, combo: 0, maxCombo: 0,
+            counts: { correct: 0, wrong: 0 },
+            mistakes: [],
+            familyStats: {
+                strings: { correct: 0, total: 0 },
+                woodwind: { correct: 0, total: 0 },
+                brass: { correct: 0, total: 0 },
+                percussion: { correct: 0, total: 0 },
+                keyboard: { correct: 0, total: 0 },
+            },
+            startTime: Date.now(),
+            timeLeft: mode === 'challenge' ? 60 : null,
+            timerId: null,
+            answered: false,
+        };
+
+        // HUD
+        const gradeLabels = ['','小一','小二','小三','小四','小五','小六'];
+        document.getElementById('g4User').textContent = `👋 ${gradeLabels[user.grade] || ''}${user.class}班 · ${user.name}`;
+        document.getElementById('g4Score').textContent = '0';
+        document.getElementById('g4Combo').textContent = '0';
+        document.getElementById('g4Timer').textContent = mode === 'challenge' ? '60' : '--';
+        document.getElementById('g4Message').textContent = '🎻 準備好就點選答案！';
+
+        // Timer for challenge
+        if (mode === 'challenge') {
+            g4State.timerId = setInterval(() => {
+                g4State.timeLeft--;
+                document.getElementById('g4Timer').textContent = g4State.timeLeft;
+                const pct = (g4State.timeLeft / 60) * 100;
+                document.getElementById('g4TimerFill').style.width = pct + '%';
+                if (g4State.timeLeft <= 10) {
+                    document.getElementById('g4TimerFill').style.background = '#FF4A6B';
+                }
+                if (g4State.timeLeft <= 0) {
+                    clearInterval(g4State.timerId);
+                    g4State.timerId = null;
+                    endGame4();
+                }
+            }, 1000);
+        }
+
+        document.getElementById('g4EndBtn').onclick = () => endGame4();
+        document.getElementById('g4BackBtn').onclick = () => {
+            if (g4State.timerId) clearInterval(g4State.timerId);
+            switchScreen('screen-hub');
+        };
+
+        switchScreen('screen-game4');
+        renderG4Question();
+    }
+
+    function renderG4Question() {
+        if (!g4State || g4State.currentIdx >= g4State.questions.length) {
+            endGame4();
+            return;
+        }
+        g4State.answered = false;
+        const q = g4State.questions[g4State.currentIdx];
+        const total = g4State.mode === 'practice' ? g4State.questions.length : '∞';
+        const num = g4State.currentIdx + 1;
+
+        document.getElementById('g4QNum').textContent = `第 ${num} 題${g4State.mode === 'practice' ? ' / 共 ' + total + ' 題' : ''}`;
+        const pct = g4State.mode === 'practice' ? (num / g4State.questions.length) * 100 : 0;
+        document.getElementById('g4ProgressFill').style.width = pct + '%';
+        document.getElementById('g4Progress').textContent = g4State.mode === 'practice' ? `${num}/${total}` : `已答 ${num - 1}`;
+
+        const audioBtn = document.getElementById('g4AudioBtn');
+        const visualEl = document.getElementById('g4Visual');
+        const questionEl = document.getElementById('g4Question');
+
+        // Reset audio btn
+        audioBtn.style.display = 'none';
+        audioBtn.onclick = null;
+
+        if (q.type === 'audio-name') {
+            questionEl.textContent = '🔊 聽一聽，這是什麼樂器？';
+            visualEl.innerHTML = `<div class="g4-visual-emoji">❓</div><div class="g4-visual-hint">點 🔊 再聽一次</div>`;
+            audioBtn.style.display = '';
+            audioBtn.onclick = () => {
+                Audio.playInstrumentSound(q.instrument.id);
+                audioBtn.classList.add('playing');
+                setTimeout(() => audioBtn.classList.remove('playing'), 600);
+            };
+            // Auto-play on render
+            setTimeout(() => Audio.playInstrumentSound(q.instrument.id), 300);
+        } else if (q.type === 'audio-family') {
+            questionEl.textContent = '🔊 聽一聽，這種樂器屬於哪個家族？';
+            visualEl.innerHTML = `<div class="g4-visual-emoji">❓</div><div class="g4-visual-hint">點 🔊 再聽一次</div>`;
+            audioBtn.style.display = '';
+            audioBtn.onclick = () => {
+                Audio.playInstrumentSound(q.instrument.id);
+                audioBtn.classList.add('playing');
+                setTimeout(() => audioBtn.classList.remove('playing'), 600);
+            };
+            setTimeout(() => Audio.playInstrumentSound(q.instrument.id), 300);
+        } else if (q.type === 'visual-name') {
+            questionEl.textContent = '這是什麼樂器？';
+            const imgHtml = q.instrument.img ? `<img src="${q.instrument.img}" alt="" class="g4-visual-img">` : `<div class="g4-visual-emoji">🎵</div>`;
+            visualEl.innerHTML = imgHtml +
+                `<div class="g4-visual-hint"><span class="g4-family-badge g4-family-${q.instrument.family}">${q.instrument.familyZh}</span> ${q.instrument.desc}</div>`;
+        } else if (q.type === 'name-family') {
+            questionEl.textContent = `「${q.instrument.nameZh}」屬於哪個樂器家族？`;
+            const imgHtml = q.instrument.img ? `<img src="${q.instrument.img}" alt="" class="g4-visual-img">` : `<div class="g4-visual-emoji">🎵</div>`;
+            visualEl.innerHTML = imgHtml +
+                `<div class="g4-visual-hint">${q.instrument.nameEn}</div>`;
+        }
+
+        // Render options
+        const optEl = document.getElementById('g4Options');
+        optEl.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt-btn';
+            btn.textContent = opt;
+            btn.onclick = () => handleG4Answer(opt, q.answer, btn, q);
+            optEl.appendChild(btn);
+        });
+    }
+
+    function handleG4Answer(chosen, correct, btn, q) {
+        if (!g4State || g4State.answered) return;
+        g4State.answered = true;
+
+        const isCorrect = chosen === correct;
+        const family = q.instrument.family;
+        g4State.familyStats[family].total++;
+
+        // Highlight buttons
+        document.querySelectorAll('#g4Options .quiz-opt-btn').forEach(b => {
+            b.disabled = true;
+            if (b.textContent === correct) b.classList.add('correct');
+            if (b === btn && !isCorrect) b.classList.add('wrong');
+        });
+
+        if (isCorrect) {
+            g4State.counts.correct++;
+            g4State.combo++;
+            if (g4State.combo > g4State.maxCombo) g4State.maxCombo = g4State.combo;
+            g4State.familyStats[family].correct++;
+            const comboBonus = Math.floor(g4State.combo / 5) * 2;
+            const pts = 10 + comboBonus;
+            g4State.score += pts;
+            document.getElementById('g4Message').textContent = `✅ 答對了！+${pts}分`;
+            Audio.playEffect('countdown');
+        } else {
+            g4State.counts.wrong++;
+            g4State.combo = 0;
+            g4State.mistakes.push({
+                q: q.type.includes('family') ? `${q.instrument.nameZh}的家族` : q.type.includes('audio') ? `聽音辨別（${q.instrument.nameZh}）` : `${q.instrument.desc}`,
+                chosen, correct,
+                explain: `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`
+            });
+            document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
+            Audio.playEffect('wrong');
+        }
+
+        document.getElementById('g4Score').textContent = g4State.score;
+        document.getElementById('g4Combo').textContent = g4State.combo;
+
+        // Next question after delay
+        setTimeout(() => {
+            g4State.currentIdx++;
+            if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
+                // Generate more questions for challenge mode
+                const more = generateG4Questions(20);
+                g4State.questions = g4State.questions.concat(more);
+            }
+            renderG4Question();
+        }, isCorrect ? 600 : 1200);
+    }
+
+    function endGame4() {
+        if (!g4State) return;
+        if (g4State.timerId) { clearInterval(g4State.timerId); g4State.timerId = null; }
+
+        const { user, mode, score, maxCombo, counts, familyStats, mistakes } = g4State;
+        const totalAnswered = counts.correct + counts.wrong;
+        const accuracy = totalAnswered > 0 ? Math.round((counts.correct / totalAnswered) * 100) : 0;
+        const practiceNote = mode === 'practice' ? '<div class="report-item"><div class="report-label">模式</div><div class="report-value">📝 練習</div></div>' : '';
+
+        document.getElementById('g4ReportGrid').innerHTML =
+            `<div class="report-item"><div class="report-label">答對題數</div><div class="report-value">${counts.correct} / ${totalAnswered}</div></div>` +
+            `<div class="report-item"><div class="report-label">準確率</div><div class="report-value">${accuracy}%</div></div>` +
+            `<div class="report-item"><div class="report-label">總分</div><div class="report-value">${score}</div></div>` +
+            `<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
+
+        // Family breakdown
+        const fbEl = document.getElementById('g4FamilyBreakdown');
+        const families = [
+            { key: 'strings', zh: '弦樂', color: '#E8739E' },
+            { key: 'woodwind', zh: '木管', color: '#5DB85D' },
+            { key: 'brass', zh: '銅管', color: '#F5A623' },
+            { key: 'percussion', zh: '敲擊', color: '#4A90D9' },
+            { key: 'keyboard', zh: '鍵盤', color: '#9B59B6' },
+        ];
+        let fbHtml = '<div style="font-weight:800;margin-bottom:8px;">🎼 各家族表現</div>';
+        families.forEach(f => {
+            const s = familyStats[f.key];
+            if (s.total === 0) return;
+            const pct = Math.round((s.correct / s.total) * 100);
+            fbHtml += `<div class="g4-family-bar">
+                <div class="g4-family-bar-label">${f.zh}</div>
+                <div class="g4-family-bar-track"><div class="g4-family-bar-fill" style="width:${pct}%;background:${f.color};"></div></div>
+                <div class="g4-family-bar-val">${pct}%</div>
+            </div>`;
+        });
+        fbEl.innerHTML = fbHtml;
+
+        // Weakness
+        document.getElementById('g4Weakness').innerHTML = counts.wrong === 0
+            ? '<div>🌟 全部答對！你是樂器辨別小專家！🎉</div>'
+            : `<div>繼續練習加油！正確 ${counts.correct}/${totalAnswered} 題。</div>`;
+
+        // Mistake review
+        const mistakeEl = document.getElementById('g4MistakeReview');
+        if (mistakeEl) {
+            if (mistakes.length > 0) {
+                mistakeEl.innerHTML = '<div class="mistake-review-title">📝 錯題回顧</div>' +
+                    mistakes.map(m => `<div class="mistake-item">
+                        <div class="mistake-q">${escHtml(m.q)}</div>
+                        <div class="mistake-detail"><span class="mistake-wrong">你的答案：${escHtml(String(m.chosen))}</span> → <span class="mistake-correct">正確：${escHtml(String(m.correct))}</span></div>
+                        ${m.explain ? `<div class="mistake-explain">💡 ${escHtml(m.explain)}</div>` : ''}
+                    </div>`).join('');
+            } else {
+                mistakeEl.innerHTML = '';
+            }
+        }
+
+        // Save scores
+        saveLocalRank('game4', user, score, accuracy, maxCombo);
+        if (mode !== 'practice') {
+            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別');
+        }
+
+        renderLocalRankList('game4', 'g4RankList', user);
+        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 2500);
+        document.getElementById('g4PlayAgain').onclick = () => switchScreen('screen-g4-setup');
+        document.getElementById('g4BackToHub').onclick = () => switchScreen('screen-g4-setup');
+        const g4Layout = document.getElementById('g4LeaderboardLayout');
+        if (g4Layout) g4Layout.classList.remove('view-only');
+        const g4RBack = document.getElementById('g4ResultBack');
+        if (g4RBack) g4RBack.style.display = 'none';
+        switchScreen('screen-game4-result');
+    }
+
+    // ── Game 4 Study Screen ──
+    function renderG4Study(familyFilter) {
+        const grid = document.getElementById('g4StudyGrid');
+        if (!grid) return;
+        let items = INSTRUMENT_BANK;
+        if (familyFilter && familyFilter !== 'all') items = items.filter(i => i.family === familyFilter);
+
+        grid.innerHTML = items.map(inst => {
+            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img">` : `<div class="g4-study-emoji">🎵</div>`;
+            return `
+            <div class="g4-study-card">
+                ${imgHtml}
+                <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
+                <div class="g4-study-name">${inst.nameZh}</div>
+                <div class="g4-study-en">${inst.nameEn}</div>
+                <div style="font-size:0.75rem;color:var(--text-light);margin-top:4px;">${inst.desc}</div>
+                <button class="g4-study-listen" data-id="${inst.id}">🔊 試聽</button>
+            </div>
+        `}).join('');
+
+        grid.querySelectorAll('.g4-study-listen').forEach(btn => {
+            btn.onclick = () => {
+                Audio.playInstrumentSound(btn.dataset.id);
+                btn.textContent = '🔊 播放中…';
+                setTimeout(() => { btn.textContent = '🔊 試聽'; }, 800);
+            };
+        });
     }
 
 })();

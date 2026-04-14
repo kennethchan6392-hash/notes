@@ -7,7 +7,8 @@
 const GAME_SHEETS = {
   game1: '音名辨別',
   game2: '節奏挑戰',
-  game3: '音樂術語'
+  game3: '音樂術語',
+  game4: '樂器辨別'
 };
 
 // 欄位順序（與現有工作表一致）
