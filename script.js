@@ -1023,7 +1023,7 @@
     function showComboBurst(combo) {
         const el = document.createElement('div');
         el.className = 'combo-burst';
-        el.textContent = combo >= 10 ? `🔥 ${combo} 題連對！勁啊！` : `⚡ ${combo} 題連對！`;
+        el.textContent = combo >= 10 ? `🔥 ${combo} 題連對！太棒了！` : `⚡ ${combo} 題連對！`;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 900);
     }
@@ -1191,7 +1191,7 @@
             state.answered = true; 
             state.wrongCount++; 
             state.showAnswerHighlight = true; drawStaff();
-            const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.textContent = `❌ 答錯了～正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}${_secs2}，記住了嗎？`; 
+            const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.textContent = `❌ 答錯了！正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}${_secs2}，記住了嗎？`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
             setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
@@ -1279,7 +1279,7 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            dom.messageBox.textContent = `🎵 ${state.modeConfig.name} — 開始囉！加油！`; 
+            dom.messageBox.textContent = `🎵 ${state.modeConfig.name} — 開始了！加油！`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -1348,7 +1348,7 @@
             for (let i = half; i < len; i++) s2 += list[i];
             const firstHalf = s1 / half;
             const secondHalf = s2 / (len - half);
-            if (secondHalf > firstHalf * 1.3) speedTrend = '<li>⚠️ 後半段反應變慢，可能有少少攰，記得休息</li>';
+            if (secondHalf > firstHalf * 1.3) speedTrend = '<li>⚠️ 後半段反應變慢，可能有點累，記得休息</li>';
             else if (secondHalf < firstHalf * 0.8) speedTrend = '<li>🚀 愈做愈快，進步明顯！</li>';
         }
         let analysis = '<ul>';
@@ -1504,6 +1504,13 @@
         generateReport(); 
         // Show history trend
         if (dom.reportHistory) dom.reportHistory.innerHTML = getHistorySummary();
+
+        // Record to profile
+        const _g1Accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
+        if (state.currentUser) {
+            recordGameResult(state.currentUser, 'game1', state.score, _g1Accuracy, state.maxCombo, state.currentMode);
+        }
+
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
         dom.leaderboardLayout.classList.remove('view-only');
@@ -3301,6 +3308,11 @@
             saveLocalRank('rchal', rchalState.user, rchalState.score, accuracy, rchalState.maxCombo, 'Lv.' + rchalState.level.id);
         }
 
+        // Record to profile
+        if (rchalState.user) {
+            recordGameResult(rchalState.user, 'game2', rchalState.score, accuracy, rchalState.maxCombo, null, rchalState.counts);
+        }
+
         let grade, gradeColor;
         if (accuracy >= 95) { grade = 'S'; gradeColor = '#F59E0B'; }
         else if (accuracy >= 85) { grade = 'A'; gradeColor = '#10B981'; }
@@ -3841,7 +3853,7 @@
         const titleY = 2;
         const titleH = 22;
         // Title pill background
-        const titleText = '📖 先睇清楚節奏';
+        const titleText = '📖 先看清楚節奏';
         ctx.font = '900 13px Nunito, sans-serif';
         const titleW = ctx.measureText(titleText).width + 28;
         ctx.fillStyle = 'rgba(99,102,241,0.08)';
@@ -4302,7 +4314,7 @@
                 nextBarStrip.style.display = 'none';
             }
         }
-        document.getElementById('rcMetronomeText').textContent = '跟住節拍器';
+        document.getElementById('rcMetronomeText').textContent = '跟着節拍器';
         const metroArm = document.getElementById('rcMetroArm');
         if (metroArm) metroArm.className = 'rc-metro-arm';
         _rcRenderGameTokens(card);
@@ -5036,6 +5048,11 @@
         // Save best grade per card (only for real cards with a num)
         if (rcGameState._card.num) _rcSaveBestGrade(rcGameState._card.num, qualAcc, score);
 
+        // Record to profile
+        if (rcGameState._user) {
+            recordGameResult(rcGameState._user, 'game2', score, accuracy, maxCombo, null, counts);
+        }
+
         document.getElementById('rcResultGrade').textContent = grade;
         document.getElementById('rcResultTitle').textContent = gradeMsg;
         document.getElementById('rcResultAccuracy').textContent = `準確度 ${accuracy}%（${hitCount}/${total} 拍）`;
@@ -5548,7 +5565,7 @@
             <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
             <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
         document.getElementById('g3Weakness').innerHTML = wrong === 0
-            ? '<div>🌟 全部答對！你係音樂術語小專家！🎉</div>'
+            ? '<div>🌟 全部答對！你是音樂術語小專家！🎉</div>'
             : `<div>繼續練習加油！正確 ${correct}/${totalAnswered} 題。</div>`;
 
         // Render mistake review
