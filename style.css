@@ -367,7 +367,7 @@ input { user-select: auto; }
 /* 五線譜區 */
 .staff-container {
     background: var(--bg-paper); border-radius: var(--border-radius); padding: 14px 18px;
-    position: relative; min-height: 200px; display: flex; justify-content: center; align-items: center;
+    position: relative; min-height: 246px; display: flex; justify-content: center; align-items: center;
     border: 3px solid rgba(255,255,255,0.9);
     box-shadow: 0 8px 32px rgba(139,102,255,0.12), inset 0 4px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(139,102,255,0.06);
     background-image: radial-gradient(circle at 15% 15%, rgba(139,102,255,0.05) 0%, transparent 60%),
@@ -692,7 +692,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .note-btn { width: 60px; height: 76px; font-size: 1.5rem; border-radius: 12px; padding-bottom: 18px; }
     .note-btn.sharp, .note-btn.flat { width: 52px; height: 62px; }
     .note-btn .key-hint { display: none; }
-    .staff-container { padding: 10px 14px; min-height: 170px; }
+    .staff-container { padding: 10px 14px; min-height: 210px; }
     .report-grid { grid-template-columns: 1fr; }
     .btn-start { font-size: 1.4rem; }
     .stat-badge { padding: 7px 12px; font-size: 1rem; min-width: 72px; }
@@ -753,7 +753,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .note-btn { width: 82px; height: 100px; font-size: 2.1rem; }
     .note-btn.sharp, .note-btn.flat { width: 68px; height: 80px; }
     .note-row { gap: 6px; }
-    .staff-container { min-height: 220px; padding: 18px 24px; }
+    .staff-container { min-height: 250px; padding: 18px 24px; }
     .mode-cards { grid-template-columns: repeat(3, 1fr); }
     .leaderboard-layout { grid-template-columns: 1.2fr 1fr; }
 }
@@ -786,7 +786,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .user-badge { font-size: 0.8rem; padding: 6px 12px; }
     .progress-area { min-width: 100%; gap: 6px; }
     .stat-badge { padding: 5px 8px; font-size: 0.85rem; min-width: 60px; }
-    .staff-container { padding: 10px 12px; min-height: 150px; margin: 2px 0; }
+    .staff-container { padding: 10px 12px; min-height: 195px; margin: 2px 0; }
     .note-btn { width: 46px; height: 58px; font-size: 1.15rem; border-radius: 10px; padding-bottom: 14px; }
     .note-btn.sharp, .note-btn.flat { width: 40px; height: 48px; font-size: 0.85rem; }
     .note-btn .note-solfege { font-size: 0.52rem; }
@@ -795,7 +795,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .message-box { font-size: 0.92rem; padding: 8px 10px; min-height: 38px; margin: 2px 0; }
     .btn-action { padding: 6px 14px; font-size: 0.8rem; }
     .action-row { gap: 6px; margin-top: 2px; }
-    .staff-container { min-height: 130px; }
+    .staff-container { min-height: 185px; }
     .game-title { font-size: 2.2rem; }
 }
 
@@ -817,7 +817,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
         padding: 6px 10px;
     }
     .staff-container {
-        min-height: 140px;
+        min-height: 170px;
         padding: 6px 10px;
         grid-column: 1;
         grid-row: 2;
@@ -1586,7 +1586,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 
 @media (min-width: 900px) and (pointer: fine) {
     body { align-items: center; }
-    .staff-container { min-height: 168px; max-height: 192px; padding: 10px 14px; }
+    .staff-container { min-height: 220px; max-height: 260px; padding: 10px 14px; }
 }
 
 /* ===== Game 2 (Rhythm) — orange accent theme ===== */

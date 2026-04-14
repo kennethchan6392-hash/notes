@@ -768,7 +768,24 @@
     function setupHDPI() {
         const dpr = window.devicePixelRatio || 1;
         const rect = dom.canvasWrapper.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
+        if (!rect.width || !rect.height) {
+            // Container not laid out yet — schedule retry
+            requestAnimationFrame(() => {
+                const r2 = dom.canvasWrapper.getBoundingClientRect();
+                if (r2.width && r2.height) {
+                    dom.canvas.width = r2.width * dpr;
+                    dom.canvas.height = r2.height * dpr;
+                    dom.canvas.style.width = `${r2.width}px`;
+                    dom.canvas.style.height = `${r2.height}px`;
+                    dom.ctx.scale(dpr, dpr);
+                    dom.canvas.logicalWidth = r2.width;
+                    dom.canvas.logicalHeight = r2.height;
+                    _staffCache = null;
+                    if (state.currentNote) drawStaff();
+                }
+            });
+            return;
+        }
         dom.canvas.width = rect.width * dpr;
         dom.canvas.height = rect.height * dpr;
         dom.canvas.style.width = `${rect.width}px`;
@@ -780,10 +797,10 @@
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
-        const imgH = ls * 10.5;
+        const imgH = ls * 9.2;
         const imgW = imgH * (120 / 300);
         const drawX = x - imgW * 0.42;
-        const drawY = y - imgH * 0.590;
+        const drawY = y - imgH * 0.56;
         if (clefImages.treble.complete && clefImages.treble.naturalWidth > 0) {
             ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
             return;
@@ -843,21 +860,23 @@
         const dpr = window.devicePixelRatio || 1;
         const currentClef = state.currentNote ? state.currentNote.clef : 'treble';
         const clefLoaded = clefImages[currentClef]?.complete && clefImages[currentClef]?.naturalWidth > 0;
-        const ls = w < 400 ? 18 : 22;
+        const ls = w < 340 ? 14 : w < 400 ? 16 : 22;
         if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded || _staffCache.clef !== currentClef) {
             const oc = document.createElement('canvas');
             oc.width = w * dpr; oc.height = h * dpr;
             const oc_ctx = oc.getContext('2d');
             oc_ctx.scale(dpr, dpr);
-            const _baseY = h / 2 - (ls * 2), _startX = w < 400 ? 25 : 50;
+            // Center staff vertically: clef extends ~3.2*ls above baseY, lowest note ~5.5*ls below
+            // Content center is at baseY + 1.15*ls, so baseY = h/2 - 1.15*ls
+            const _baseY = Math.round(h / 2 - ls * 1.15), _startX = w < 400 ? 30 : 50;
             oc_ctx.strokeStyle = '#1E1E2F'; oc_ctx.lineWidth = 2; oc_ctx.lineCap = 'round';
             oc_ctx.beginPath();
             for (let i = 0; i < 5; i++) { oc_ctx.moveTo(_startX, _baseY + i*ls); oc_ctx.lineTo(w - _startX, _baseY + i*ls); }
             oc_ctx.stroke();
             if (currentClef === 'bass') {
-                drawBassClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 1, ls);
+                drawBassClef(oc_ctx, _startX + (w < 400 ? 20 : 35), _baseY + ls * 1, ls);
             } else {
-                drawTrebleClef(oc_ctx, _startX + (w < 400 ? 25 : 35), _baseY + ls * 3, ls);
+                drawTrebleClef(oc_ctx, _startX + (w < 400 ? 20 : 35), _baseY + ls * 3, ls);
             }
             _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, clef: currentClef, baseY: _baseY, startX: _startX };
         }
