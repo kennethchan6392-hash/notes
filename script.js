@@ -4,7 +4,7 @@
     // ==========================================
     const CONFIG = {
         // GAS API (needs to be accessible to all)
-        API_URL: "https://script.google.com/macros/s/AKfycbzGQY1_Lc1a51vtp0hRR452l2hbkcLgS854SXzsG_62WK3PqtYpdFKY72KUarpxiPMw/exec",
+        API_URL: "https://script.google.com/macros/s/AKfycbz1WqXhNS1YJQKSg2JVXb8z8eD6YX2d-gabfhC0IRYYttbYvbdhEyuFy1XZdnswEl45/exec",
         
         NOTE_FREQUENCIES: {
             'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
@@ -412,9 +412,9 @@
         };
     }
 
-    // Preload clef SVG images using real music clef glyphs
+    // Preload clef SVG images (path-based for cross-platform consistency)
     const clefImages = { treble: new Image(), bass: new Image() };
-    clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 300"><text x="60" y="230" text-anchor="middle" font-size="250" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄞</text></svg>');
+    clefImages.treble.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.186 40.768"><path fill="#1E1E2F" d="m12.049 3.5296c0.305 3.1263-2.019 5.6563-4.0772 7.7014-0.9349 0.897-0.155 0.148-0.6437 0.594-0.1022-0.479-0.2986-1.731-0.2802-2.11 0.1304-2.6939 2.3198-6.5875 4.2381-8.0236 0.309 0.5767 0.563 0.6231 0.763 1.8382zm0.651 16.142c-1.232-0.906-2.85-1.144-4.3336-0.885-0.1913-1.255-0.3827-2.51-0.574-3.764 2.3506-2.329 4.9066-5.0322 5.0406-8.5394 0.059-2.232-0.276-4.6714-1.678-6.4836-1.7004 0.12823-2.8995 2.156-3.8019 3.4165-1.4889 2.6705-1.1414 5.9169-0.57 8.7965-0.8094 0.952-1.9296 1.743-2.7274 2.734-2.3561 2.308-4.4085 5.43-4.0046 8.878 0.18332 3.334 2.5894 6.434 5.8702 7.227 1.2457 0.315 2.5639 0.346 3.8241 0.099 0.2199 2.25 1.0266 4.629 0.0925 6.813-0.7007 1.598-2.7875 3.004-4.3325 2.192-0.5994-0.316-0.1137-0.051-0.478-0.252 1.0698-0.257 1.9996-1.036 2.26-1.565 0.8378-1.464-0.3998-3.639-2.1554-3.358-2.262 0.046-3.1904 3.14-1.7356 4.685 1.3468 1.52 3.833 1.312 5.4301 0.318 1.8125-1.18 2.0395-3.544 1.8325-5.562-0.07-0.678-0.403-2.67-0.444-3.387 0.697-0.249 0.209-0.059 1.193-0.449 2.66-1.053 4.357-4.259 3.594-7.122-0.318-1.469-1.044-2.914-2.302-3.792zm0.561 5.757c0.214 1.991-1.053 4.321-3.079 4.96-0.136-0.795-0.172-1.011-0.2626-1.475-0.4822-2.46-0.744-4.987-1.116-7.481 1.6246-0.168 3.4576 0.543 4.0226 2.184 0.244 0.577 0.343 1.197 0.435 1.812zm-5.1486 5.196c-2.5441 0.141-4.9995-1.595-5.6343-4.081-0.749-2.153-0.5283-4.63 0.8207-6.504 1.1151-1.702 2.6065-3.105 4.0286-4.543 0.183 1.127 0.366 2.254 0.549 3.382-2.9906 0.782-5.0046 4.725-3.215 7.451 0.5324 0.764 1.9765 2.223 2.7655 1.634-1.102-0.683-2.0033-1.859-1.8095-3.227-0.0821-1.282 1.3699-2.911 2.6513-3.198 0.4384 2.869 0.9413 6.073 1.3797 8.943-0.5054 0.1-1.0211 0.143-1.536 0.143z"/></svg>');
     clefImages.bass.src  = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><text x="4" y="95" font-size="110" fill="#1E1E2F" font-family="Bravura, Noto Music, Apple Symbols, Segoe UI Symbol, serif">𝄢</text></svg>');
     // Redraw staff when clef image finishes loading
     const onClefLoad = () => { if (state.currentNote && dom.ctx) drawStaff(); };
@@ -872,19 +872,23 @@
     }
     
     function drawTrebleClef(ctx, x, y, ls) {
-        const imgH = ls * 9.2;
-        const imgW = imgH * (120 / 300);
-        const drawX = x - imgW * 0.42;
-        const drawY = y - imgH * 0.56;
+        // y = G line (2nd line from bottom). Path-based SVG: viewBox 0 0 15.186 40.768
+        // G line sits at ~62.3% from top of the SVG
+        const imgH = ls * 7.8;
+        const imgW = imgH * (15.186 / 40.768);
+        const drawX = x - imgW * 0.5;
+        const drawY = y - imgH * 0.623;
         if (clefImages.treble.complete && clefImages.treble.naturalWidth > 0) {
             ctx.drawImage(clefImages.treble, drawX, drawY, imgW, imgH);
             return;
         }
+        // Fallback: draw path directly on canvas
         ctx.save();
+        const scale = imgH / 40.768;
+        ctx.translate(drawX, drawY);
+        ctx.scale(scale, scale);
         ctx.fillStyle = '#1E1E2F';
-        ctx.font = `${Math.round(ls * 6)}px serif`;
-        ctx.textBaseline = 'middle';
-        ctx.fillText('𝄞', x - ls * 1.4, y + ls * 0.6);
+        ctx.fill(new Path2D('m12.049 3.5296c0.305 3.1263-2.019 5.6563-4.0772 7.7014-0.9349 0.897-0.155 0.148-0.6437 0.594-0.1022-0.479-0.2986-1.731-0.2802-2.11 0.1304-2.6939 2.3198-6.5875 4.2381-8.0236 0.309 0.5767 0.563 0.6231 0.763 1.8382zm0.651 16.142c-1.232-0.906-2.85-1.144-4.3336-0.885-0.1913-1.255-0.3827-2.51-0.574-3.764 2.3506-2.329 4.9066-5.0322 5.0406-8.5394 0.059-2.232-0.276-4.6714-1.678-6.4836-1.7004 0.12823-2.8995 2.156-3.8019 3.4165-1.4889 2.6705-1.1414 5.9169-0.57 8.7965-0.8094 0.952-1.9296 1.743-2.7274 2.734-2.3561 2.308-4.4085 5.43-4.0046 8.878 0.18332 3.334 2.5894 6.434 5.8702 7.227 1.2457 0.315 2.5639 0.346 3.8241 0.099 0.2199 2.25 1.0266 4.629 0.0925 6.813-0.7007 1.598-2.7875 3.004-4.3325 2.192-0.5994-0.316-0.1137-0.051-0.478-0.252 1.0698-0.257 1.9996-1.036 2.26-1.565 0.8378-1.464-0.3998-3.639-2.1554-3.358-2.262 0.046-3.1904 3.14-1.7356 4.685 1.3468 1.52 3.833 1.312 5.4301 0.318 1.8125-1.18 2.0395-3.544 1.8325-5.562-0.07-0.678-0.403-2.67-0.444-3.387 0.697-0.249 0.209-0.059 1.193-0.449 2.66-1.053 4.357-4.259 3.594-7.122-0.318-1.469-1.044-2.914-2.302-3.792zm0.561 5.757c0.214 1.991-1.053 4.321-3.079 4.96-0.136-0.795-0.172-1.011-0.2626-1.475-0.4822-2.46-0.744-4.987-1.116-7.481 1.6246-0.168 3.4576 0.543 4.0226 2.184 0.244 0.577 0.343 1.197 0.435 1.812zm-5.1486 5.196c-2.5441 0.141-4.9995-1.595-5.6343-4.081-0.749-2.153-0.5283-4.63 0.8207-6.504 1.1151-1.702 2.6065-3.105 4.0286-4.543 0.183 1.127 0.366 2.254 0.549 3.382-2.9906 0.782-5.0046 4.725-3.215 7.451 0.5324 0.764 1.9765 2.223 2.7655 1.634-1.102-0.683-2.0033-1.859-1.8095-3.227-0.0821-1.282 1.3699-2.911 2.6513-3.198 0.4384 2.869 0.9413 6.073 1.3797 8.943-0.5054 0.1-1.0211 0.143-1.536 0.143z'));
         ctx.restore();
     }
 
@@ -893,7 +897,7 @@
     function drawSharp(ctx, x, y, ls) {
         ctx.save();
         ctx.fillStyle = '#1E1E2F';
-        ctx.font = `900 ${Math.round(ls * 1.6)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
+        ctx.font = `900 ${Math.round(ls * 2.2)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
         ctx.fillText('\u266F', x, y);
@@ -3044,25 +3048,21 @@
         _rchalDrawHP();
     }
 
-    /* ── Render notes via VexFlow — adaptive rows ── */
+    /* ── Render notes via VexFlow — 4 rows × 4 bars ── */
     function _rchalRenderNotes(measures, numBars) {
         const notesEl = document.getElementById('rchalNotes');
         if (!notesEl) return;
         notesEl.innerHTML = '';
         const trackEl = document.getElementById('rchalTrack');
         const W = trackEl.clientWidth || 360;
-        const MIN_BAR_W = 90;   // minimum px per bar for readable notation
-        const BARS_PER_ROW = Math.max(2, Math.min(4, Math.floor((W - 8) / MIN_BAR_W)));
-        rchalState.barsPerRow = BARS_PER_ROW;
+        const BARS_PER_ROW = 4;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const MIN_ROW_H = 58;
+        const MIN_ROW_H = 65;
         const computedH = trackEl.clientHeight;
-        const totalH = Math.max(computedH || 0, numRows * MIN_ROW_H);
+        const totalH = (computedH && computedH >= numRows * MIN_ROW_H)
+            ? computedH
+            : numRows * MIN_ROW_H;
         const ROW_H = totalH / numRows;
-        // Resize track container to fit all rows if needed
-        if (totalH > (computedH || 0)) {
-            trackEl.style.minHeight = totalH + 'px';
-        }
 
         if (typeof VexFlow === 'undefined') return;
         const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
@@ -3279,7 +3279,7 @@
         trackEl.appendChild(rowHL);
 
         // Schedule row highlighting
-        const BARS_PER_ROW = rchalState.barsPerRow || 4;
+        const BARS_PER_ROW = 4;
         const rows = rchalState.rowRanges || [];
         let currentRow = -1;
         const updateRow = (barIdx) => {
@@ -3289,8 +3289,6 @@
                 rowHL.style.top = rows[newRow].y + 'px';
                 rowHL.style.height = rows[newRow].h + 'px';
                 rowHL.style.opacity = '1';
-                // Auto-scroll track to keep current row visible
-                trackEl.scrollTo({ top: Math.max(0, rows[newRow].y - 4), behavior: 'smooth' });
             }
         };
         updateRow(0);
@@ -6294,18 +6292,28 @@
           synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 }},
 
         // ── 木管 Woodwind ──
-        { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.svg', desc:'橫吹的金屬管樂器，音色清亮',
+        { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.jpg', desc:'橫吹的金屬管樂器，音色清亮',
           synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 }},
-        { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.svg', desc:'用單簧片振動發聲',
+        { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.jpg', desc:'用單簧片振動發聲',
           synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 }},
-        { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.svg', desc:'音色尖銳明亮，用雙簧片發聲',
+        { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.jpg', desc:'音色尖銳明亮，用雙簧片發聲',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.02, vol:0.15, filterType:'bandpass', filterFreq:1200, filterQ:3, vibRate:5, vibDepth:3 }},
-        { id:'bassoon',      nameZh:'巴松管',     nameEn:'Bassoon',      family:'woodwind',   familyZh:'木管', img:'img/instruments/bassoon.svg', desc:'木管家族中音域最低',
+        { id:'bassoon',      nameZh:'巴松管',     nameEn:'Bassoon',      family:'woodwind',   familyZh:'木管', img:'img/instruments/bassoon.jpg', desc:'木管家族中音域最低',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
         { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.svg', desc:'音樂課最常見的樂器',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
-        { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.svg', desc:'比長笛更小，音域最高',
+        { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.jpg', desc:'比長笛更小，音域最高',
           synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
+        { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english-horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
+          synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.03, vol:0.18, filterType:'bandpass', filterFreq:1000, filterQ:2.5, vibRate:4.5, vibDepth:2.5 }},
+        { id:'alto-sax',     nameZh:'中音薩克斯風', nameEn:'Alto Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/alto-sax.jpg', desc:'最常見的薩克斯風，音色溫暖',
+          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.02, vol:0.22, filterType:'lowpass', filterFreq:2200, filterQ:2, vibRate:5, vibDepth:3 }},
+        { id:'tenor-sax',    nameZh:'次中音薩克斯風', nameEn:'Tenor Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/tenor-sax.jpg', desc:'爵士樂中最受歡迎的薩克斯風',
+          synthParams:{ wave:'sawtooth', freq:330, dur:1.0, attack:0.02, vol:0.24, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:3 }},
+        { id:'soprano-sax',  nameZh:'高音薩克斯風', nameEn:'Soprano Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/soprano-sax.jpg', desc:'直管型薩克斯風，音域最高',
+          synthParams:{ wave:'sawtooth', freq:587, dur:0.9, attack:0.02, vol:0.2, filterType:'lowpass', filterFreq:2800, filterQ:2, vibRate:5.5, vibDepth:3.5 }},
+        { id:'baritone-sax', nameZh:'上低音薩克斯風', nameEn:'Baritone Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/baritone-sax.jpg', desc:'最大的常見薩克斯風，音域最低',
+          synthParams:{ wave:'sawtooth', freq:196, dur:1.2, attack:0.03, vol:0.26, filterType:'lowpass', filterFreq:1200, filterQ:1.8, vibRate:4, vibDepth:2 }},
         { id:'harmonica',    nameZh:'口琴',       nameEn:'Harmonica',    family:'woodwind',   familyZh:'木管', img:'img/instruments/harmonica.svg', desc:'用嘴吹奏的小型簧片樂器',
           synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.02, vol:0.18, filterType:'lowpass', filterFreq:2000, filterQ:1.5, vibRate:6, vibDepth:3 }},
         { id:'bagpipes',     nameZh:'風笛',       nameEn:'Bagpipes',     family:'woodwind',   familyZh:'木管', img:'img/instruments/bagpipes.svg', desc:'蘇格蘭傳統的風袋管樂器',
@@ -6314,13 +6322,13 @@
           synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
 
         // ── 銅管 Brass ──
-        { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.svg', desc:'音色明亮響亮的銅管樂器',
+        { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.jpg', desc:'音色明亮響亮的銅管樂器',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:3 }},
-        { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.svg', desc:'用滑管改變音高',
+        { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.jpg', desc:'用滑管改變音高',
           synthParams:{ wave:'sawtooth', freq:233, dur:1.0, attack:0.02, vol:0.25, filterType:'lowpass', filterFreq:2000, filterQ:2 }},
-        { id:'french-horn',  nameZh:'法國號',     nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.svg', desc:'圓形的銅管樂器，音色柔和',
+        { id:'french-horn',  nameZh:'圓號',       nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.jpg', desc:'圓形的銅管樂器，音色柔和',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:4, vibDepth:2 }},
-        { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.svg', desc:'銅管家族最大最低沉',
+        { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.jpg', desc:'銅管家族最大最低沉',
           synthParams:{ wave:'sawtooth', freq:131, dur:1.0, attack:0.03, vol:0.3, filterType:'lowpass', filterFreq:800, filterQ:1.5 }},
         { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.svg', desc:'比小號稍小，音色較柔和',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.2, filterType:'lowpass', filterFreq:2500, filterQ:2.5 }},
@@ -6525,13 +6533,11 @@
             setTimeout(() => Audio.playInstrumentSound(q.instrument.id), 300);
         } else if (q.type === 'visual-name') {
             questionEl.textContent = '這是什麼樂器？';
-            const imgHtml = q.instrument.img ? `<img src="${q.instrument.img}" alt="" class="g4-visual-img">` : `<div class="g4-visual-emoji">🎵</div>`;
-            visualEl.innerHTML = imgHtml +
+            visualEl.innerHTML = `<div class="g4-visual-emoji">${q.instrument.emoji}</div>` +
                 `<div class="g4-visual-hint"><span class="g4-family-badge g4-family-${q.instrument.family}">${q.instrument.familyZh}</span> ${q.instrument.desc}</div>`;
         } else if (q.type === 'name-family') {
             questionEl.textContent = `「${q.instrument.nameZh}」屬於哪個樂器家族？`;
-            const imgHtml = q.instrument.img ? `<img src="${q.instrument.img}" alt="" class="g4-visual-img">` : `<div class="g4-visual-emoji">🎵</div>`;
-            visualEl.innerHTML = imgHtml +
+            visualEl.innerHTML = `<div class="g4-visual-emoji">${q.instrument.emoji}</div>` +
                 `<div class="g4-visual-hint">${q.instrument.nameEn}</div>`;
         }
 
