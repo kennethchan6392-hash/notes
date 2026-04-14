@@ -4,7 +4,7 @@
     // ==========================================
     const CONFIG = {
         // GAS API (needs to be accessible to all)
-        API_URL: "https://script.google.com/macros/s/AKfycbz1WqXhNS1YJQKSg2JVXb8z8eD6YX2d-gabfhC0IRYYttbYvbdhEyuFy1XZdnswEl45/exec",
+        API_URL: "https://script.google.com/macros/s/AKfycbxZ-O2ZFQ03Yy_1HtqgWrYv8qPdBg4oG_CndS8cuPXxPIVEo4uMQzVmMQt2ebBkLN6f/exec",
         
         NOTE_FREQUENCIES: {
             'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
@@ -152,6 +152,18 @@
     let _staffCache = null;
     // Note buttons: visibility-only after first build
     let _noteRowsBuilt = false, _sharpRow = null, _flatRow = null;
+    // Countdown timer ID for cleanup on screen switch
+    let _countdownTimerId = null;
+
+    // ── Toast notification helper ──
+    function _showToast(msg, type) {
+        const el = document.createElement('div');
+        el.className = 'app-toast ' + (type || 'info');
+        el.textContent = msg;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3000);
+    }
 
     // ==========================================
     // 🎯 難度系統 (Difficulty System)
@@ -241,13 +253,13 @@
                 // Ensure all fields exist (backward compat)
                 return Object.assign(_defaultProfile(user), p);
             }
-        } catch(e) {}
+        } catch(e) { console.warn('Profile load error, resetting:', e); }
         return _defaultProfile(user);
     }
 
     function saveProfile(profile) {
         const key = `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
-        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) {}
+        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
     }
 
     function _defaultProfile(user) {
@@ -268,7 +280,7 @@
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
             diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
-            gameBests: { game1: 0, game2: 0, game3: 0 },
+            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
         };
     }
 
@@ -357,6 +369,8 @@
         document.getElementById('pgbGame1').textContent = p.gameBests.game1 || '---';
         document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
         document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
+        const pgb4 = document.getElementById('pgbGame4');
+        if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
@@ -814,6 +828,14 @@
     function switchScreen(screenId) {
         const current = [...dom.screens].find(s => s.classList.contains('active'));
         const next = dom.screenMap.get(screenId);
+
+        // Cleanup active games when navigating away from game screens
+        if (current && current !== next) {
+            const cid = current.id;
+            if (cid === 'screen-game' && state.gameActive) { state.gameActive = false; clearInterval(state.timer); state.timer = null; }
+            if (_countdownTimerId) { clearInterval(_countdownTimerId); _countdownTimerId = null; dom.countdownOverlay?.classList.remove('show'); }
+        }
+
         if (current && current !== next) {
             current.classList.remove('active');
             current.classList.add('screen-exit');
@@ -963,7 +985,10 @@
         if (dom.clefBadge) dom.clefBadge.textContent = currentClef === 'bass' ? '低音譜號' : '高音譜號';
 
         const baseY = _staffCache.baseY, startX = _staffCache.startX;
-        const centerX = w / 2, middleLineY = baseY + 2 * ls;
+        // On narrow screens, shift note rightward to avoid clef overlap
+        const clefEndX = startX + (w < 400 ? 20 : 35) + ls * 2;
+        const centerX = w < 400 ? Math.max(w / 2, clefEndX + ls * 2) : w / 2;
+        const middleLineY = baseY + 2 * ls;
 
         if (!state.currentNote) return;
 
@@ -1278,7 +1303,7 @@
                     dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
                 }
             }
-            setTimeout(() => { if (btn) btn.classList.remove('correct', 'wrong'); if (state.gameActive) nextQuestion(); }, 500);
+            setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('correct', 'wrong'); nextQuestion(); }, 500);
         } else {
             const clefLabel = state.currentNote.clef === 'bass' ? '低音' : '高音';
             const statKey = `${state.currentNote.correctName} (${clefLabel})`;
@@ -1292,7 +1317,7 @@
             const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.textContent = `❌ 答錯了！正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}${_secs2}，記住了嗎？`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
-            setTimeout(() => { if (btn) btn.classList.remove('wrong'); if (state.gameActive) { if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); } }, 1500);
+            setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('wrong'); if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); }, 1500);
         } 
         updateScoreboard();
     }
@@ -1315,10 +1340,12 @@
         dom.countdownOverlay.textContent = count; 
         dom.countdownOverlay.classList.add('show'); 
         audio.playEffect('countdown');
-        const timer = setInterval(() => {
+        if (_countdownTimerId) clearInterval(_countdownTimerId);
+        _countdownTimerId = setInterval(() => {
             count--;
             if (count <= 0) { 
-                clearInterval(timer); 
+                clearInterval(_countdownTimerId);
+                _countdownTimerId = null;
                 dom.countdownOverlay.classList.remove('show'); 
                 callback(); 
             }
@@ -1540,6 +1567,8 @@
             timestamp: new Date().toLocaleString('zh-TW')
         };
 
+        // Always save locally as backup
+        saveLocalRank('game1', state.currentUser, record.score, record.accuracy, record.max_combo, state.currentMode);
         try {
             await fetch(CONFIG.API_URL, { 
                 method: 'POST', 
@@ -1549,9 +1578,11 @@
                 redirect: 'follow',
                 signal: controller.signal
             });
+            _showToast('✅ 分數已上傳！', 'success');
             setTimeout(loadRanks, 2000);
         } catch (e) {
             console.error("上傳失敗：", e);
+            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
         } finally {
             clearTimeout(timeoutId);
         }
@@ -1574,6 +1605,8 @@
             accuracy,
             timestamp: new Date().toLocaleString('zh-TW')
         };
+        // Always save locally as backup
+        saveLocalRank(game, user, score, accuracy, maxCombo, modeName);
         try {
             await fetch(CONFIG.API_URL, {
                 method: 'POST',
@@ -1583,8 +1616,10 @@
                 redirect: 'follow',
                 signal: controller.signal
             });
+            _showToast('✅ 分數已上傳！', 'success');
         } catch(e) {
             console.error('上傳失敗：', e);
+            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
         } finally {
             clearTimeout(timeoutId);
         }
@@ -1651,7 +1686,13 @@
                 throw new Error("GAS 部署錯誤：請確認部署權限設為「所有人」");
             }
             const data = JSON.parse(text);
-            state.allRanks = Array.isArray(data) ? data.filter(r => r && r.mode) : []; 
+            state.allRanks = Array.isArray(data) ? data.filter(r => r && r.mode && r.name).map(r => {
+                r.score = parseInt(r.score) || 0;
+                r.max_combo = parseInt(r.max_combo) || 0;
+                r.accuracy = parseInt(r.accuracy) || 0;
+                r.grade = r.grade ? String(r.grade) : '';
+                return r;
+            }) : []; 
             renderRanks(); 
         } catch (e) {
             if (retries > 0) {
@@ -1734,7 +1775,9 @@
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
             return; 
         }
-        dom.rankList.innerHTML = _rankRewardBanner() + f.map((item, i) => {
+        const MAX_RENDER = 100;
+        const fDisplay = f.slice(0, MAX_RENDER);
+        dom.rankList.innerHTML = _rankRewardBanner() + fDisplay.map((item, i) => {
             const isSelf = isCurrentUserRecord(item);
             const cls = escHtml(item.class); const name = escHtml(item.name);
             const accuracy = parseInt(item.accuracy) || 0; const score = parseInt(item.score) || 0;
@@ -1753,7 +1796,7 @@
                     </div>
                 </div>
                 <div class="rank-score">${score}</div></div>`;
-        }).join('');
+        }).join('') + (f.length > MAX_RENDER ? `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;">顯示前 ${MAX_RENDER} 名（共 ${f.length} 人）</div>` : '');
     }
 
     function initTutorial() {
@@ -2068,6 +2111,8 @@
         document.getElementById('vpGame1').textContent = p.gameBests.game1 || '---';
         document.getElementById('vpGame2').textContent = p.gameBests.game2 || '---';
         document.getElementById('vpGame3').textContent = p.gameBests.game3 || '---';
+        const vp4 = document.getElementById('vpGame4');
+        if (vp4) vp4.textContent = p.gameBests.game4 || '---';
 
         switchScreen('screen-view-profile');
     }
@@ -2493,7 +2538,9 @@
             }
         }
         if (!deduped.length) { dom.rankList.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-weight:800;">暫時未有紀錄，做第一個挑戰者！🚀</div>'; return; }
-        dom.rankList.innerHTML = _rankRewardBanner() + deduped.map((item, i) => {
+        const MAX_RENDER = 100;
+        const displayList = deduped.slice(0, MAX_RENDER);
+        dom.rankList.innerHTML = _rankRewardBanner() + displayList.map((item, i) => {
             const isSelf = isCurrentUserRecord(item);
             const cls = escHtml(item.class||''); const name = escHtml(item.name||'');
             const score = item.score || 0; const acc = item.accuracy || 0;
@@ -2517,7 +2564,7 @@
                     </div>
                 </div>
                 <div class="rank-score">${score}</div></div>`;
-        }).join('');
+        }).join('') + (deduped.length > MAX_RENDER ? `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;">顯示前 ${MAX_RENDER} 名（共 ${deduped.length} 人）</div>` : '');
     }
 
     function saveLocalRank(gameKey, user, score, accuracy, maxCombo, difficulty) {
@@ -2799,12 +2846,15 @@
     }
 
     // ── RC Challenge Mode — randomly generated rhythms ──
+    // Lv1 basic: quarter + eighth note patterns
+    // Lv2 medium: adds 16th note group (ti-ri-ti-ri) and dotted patterns
+    // Lv3 advanced: adds mixed 16th combinations (ti-ti-ri, ti-ri-ti, ri-ti-ri)
     const CHALLENGE_TOKEN_SETS = {
         basic:    [{n:'ta',d:1},{n:'ta',d:1},{n:'ti-ti',d:1},{n:'ta-a',d:2},{n:'休',d:1}],
-        medium:   [{n:'ta',d:1},{n:'ti-ti',d:1},{n:'ta-a',d:2},{n:'休',d:1},
-                   {n:'ti-ri-ti-ri',d:1},{n:'ti-ri',d:1},{n:'ta-i',d:1.5},{n:'ti',d:0.5}],
-        advanced: [{n:'ta',d:1},{n:'ti-ti',d:1},{n:'ta-a',d:2},{n:'休',d:1},
-                   {n:'ti-ri-ti-ri',d:1},{n:'ti-ri',d:1},{n:'ta-i',d:1.5},{n:'ti',d:0.5},
+        medium:   [{n:'ta',d:1},{n:'ta',d:1},{n:'ti-ti',d:1},{n:'ta-a',d:2},{n:'休',d:1},
+                   {n:'ti-ri-ti-ri',d:1},{n:'ta-i',d:1.5},{n:'ti',d:0.5}],
+        advanced: [{n:'ta',d:1},{n:'ta',d:1},{n:'ti-ti',d:1},{n:'ta-a',d:2},{n:'休',d:1},
+                   {n:'ti-ri-ti-ri',d:1},{n:'ta-i',d:1.5},{n:'ti',d:0.5},
                    {n:'ti-ti-ri',d:1},{n:'ti-ri-ti',d:1},{n:'ri-ti-ri',d:1},{n:'ta-a-a',d:3}],
     };
 
@@ -2895,8 +2945,8 @@
 
     const RCHAL_LEVELS = [
         { id: 1, name: '初級',  icon: '⭐',       bpm: 60,  tokenSet: 'basic',    bars: 16, winScale: 1.4, hpLoss: 10 },
-        { id: 2, name: '中級',  icon: '⭐⭐',     bpm: 72,  tokenSet: 'medium',   bars: 16, winScale: 1.2, hpLoss: 13 },
-        { id: 3, name: '高級',  icon: '⭐⭐⭐',   bpm: 88,  tokenSet: 'advanced', bars: 16, winScale: 1.0, hpLoss: 15 },
+        { id: 2, name: '中級',  icon: '⭐⭐',     bpm: 60,  tokenSet: 'medium',   bars: 16, winScale: 1.3, hpLoss: 12 },
+        { id: 3, name: '高級',  icon: '⭐⭐⭐',   bpm: 60,  tokenSet: 'advanced', bars: 16, winScale: 1.2, hpLoss: 14 },
     ];
 
     const rchalState = {
@@ -2941,45 +2991,71 @@
         document.removeEventListener('keydown', _rchalKeyHandler);
     }
 
-    /* ── Level Select View ── */
+    /* ── Level Select View (like g3 music terms setup) ── */
     function _rchalShowSelect() {
         _rchalCleanup();
         rchalState.phase = 'select';
+        rchalState._selectedLevel = rchalState._selectedLevel || RCHAL_LEVELS[0];
         const container = document.getElementById('screen-rc-grade');
         const grade = rchalState.user ? rchalState.user.grade || 1 : 1;
         const gradeName = ['', '小一', '小二', '小三', '小四', '小五', '小六'][grade] || '';
+        const userName = rchalState.user ? rchalState.user.name : '';
 
         container.innerHTML = `
-            <div class="rchal-header">
-                <button class="rchal-exit" id="rchalExitBtn">✕</button>
-                <div class="rchal-header-center">
-                    <div class="rchal-title">🥁 節奏挑戰</div>
-                    <div class="rchal-meta">${gradeName} · ${rchalState.user ? rchalState.user.name : ''}</div>
+            <div class="rchal-setup-wrap">
+                <button class="rchal-setup-back" id="rchalExitBtn">← 返回大廳</button>
+                <div class="rchal-setup-title-area">
+                    <h1 class="rchal-setup-title">🥁 節奏挑戰</h1>
+                    <div class="rchal-setup-subtitle">聽準節拍 · 精確拍打 · 衝排行榜</div>
                 </div>
-                <div style="width:36px"></div>
+                <div class="rchal-setup-player">
+                    <span class="rchal-setup-badge">👋 ${userName} 同學 (${gradeName})</span>
+                </div>
+                <div class="rchal-diff-section">
+                    <div class="rchal-diff-title">🎯 選擇難度</div>
+                    <div class="rchal-diff-cards" id="rchalDiffCards"></div>
+                </div>
+                <button class="rchal-setup-start" id="rchalSetupStart">🚀 準備好了，開始！</button>
+                <button class="rchal-setup-ranks" id="rchalSetupRanks">🏆 查看排行榜</button>
             </div>
-            <div class="rchal-level-grid" id="rchalLevelGrid"></div>
         `;
         document.getElementById('rchalExitBtn').onclick = _rchalExit;
 
-        const grid = document.getElementById('rchalLevelGrid');
-        RCHAL_LEVELS.forEach(lvl => {
+        const diffGrid = document.getElementById('rchalDiffCards');
+        const diffMeta = [
+            { cls: 'rchal-diff-easy',   desc: '四分+八分音符<br>基本拍型' },
+            { cls: 'rchal-diff-medium', desc: '+十六分音符組<br>附點節奏' },
+            { cls: 'rchal-diff-hard',   desc: '+混合十六分<br>切分節奏' },
+        ];
+        RCHAL_LEVELS.forEach((lvl, i) => {
             const stars = _rchalGetStars(lvl.id);
             const starStr = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-            const card = document.createElement('div');
-            card.className = 'rchal-level-card';
-            card.innerHTML = `
-                <div class="rchal-level-icon">${lvl.icon}</div>
-                <div class="rchal-level-name">Lv.${lvl.id} ${lvl.name}</div>
-                <div class="rchal-level-info">${lvl.bpm} BPM · ${lvl.bars}小節</div>
-                <div class="rchal-level-stars">${starStr}</div>
+            const isActive = rchalState._selectedLevel && rchalState._selectedLevel.id === lvl.id;
+            const btn = document.createElement('button');
+            btn.className = `rchal-diff-card ${diffMeta[i].cls}${isActive ? ' active' : ''}`;
+            btn.innerHTML = `
+                <div class="rchal-diff-stars-row">${lvl.icon}</div>
+                <div class="rchal-diff-name">Lv.${lvl.id} ${lvl.name}</div>
+                <div class="rchal-diff-desc">${lvl.bpm} BPM · ${lvl.bars}小節<br>${diffMeta[i].desc}</div>
+                <div class="rchal-diff-record">${starStr}</div>
             `;
-            card.onclick = () => _rchalStartLevel(lvl);
-            grid.appendChild(card);
+            btn.onclick = () => {
+                rchalState._selectedLevel = lvl;
+                diffGrid.querySelectorAll('.rchal-diff-card').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            diffGrid.appendChild(btn);
         });
+
+        document.getElementById('rchalSetupStart').onclick = () => {
+            if (rchalState._selectedLevel) _rchalStartLevel(rchalState._selectedLevel);
+        };
+        document.getElementById('rchalSetupRanks').onclick = () => {
+            if (typeof showLeaderboard === 'function') showLeaderboard('game2');
+        };
     }
 
-    /* ── Start a Level (preview phase) ── */
+    /* ── Start a Level (preview phase — auto-show 16 bars) ── */
     function _rchalStartLevel(lvl) {
         _rchalCleanup();
         rchalState.user = state.currentUser;
@@ -3023,8 +3099,8 @@
                 <span class="rchal-tap-emoji">🥁</span>
                 <span class="rchal-tap-label">拍打這裡</span>
             </div>
-            <div class="rchal-status" id="rchalStatus">看清楚節奏，然後按「開始」！</div>
-            <button class="rchal-start-btn" id="rchalStartBtn">🥁 開始！</button>
+            <div class="rchal-status" id="rchalStatus">👀 先看清楚節奏，準備好就按下面按鈕</div>
+            <button class="rchal-ready-btn" id="rchalStartBtn">✋ Ready!</button>
             <div class="rchal-overlay" id="rchalOverlay" style="display:none;"></div>
         `;
 
@@ -3033,39 +3109,40 @@
         // Build taps for ALL bars (doesn't depend on DOM layout)
         _rchalBuildTaps(measures, lvl);
 
-        // Defer rendering to next frame so the DOM is fully laid out
-        // (trackEl.clientWidth / clientHeight need accurate values)
+        // Auto-render 16 bars — use double rAF to ensure layout is computed
         requestAnimationFrame(() => {
-            // Render all 16 bars as 4 rows × 4 bars
-            rchalState.noteMap = [];
-            _rchalRenderNotes(measures, lvl.bars);
+            requestAnimationFrame(() => {
+                rchalState.noteMap = [];
+                _rchalRenderNotes(measures, lvl.bars);
+            });
         });
 
-        // Start button
+        // Ready button → 4 ready beats
         document.getElementById('rchalStartBtn').onclick = () => _rchalCountdown();
 
         // HP bar initial
         _rchalDrawHP();
     }
 
-    /* ── Render notes via VexFlow — 4 rows × 4 bars ── */
+    /* ── Render notes via VexFlow — adaptive rows ── */
     function _rchalRenderNotes(measures, numBars) {
         const notesEl = document.getElementById('rchalNotes');
         if (!notesEl) return;
         notesEl.innerHTML = '';
         const trackEl = document.getElementById('rchalTrack');
-        const W = trackEl.clientWidth || 360;
-        const BARS_PER_ROW = 4;
+        let W = trackEl.clientWidth;
+        if (!W || W < 100) W = trackEl.getBoundingClientRect().width || window.innerWidth - 16;
+
+        // Determine bars-per-row based on complexity
+        const lvl = rchalState.level;
+        const BARS_PER_ROW = (lvl && lvl.tokenSet === 'basic') ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const MIN_ROW_H = 65;
-        const computedH = trackEl.clientHeight;
-        const totalH = (computedH && computedH >= numRows * MIN_ROW_H)
-            ? computedH
-            : numRows * MIN_ROW_H;
+        const MIN_ROW_H = 80;
+        const totalH = Math.max(numRows * MIN_ROW_H, 320);
         const ROW_H = totalH / numRows;
 
         if (typeof VexFlow === 'undefined') return;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot } = VexFlow;
 
         const renderer = new Renderer(notesEl, Renderer.Backends.SVG);
         renderer.resize(W, totalH);
@@ -3108,17 +3185,20 @@
 
                 if (isRest) {
                     const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
-                    note.addModifier(new Annotation('休止').setVerticalJustification(3));
+                    note.addModifier(new Annotation('休止').setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
                     noteGameMap.push([]);
                 } else if (compound) {
                     const group = [];
-                    compound.forEach(sub => {
+                    compound.forEach((sub, si) => {
                         const dur = durMap[sub.d];
                         if (!dur) return;
-                        const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
-                        if (dotSet.has(sub.d)) note.addDotToAll();
-                        note.addModifier(new Annotation(sub.l).setVerticalJustification(3));
+                        const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                        if (dotSet.has(sub.d)) Dot.buildAndAttach([note], { all: true });
+                        // Only add compound label on first sub-note to avoid overlap
+                        if (si === 0) {
+                            note.addModifier(new Annotation(token).setVerticalJustification(3).setFont('Noto Sans TC', 9));
+                        }
                         vfNotes.push(note);
                         group.push(note);
                         noteGameMap.push([tapIdx]);
@@ -3129,9 +3209,9 @@
                     const tokenDur = getRhythmTokenDuration(token);
                     const dur = durMap[tokenDur];
                     if (!dur) return;
-                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
-                    if (dotSet.has(tokenDur)) note.addDotToAll();
-                    note.addModifier(new Annotation(token).setVerticalJustification(3));
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                    if (dotSet.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
+                    note.addModifier(new Annotation(token).setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
                     noteGameMap.push([tapIdx]);
                     tapIdx++;
@@ -3140,7 +3220,7 @@
 
             try {
             const nsx = stave.getNoteStartX();
-            const voice = new Voice({ num_beats: 4, beat_value: 4 });
+            const voice = new Voice({ numBeats: 4, beatValue: 4 });
             voice.setMode(2);
             voice.addTickables(vfNotes);
             new Formatter().joinVoices([voice]).format([voice], Math.max(barW - (nsx - x) - 16, 40));
@@ -3223,7 +3303,7 @@
         });
     }
 
-    /* ── Countdown ── */
+    /* ── Countdown — 4 Ready Beats with metronome ── */
     function _rchalCountdown() {
         if (rchalState.phase !== 'preview') return;
         rchalState.phase = 'countdown';
@@ -3235,18 +3315,42 @@
         const overlay = document.getElementById('rchalOverlay');
         overlay.style.display = 'flex';
 
-        let count = 3;
+        const lvl = rchalState.level;
+        const beatMs = 60000 / lvl.bpm;
+        const beatDots = document.querySelectorAll('#rchalBeats .rchal-beat-dot');
+
+        let beat = 0;
+        const totalBeats = 4;
         const tick = () => {
-            if (count <= 0) {
+            if (beat >= totalBeats) {
                 overlay.style.display = 'none';
                 _rchalBeginPlay();
                 return;
             }
-            overlay.innerHTML = `<div class="rchal-cdn-num">${count}</div>`;
-            const numEl = overlay.querySelector('.rchal-cdn-num');
-            numEl.classList.add('rchal-cdn-pop');
-            audio.playEffect && audio.playEffect('countdown');
-            rchalState.timers.push(setTimeout(() => { count--; tick(); }, 700));
+            // Visual: show beat number
+            overlay.innerHTML = `<div class="rchal-cdn-beat">
+                <div class="rchal-cdn-num rchal-cdn-pop">${beat + 1}</div>
+                <div class="rchal-cdn-label">${beat === 0 ? 'Ready!' : ''}</div>
+            </div>`;
+
+            // Highlight beat dot
+            beatDots.forEach((d, i) => d.classList.toggle('active', i === beat));
+
+            // Play metronome tick sound via Web Audio
+            if (audio.ctx) {
+                const t = audio.ctx.currentTime + 0.01;
+                const osc = audio.ctx.createOscillator();
+                const gain = audio.ctx.createGain();
+                osc.connect(gain).connect(audio.ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.value = beat === 0 ? 1200 : 800;
+                gain.gain.setValueAtTime(beat === 0 ? 0.3 : 0.2, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+                osc.start(t); osc.stop(t + 0.08);
+            }
+
+            beat++;
+            rchalState.timers.push(setTimeout(tick, beatMs));
         };
         tick();
     }
@@ -3368,7 +3472,7 @@
         }
     }
 
-    /* ── Tap Handler ── */
+    /* ── Tap Handler (optimized effects & scoring) ── */
     function _rchalOnTap() {
         if (rchalState.phase !== 'playing') return;
         const elapsed = performance.now() - rchalState.startTime;
@@ -3376,10 +3480,16 @@
         const beatMs = 60000 / lvl.bpm;
         const winMs = beatMs * 0.35 * lvl.winScale;
 
-        // Flash tap zone
+        // Tap ripple effect
         const tapEl = document.getElementById('rchalTap');
         tapEl.classList.add('flash');
         setTimeout(() => tapEl.classList.remove('flash'), 80);
+
+        // Spawn ripple ring
+        const ripple = document.createElement('div');
+        ripple.className = 'rchal-tap-ripple';
+        tapEl.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 500);
 
         // Find nearest unhit tap
         let best = null, bestDiff = Infinity;
@@ -3391,13 +3501,17 @@
             }
         });
 
-        if (!best) return; // No note in range
+        if (!best) {
+            // Miss tap — shake effect
+            _rchalScreenShake();
+            return;
+        }
 
         best.consumed = true;
         best.hit = true;
         const ratio = bestDiff / winMs;
         let judgment, jClass, points;
-        if (ratio < 0.25) { judgment = 'PERFECT'; jClass = 'perfect'; points = 300; }
+        if (ratio < 0.25) { judgment = 'PERFECT ✦'; jClass = 'perfect'; points = 300; }
         else if (ratio < 0.5) { judgment = 'GREAT'; jClass = 'great'; points = 200; }
         else { judgment = 'GOOD'; jClass = 'good'; points = 100; }
 
@@ -3413,17 +3527,39 @@
         else if (jClass === 'great') rchalState.hp = Math.min(100, rchalState.hp + 2);
         _rchalDrawHP();
 
-        document.getElementById('rchalScore').textContent = rchalState.score;
+        // Animated score counter
+        const scoreEl = document.getElementById('rchalScore');
+        scoreEl.textContent = rchalState.score;
+        scoreEl.classList.add('rchal-score-pop');
+        setTimeout(() => scoreEl.classList.remove('rchal-score-pop'), 200);
+
         _rchalShowJudgment(judgment, jClass);
+
+        // Combo display with milestone effects
+        const comboEl = document.getElementById('rchalCombo');
         if (rchalState.combo >= 2) {
-            document.getElementById('rchalCombo').textContent = `🔥 ${rchalState.combo} COMBO` + (mul > 1 ? ` ×${mul}` : '');
+            comboEl.textContent = `🔥 ${rchalState.combo} COMBO` + (mul > 1 ? ` ×${mul}` : '');
+            comboEl.classList.add('rchal-combo-pop');
+            setTimeout(() => comboEl.classList.remove('rchal-combo-pop'), 200);
         }
 
-        // Mark note as hit (VexFlow SVG)
+        // Screen flash on perfect
+        if (jClass === 'perfect') {
+            const container = document.getElementById('screen-rc-grade');
+            container.classList.add('rchal-perfect-flash');
+            setTimeout(() => container.classList.remove('rchal-perfect-flash'), 300);
+        }
+
+        // Mark note as hit (VexFlow SVG) with glow
         const nm = rchalState.noteMap && rchalState.noteMap[best.idx];
         if (nm && nm.el) {
-            _vfColorNote(nm.el, '#34D399');
-            if (nm.beamEl) _vfColorNote(nm.beamEl, '#34D399');
+            const color = jClass === 'perfect' ? '#10B981' : jClass === 'great' ? '#6366F1' : '#F59E0B';
+            _vfColorNote(nm.el, color);
+            if (nm.beamEl) _vfColorNote(nm.beamEl, color);
+            // Pulse animation on SVG element
+            nm.el.style.transition = 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)';
+            nm.el.style.transform = 'scale(1.25)';
+            setTimeout(() => { nm.el.style.transform = ''; }, 150);
         }
 
         // Score float — position near the note's row
@@ -3438,6 +3574,16 @@
         setTimeout(() => float.remove(), 700);
     }
 
+    /* ── Screen shake for wrong taps ── */
+    function _rchalScreenShake() {
+        const track = document.getElementById('rchalTrack');
+        if (!track) return;
+        track.style.transition = 'transform 0.06s';
+        track.style.transform = 'translateX(4px)';
+        setTimeout(() => { track.style.transform = 'translateX(-4px)'; }, 60);
+        setTimeout(() => { track.style.transform = ''; track.style.transition = ''; }, 120);
+    }
+
     /* ── Helpers ── */
     function _rchalDrawHP() {
         const fill = document.getElementById('rchalHpFill');
@@ -3450,9 +3596,13 @@
     function _rchalShowJudgment(text, cls) {
         const el = document.getElementById('rchalJudgment');
         if (!el) return;
+        // Reset animation by removing then re-adding class
+        el.classList.remove('show');
+        el.offsetHeight; // force reflow
         el.textContent = text;
         el.className = 'rchal-judgment show ' + cls;
-        setTimeout(() => el.classList.remove('show'), 600);
+        clearTimeout(rchalState._judgmentTimer);
+        rchalState._judgmentTimer = setTimeout(() => el.classList.remove('show'), 500);
     }
 
     /* ── Finish ── */
@@ -3477,6 +3627,7 @@
         // Save to leaderboard
         if (rchalState.user && rchalState.user.name) {
             saveLocalRank('rchal', rchalState.user, rchalState.score, accuracy, rchalState.maxCombo, 'Lv.' + rchalState.level.id);
+            submitScoreToGAS('game2', rchalState.user, rchalState.score, accuracy, rchalState.maxCombo, '節奏挑戰·Lv.' + rchalState.level.id);
         }
 
         // Record to profile
@@ -3550,8 +3701,10 @@
     const OM_NOTE_OPTIONS = [
         { id: 'whole', beats: 4, label: '全音符',  vfDur: 'w' },
         { id: 'half',  beats: 2, label: '二分音符', vfDur: 'h' },
+        { id: 'dotted-quarter', beats: 1.5, label: '附點四分', vfDur: 'q', dotted: true },
         { id: 'quarter', beats: 1, label: '四分音符', vfDur: 'q' },
         { id: 'eighth', beats: 0.5, label: '八分音符', vfDur: '8' },
+        { id: '16th', beats: 0.25, label: '十六分音符', vfDur: '16' },
     ];
 
     // Generate a random measure for a given time signature
@@ -3576,9 +3729,10 @@
     function _omRenderQuestion(container, timeSig, notes, blankIdx) {
         container.innerHTML = '';
         if (typeof VexFlow === 'undefined') return;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem, Dot } = VexFlow;
 
-        const W = container.clientWidth || 340;
+        const rawW = container.clientWidth || 340;
+        const W = Math.min(rawW, 460);
         const H = 100;
         const renderer = new Renderer(container, Renderer.Backends.SVG);
         renderer.resize(W, H);
@@ -3589,25 +3743,27 @@
         stave.addTimeSignature(timeSig);
         stave.setContext(context).draw();
 
-        const durMap = { 4: 'w', 2: 'h', 1: 'q', 0.5: '8' };
+        const durMap = { 4: 'w', 2: 'h', 1.5: 'q', 1: 'q', 0.5: '8', 0.25: '16' };
+        const dotBeats = new Set([1.5]);
         const vfNotes = [];
 
         notes.forEach((n, i) => {
             const dur = durMap[n.beats] || 'q';
             if (i === blankIdx) {
-                // Render as invisible note (will overlay with blank marker)
-                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
                 note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 vfNotes.push(note);
             } else {
-                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
                 vfNotes.push(note);
             }
         });
 
         const [num] = timeSig.split('/').map(Number);
-        const voice = new Voice({ num_beats: num, beat_value: 4 });
+        const voice = new Voice({ numBeats: num, beatValue: 4 });
         voice.setMode(2);
         voice.addTickables(vfNotes);
         const nsx = stave.getNoteStartX();
@@ -3643,9 +3799,9 @@
     }
 
     // Render a small SVG note icon for option buttons
-    function _omRenderNoteIcon(duration) {
+    function _omRenderNoteIcon(duration, dotted) {
         if (typeof VexFlow === 'undefined') return '';
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem, Dot } = VexFlow;
 
         const div = document.createElement('div');
         div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:60px;height:52px;';
@@ -3656,12 +3812,12 @@
         const context = renderer.getContext();
 
         const stave = new Stave(-10, -16, 80);
-        // Hide all staff lines
         [0, 1, 2, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
         stave.setContext(context).draw();
 
-        const note = new StaveNote({ keys: ['b/4'], duration: duration, stem_direction: Stem.UP });
-        const voice = new Voice({ num_beats: 4, beat_value: 4 });
+        const note = new StaveNote({ keys: ['b/4'], duration: duration, stemDirection: Stem.UP });
+        if (dotted) Dot.buildAndAttach([note], { all: true });
+        const voice = new Voice({ numBeats: 4, beatValue: 4 });
         voice.setMode(2);
         voice.addTickables([note]);
         new Formatter().joinVoices([voice]).format([voice], 40);
@@ -3786,6 +3942,13 @@
         resultDiv.className = 'om-result';
         const emoji = omState.score >= 80 ? '🏆' : omState.score >= 50 ? '⭐' : '💪';
         const accuracy = omState.total > 0 ? Math.round((omState.correct / omState.total) * 100) : 0;
+
+        // Submit to leaderboard
+        if (omState.user && omState.user.name) {
+            saveLocalRank('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
+            submitScoreToGAS('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
+        }
+
         resultDiv.innerHTML = `
             <div class="om-result-emoji">${emoji}</div>
             <div class="om-result-title">挑戰結束！</div>
@@ -3822,7 +3985,7 @@
 
         // Pre-render note icons
         const noteIcons = {};
-        OM_NOTE_OPTIONS.forEach(opt => { noteIcons[opt.id] = _omRenderNoteIcon(opt.vfDur); });
+        OM_NOTE_OPTIONS.forEach(opt => { noteIcons[opt.id] = _omRenderNoteIcon(opt.vfDur, opt.dotted); });
 
         container.innerHTML = `
             <div class="om-header">
@@ -4167,7 +4330,7 @@
 
     /* ── VexFlow renderer for Kodály rhythm bars ── */
     function _renderVexFlowBars(bars, container) {
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot } = VexFlow;
 
         container.innerHTML = '';
 
@@ -4218,9 +4381,9 @@
                         const note = new StaveNote({
                             keys: ['b/4'],
                             duration: dur,
-                            stem_direction: Stem.UP
+                            stemDirection: Stem.UP
                         });
-                        if (dotSet3.has(sub.d)) note.addDotToAll();
+                        if (dotSet3.has(sub.d)) Dot.buildAndAttach([note], { all: true });
                         note.addModifier(new Annotation(sub.l)
                             .setVerticalJustification(3));
                         notes.push(note);
@@ -4234,16 +4397,16 @@
                     const note = new StaveNote({
                         keys: ['b/4'],
                         duration: dur,
-                        stem_direction: Stem.UP
+                        stemDirection: Stem.UP
                     });
-                    if (dotSet3.has(tokenDur)) note.addDotToAll();
+                    if (dotSet3.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
                     note.addModifier(new Annotation(token)
                         .setVerticalJustification(3));
                     notes.push(note);
                 }
             });
 
-            const voice = new Voice({ num_beats: 4, beat_value: 4 });
+            const voice = new Voice({ numBeats: 4, beatValue: 4 });
             voice.setMode(2); // SOFT mode — allow incomplete bars
             voice.addTickables(notes);
 
@@ -4256,7 +4419,7 @@
 
     /* ── VexFlow renderer for game-phase (single bar + scanner) ── */
     function _renderVexFlowGameBar(barLabel, container) {
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot } = VexFlow;
         container.innerHTML = '';
 
         const W = container.clientWidth || 360;
@@ -4295,8 +4458,8 @@
                 compound.forEach(sub => {
                     const dur = durMap[sub.d];
                     if (!dur) return;
-                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
-                    if (dotSet.has(sub.d)) note.addDotToAll();
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                    if (dotSet.has(sub.d)) Dot.buildAndAttach([note], { all: true });
                     note.addModifier(new Annotation(sub.l).setVerticalJustification(3));
                     vfNotes.push(note);
                     group.push(note);
@@ -4308,8 +4471,8 @@
                 const tokenDur = getRhythmTokenDuration(token);
                 const dur = durMap[tokenDur];
                 if (!dur) return;
-                const note = new StaveNote({ keys: ['b/4'], duration: dur, stem_direction: Stem.UP });
-                if (dotSet.has(tokenDur)) note.addDotToAll();
+                const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                if (dotSet.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
                 note.addModifier(new Annotation(token).setVerticalJustification(3));
                 vfNotes.push(note);
                 vfToGame.push([gameNoteIdx]);
@@ -4317,7 +4480,7 @@
             }
         });
 
-        const voice = new Voice({ num_beats: 4, beat_value: 4 });
+        const voice = new Voice({ numBeats: 4, beatValue: 4 });
         voice.setMode(2);
         voice.addTickables(vfNotes);
         new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
@@ -6271,102 +6434,192 @@
     const INSTRUMENT_BANK = [
         // ── 弦樂 Strings ──
         { id:'violin',      nameZh:'小提琴',     nameEn:'Violin',       family:'strings',    familyZh:'弦樂', img:'img/instruments/violin.svg', desc:'弦樂家族中音域最高的樂器',
+          history:'小提琴誕生於16世紀的意大利，由安德烈亞·阿馬蒂製作。它是管弦樂團中數量最多的樂器，有四根弦，用弓拉奏。著名的小提琴製作師包括斯特拉迪瓦里和瓜奈里。',
+          video:'https://www.youtube.com/embed/I03Hs6dwj7E',
           synthParams:{ wave:'sawtooth', freq:660, dur:1.0, attack:0.05, vol:0.25, filterType:'lowpass', filterFreq:2200, filterQ:1, vibRate:5.5, vibDepth:4 }},
         { id:'viola',        nameZh:'中提琴',     nameEn:'Viola',        family:'strings',    familyZh:'弦樂', img:'img/instruments/viola.svg', desc:'比小提琴稍大，音色較溫暖',
+          history:'中提琴與小提琴同時出現在16世紀，體型比小提琴大約15%。音色較溫暖深沉，在管弦樂團中負責中音聲部，使用中音譜號（C譜號）記譜。',
+          video:'https://www.youtube.com/embed/nSIAJbJOn7U',
           synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.06, vol:0.25, filterType:'lowpass', filterFreq:1800, filterQ:1, vibRate:5, vibDepth:3.5 }},
         { id:'cello',        nameZh:'大提琴',     nameEn:'Cello',        family:'strings',    familyZh:'弦樂', img:'img/instruments/cello.svg', desc:'坐着演奏的大型弦樂器',
+          history:'大提琴全名為Violoncello，16世紀在意大利誕生。演奏時需坐着，樂器以尾針支撐於地上。音域寬廣，既能演奏低音旋律，也能表現高亢的獨奏。',
+          video:'https://www.youtube.com/embed/PCicM6i59_I',
           synthParams:{ wave:'sawtooth', freq:220, dur:1.2, attack:0.07, vol:0.28, filterType:'lowpass', filterFreq:1500, filterQ:0.8, vibRate:4.5, vibDepth:3 }},
         { id:'double-bass',  nameZh:'低音大提琴', nameEn:'Double Bass',  family:'strings',    familyZh:'弦樂', img:'img/instruments/double-bass.svg', desc:'弦樂家族中最大最低沉的',
+          history:'低音大提琴是弦樂家族中最大的樂器，高約180厘米。它既用於古典管弦樂團，也是爵士樂隊的重要成員。演奏者通常站着或坐在高凳上演奏。',
+          video:'https://www.youtube.com/embed/oT6gMz8uJSc',
           synthParams:{ wave:'sawtooth', freq:110, dur:1.2, attack:0.08, vol:0.3, filterType:'lowpass', filterFreq:1000, filterQ:0.7, vibRate:4, vibDepth:2 }},
-        { id:'harp',         nameZh:'豎琴',       nameEn:'Harp',         family:'strings',    familyZh:'弦樂', img:'img/instruments/harp.svg', desc:'用手指撥弦演奏的大型樂器',
+        { id:'harp',         nameZh:'豎琴',       nameEn:'Harp',         family:'strings',    familyZh:'弦樂', img:'img/instruments/cards/harp.png', desc:'用手指撥弦演奏的大型樂器',
+          history:'豎琴是最古老的樂器之一，可追溯至公元前3000年的古埃及。現代演奏用的踏板豎琴有47根弦和7個踏板，通過踏板可改變音高，演奏所有調性。',
+          video:'https://www.youtube.com/embed/G1fYMudETCg',
           synthParams:{ wave:'sine', freq:523, dur:1.5, attack:0.005, vol:0.3, sustain:0.3 }},
-        { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/guitar.svg', desc:'用手指或撥片彈奏的弦樂器',
+        { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/cards/guitar.png', desc:'用手指或撥片彈奏的弦樂器',
+          history:'結他的歷史可追溯至4000年前。現代古典結他有6根弦，由西班牙工匠安東尼奧·德·托雷斯在19世紀定型。結他是世界上最流行的樂器之一。',
+          video:'https://www.youtube.com/embed/jgOQGDEEZyc',
           synthParams:{ wave:'triangle', freq:330, dur:1.0, attack:0.005, vol:0.3, filterType:'lowpass', filterFreq:2500, filterQ:0.5 }},
         { id:'bass-guitar',  nameZh:'低音結他',   nameEn:'Bass Guitar',  family:'strings',    familyZh:'弦樂', img:'img/instruments/bass-guitar.svg', desc:'電低音弦樂器，節奏的支柱',
+          history:'電低音結他在1930年代發明，通常有4根弦。它在搖滾、流行和爵士音樂中不可或缺，負責節奏和低音線條，是樂隊的基礎支柱。',
+          video:'https://www.youtube.com/embed/0Uc3r8ABdYQ',
           synthParams:{ wave:'triangle', freq:165, dur:1.0, attack:0.005, vol:0.35, filterType:'lowpass', filterFreq:1200, filterQ:0.5 }},
-        { id:'ukulele',      nameZh:'烏克麗麗',   nameEn:'Ukulele',      family:'strings',    familyZh:'弦樂', img:'img/instruments/ukulele.svg', desc:'來自夏威夷的小型四弦琴',
+        { id:'ukulele',      nameZh:'烏克麗麗',   nameEn:'Ukulele',      family:'strings',    familyZh:'弦樂', img:'img/instruments/cards/ukulele.png', desc:'來自夏威夷的小型四弦琴',
+          history:'烏克麗麗在19世紀由葡萄牙移民帶到夏威夷並發展而成。名字在夏威夷語中意為「跳動的跳蚤」。它有4根弦，體型小巧，音色輕快明亮。',
+          video:'https://www.youtube.com/embed/5MgBikgcWnY',
           synthParams:{ wave:'triangle', freq:440, dur:0.6, attack:0.003, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.5 }},
-        { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/banjo.svg', desc:'圓形共鳴體的撥弦樂器',
+        { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/cards/banjo.png', desc:'圓形共鳴體的撥弦樂器',
+          history:'班卓琴源自非洲，由被販賣到美洲的非洲人帶來。圓形琴身以動物皮膜覆蓋，產生獨特的清脆音色。它是美國鄉村音樂和藍草音樂的代表樂器。',
+          video:'https://www.youtube.com/embed/Cqtm2bHjVCg',
           synthParams:{ wave:'triangle', freq:392, dur:0.5, attack:0.002, vol:0.28, filterType:'lowpass', filterFreq:3500, filterQ:0.8 }},
-        { id:'mandolin',     nameZh:'曼陀林',     nameEn:'Mandolin',     family:'strings',    familyZh:'弦樂', img:'img/instruments/mandolin.svg', desc:'淚滴形的小型弦樂器',
+        { id:'mandolin',     nameZh:'曼陀林',     nameEn:'Mandolin',     family:'strings',    familyZh:'弦樂', img:'img/instruments/cards/mandolin.png', desc:'淚滴形的小型弦樂器',
+          history:'曼陀林起源於17世紀的意大利，由魯特琴演變而來。它有8根弦（4組雙弦），用撥片彈奏，音色清澈明亮，在意大利民謠和藍草音樂中常見。',
+          video:'https://www.youtube.com/embed/5HqXHLMFo5E',
           synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 }},
 
         // ── 木管 Woodwind ──
         { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.jpg', desc:'橫吹的金屬管樂器，音色清亮',
+          history:'長笛是最古老的樂器之一，最早的骨笛可追溯至四萬年前。現代長笛由德國人特奧巴爾德·波姆在1847年改良，改用金屬製造並設計了精密的按鍵系統。',
+          video:'https://www.youtube.com/embed/sVwMikNjaoo',
           synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 }},
         { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.jpg', desc:'用單簧片振動發聲',
+          history:'單簧管約在1700年由德國人約翰·克里斯托弗·丹納發明，由一片簧片振動發聲。它的音域寬廣達四個八度，在管弦樂和爵士樂中都很重要。',
+          video:'https://www.youtube.com/embed/IIHH9TGBN3U',
           synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 }},
         { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.jpg', desc:'音色尖銳明亮，用雙簧片發聲',
+          history:'雙簧管在17世紀由法國人從肖姆管發展而來，使用兩片蘆葦簧片振動發聲。管弦樂團通常以雙簧管的A音（440Hz）作為調音基準。',
+          video:'https://www.youtube.com/embed/2WJhax7Jiyg',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.02, vol:0.15, filterType:'bandpass', filterFreq:1200, filterQ:3, vibRate:5, vibDepth:3 }},
         { id:'bassoon',      nameZh:'巴松管',     nameEn:'Bassoon',      family:'woodwind',   familyZh:'木管', img:'img/instruments/bassoon.jpg', desc:'木管家族中音域最低',
+          history:'巴松管在16世紀的意大利發展而成，管身長約2.6米，折疊成U型。它使用雙簧片發聲，是木管家族中音域最低的常規成員，音色溫暖渾厚。',
+          video:'https://www.youtube.com/embed/KaaJIGMjbhM',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
         { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.svg', desc:'音樂課最常見的樂器',
+          history:'牧童笛（直笛）的歷史可追溯至中世紀，在文藝復興和巴洛克時期非常流行。它構造簡單，是最適合初學者的管樂器，也是音樂課最常見的樂器。',
+          video:'https://www.youtube.com/embed/J4b3KCe58Pw',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
         { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.jpg', desc:'比長笛更小，音域最高',
+          history:'短笛是長笛的小型版本，長度約為長笛的一半，音域比長笛高一個八度。它是管弦樂團中音域最高的木管樂器，聲音尖銳穿透力極強。',
+          video:'https://www.youtube.com/embed/u0tcMDr-khs',
           synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
         { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english-horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
+          history:'英國管其實既不是「英國的」也不是「號角」，名字可能來自法語的「彎角」。它比雙簧管長，音域低五度，末端有獨特的梨形喇叭口，音色溫暖哀愁。',
+          video:'https://www.youtube.com/embed/MCPaAkOj-yE',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.03, vol:0.18, filterType:'bandpass', filterFreq:1000, filterQ:2.5, vibRate:4.5, vibDepth:2.5 }},
         { id:'alto-sax',     nameZh:'中音薩克斯風', nameEn:'Alto Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/alto-sax.jpg', desc:'最常見的薩克斯風，音色溫暖',
+          history:'薩克斯風由比利時人阿道夫·薩克斯於1846年發明。中音薩克斯風是最常見的型號，雖然是銅製的，但因使用簧片發聲而被歸類為木管樂器。',
+          video:'https://www.youtube.com/embed/B5s5yOOCH4c',
           synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.02, vol:0.22, filterType:'lowpass', filterFreq:2200, filterQ:2, vibRate:5, vibDepth:3 }},
         { id:'tenor-sax',    nameZh:'次中音薩克斯風', nameEn:'Tenor Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/tenor-sax.jpg', desc:'爵士樂中最受歡迎的薩克斯風',
+          history:'次中音薩克斯風比中音薩克斯風大，音域更低。它是爵士樂中最受歡迎的樂器之一，著名演奏家包括約翰·科爾特蘭和索尼·羅林斯。',
+          video:'https://www.youtube.com/embed/JM_G4CnvJkg',
           synthParams:{ wave:'sawtooth', freq:330, dur:1.0, attack:0.02, vol:0.24, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:3 }},
         { id:'soprano-sax',  nameZh:'高音薩克斯風', nameEn:'Soprano Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/soprano-sax.jpg', desc:'直管型薩克斯風，音域最高',
+          history:'高音薩克斯風是薩克斯風家族中最小的常見成員，通常為直管形狀。它的音色明亮穿透，在爵士樂和古典音樂中都有出色表現。',
+          video:'https://www.youtube.com/embed/UPCCwHkOexk',
           synthParams:{ wave:'sawtooth', freq:587, dur:0.9, attack:0.02, vol:0.2, filterType:'lowpass', filterFreq:2800, filterQ:2, vibRate:5.5, vibDepth:3.5 }},
         { id:'baritone-sax', nameZh:'上低音薩克斯風', nameEn:'Baritone Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/baritone-sax.jpg', desc:'最大的常見薩克斯風，音域最低',
+          history:'上低音薩克斯風是薩克斯風家族中體型最大的常見型號，重約5公斤。它提供深沉有力的低音，在爵士大樂團和管樂團中擔任低音聲部。',
+          video:'https://www.youtube.com/embed/lM6MYK1bXUI',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.2, attack:0.03, vol:0.26, filterType:'lowpass', filterFreq:1200, filterQ:1.8, vibRate:4, vibDepth:2 }},
         { id:'harmonica',    nameZh:'口琴',       nameEn:'Harmonica',    family:'woodwind',   familyZh:'木管', img:'img/instruments/harmonica.svg', desc:'用嘴吹奏的小型簧片樂器',
+          history:'口琴在1820年代由歐洲人發明，體積小巧便於攜帶。通過吹氣和吸氣使金屬簧片振動發聲，在藍調、民謠和流行音樂中廣泛使用。',
+          video:'https://www.youtube.com/embed/RbkmSRaPgCE',
           synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.02, vol:0.18, filterType:'lowpass', filterFreq:2000, filterQ:1.5, vibRate:6, vibDepth:3 }},
         { id:'bagpipes',     nameZh:'風笛',       nameEn:'Bagpipes',     family:'woodwind',   familyZh:'木管', img:'img/instruments/bagpipes.svg', desc:'蘇格蘭傳統的風袋管樂器',
+          history:'風笛的歷史可追溯至古羅馬時期，在蘇格蘭成為最具代表性的文化象徵。演奏者向風袋吹氣，風袋持續擠壓空氣通過管道發聲，可產生持續不斷的聲音。',
+          video:'https://www.youtube.com/embed/RA1pjGkMnSg',
           synthParams:{ wave:'sawtooth', freq:466, dur:2.0, attack:0.1, vol:0.2, filterType:'bandpass', filterFreq:1000, filterQ:2, vibRate:3, vibDepth:2 }},
         { id:'pan-flute',    nameZh:'排笛',       nameEn:'Pan Flute',    family:'woodwind',   familyZh:'木管', img:'img/instruments/pan-flute.svg', desc:'由長短不同的管子排成一排',
+          history:'排笛以希臘神話中的牧神潘命名，由多根長短不同的管子並排組成。它在南美洲安第斯地區的音樂傳統中尤其重要，音色空靈悠遠。',
+          video:'https://www.youtube.com/embed/kBXnE7OoOBc',
           synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
 
         // ── 銅管 Brass ──
         { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.jpg', desc:'音色明亮響亮的銅管樂器',
+          history:'小號的歷史可追溯至3000年前的古埃及，最初用於軍事和儀式。現代活塞小號在1820年代發明，有三個活塞，是銅管家族中音域最高的樂器。',
+          video:'https://www.youtube.com/embed/oja-GQ5HRhw',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:3 }},
         { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.jpg', desc:'用滑管改變音高',
+          history:'長號在15世紀出現，是銅管家族中唯一使用滑管（而非活塞）改變音高的樂器。滑管有七個把位，可以演奏出滑順的滑音效果。',
+          video:'https://www.youtube.com/embed/kA-bUPmrbWU',
           synthParams:{ wave:'sawtooth', freq:233, dur:1.0, attack:0.02, vol:0.25, filterType:'lowpass', filterFreq:2000, filterQ:2 }},
         { id:'french-horn',  nameZh:'圓號',       nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.jpg', desc:'圓形的銅管樂器，音色柔和',
+          history:'圓號源自狩獵號角，管身展開全長約3.7米。它被認為是最難演奏的銅管樂器，音色柔和溫暖，常用於表現大自然和英雄主題的音樂。',
+          video:'https://www.youtube.com/embed/nBFGJmEGKho',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:4, vibDepth:2 }},
         { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.jpg', desc:'銅管家族最大最低沉',
+          history:'大號在1835年由德國人威廉·維普雷希特發明，是銅管家族中最大最低沉的樂器。它重約12公斤，管身展開長達5.5米，為管弦樂團提供低音基礎。',
+          video:'https://www.youtube.com/embed/RxC67qSbkzs',
           synthParams:{ wave:'sawtooth', freq:131, dur:1.0, attack:0.03, vol:0.3, filterType:'lowpass', filterFreq:800, filterQ:1.5 }},
         { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.svg', desc:'比小號稍小，音色較柔和',
+          history:'短號在1820年代發展自郵號，外形與小號相似但管身更短更圓錐形。音色比小號柔和甜美，在英式銅管樂隊中是最重要的獨奏樂器。',
+          video:'https://www.youtube.com/embed/1JbJaFKjBAY',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.2, filterType:'lowpass', filterFreq:2500, filterQ:2.5 }},
 
         // ── 敲擊 Percussion ──
-        { id:'timpani',      nameZh:'定音鼓',     nameEn:'Timpani',      family:'percussion', familyZh:'敲擊', img:'img/instruments/timpani.svg', desc:'可調音高的大型鼓',
+        { id:'timpani',      nameZh:'定音鼓',     nameEn:'Timpani',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/timpani.png', desc:'可調音高的大型鼓',
+          history:'定音鼓起源於中世紀的阿拉伯鼓，是管弦樂團中最重要的敲擊樂器。它可以通過踏板精確調節音高，通常一組有2至5個大小不同的鼓。',
+          video:'https://www.youtube.com/embed/v3cWA7ohOEA',
           synthParams:{ wave:'sine', freq:150, freqEnd:80, dur:0.8, attack:0.005, vol:0.35 }},
-        { id:'snare',        nameZh:'小軍鼓',     nameEn:'Snare Drum',   family:'percussion', familyZh:'敲擊', img:'img/instruments/snare.svg', desc:'底部有響弦的小鼓',
+        { id:'snare',        nameZh:'小軍鼓',     nameEn:'Snare Drum',   family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/snare.png', desc:'底部有響弦的小鼓',
+          history:'小軍鼓底部繃有金屬響弦，敲擊時產生獨特的「嘶嘶」聲。它源自中世紀的軍鼓，是行軍和軍樂不可缺少的樂器，也是爵士鼓組的重要成員。',
+          video:'https://www.youtube.com/embed/W2IDYzzHObM',
           synthParams:{ noise:true, dur:0.2, filterType:'highpass', filterFreq:2000, filterQ:0.5, vol:0.35 }},
-        { id:'bass-drum',    nameZh:'大鼓',       nameEn:'Bass Drum',    family:'percussion', familyZh:'敲擊', img:'img/instruments/bass-drum.svg', desc:'管弦樂中最大的鼓',
+        { id:'bass-drum',    nameZh:'大鼓',       nameEn:'Bass Drum',    family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/bass-drum.png', desc:'管弦樂中最大的鼓',
+          history:'大鼓是管弦樂團中最大的敲擊樂器，直徑可達100厘米。它產生深沉有力的低音，常用於強調音樂的高潮和節拍重音，一槌就能震撼全場。',
+          video:'https://www.youtube.com/embed/g5F2-Kox4kg',
           synthParams:{ wave:'sine', freq:80, freqEnd:40, dur:0.6, attack:0.005, vol:0.4 }},
-        { id:'xylophone',    nameZh:'木琴',       nameEn:'Xylophone',    family:'percussion', familyZh:'敲擊', img:'img/instruments/xylophone.svg', desc:'用小槌敲擊木條的樂器',
+        { id:'xylophone',    nameZh:'木琴',       nameEn:'Xylophone',    family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/xylophone.png', desc:'用小槌敲擊木條的樂器',
+          history:'木琴源自東南亞和非洲，由按音高排列的木條組成。演奏者用小槌敲擊木條，音色清脆明亮，在管弦樂和敲擊樂合奏中都很常見。',
+          video:'https://www.youtube.com/embed/dPdI0S8gm3w',
           synthParams:{ wave:'sine', freq:880, dur:0.4, attack:0.002, vol:0.28, sustain:0.15 }},
-        { id:'triangle',     nameZh:'三角鐵',     nameEn:'Triangle',     family:'percussion', familyZh:'敲擊', img:'img/instruments/triangle-inst.svg', desc:'三角形的金屬棒，聲音清脆',
+        { id:'triangle',     nameZh:'三角鐵',     nameEn:'Triangle',     family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/triangle.png', desc:'三角形的金屬棒，聲音清脆',
+          history:'三角鐵是一根彎成三角形的鋼棒，用金屬棒敲擊發聲。雖然構造簡單，但在管弦樂中扮演重要角色，聲音清亮穿透，能為音樂增添光彩。',
+          video:'https://www.youtube.com/embed/80IEHncg-io',
           synthParams:{ wave:'sine', freq:2200, dur:1.2, attack:0.001, vol:0.15, sustain:0.2 }},
-        { id:'cymbals',      nameZh:'鈸',         nameEn:'Cymbals',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cymbals.svg', desc:'兩片圓形金屬板互擊',
+        { id:'cymbals',      nameZh:'鈸',         nameEn:'Cymbals',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/cymbals.png', desc:'兩片圓形金屬板互擊',
+          history:'鈸的歷史可追溯至古代中國和土耳其。由青銅合金製成的圓形金屬板，互相碰擊或用鼓棒敲擊發聲，能產生從輕柔到震耳的多種音效。',
+          video:'https://www.youtube.com/embed/8JKfiT_PxYM',
           synthParams:{ noise:true, dur:0.8, filterType:'highpass', filterFreq:5000, filterQ:0.3, vol:0.25 }},
-        { id:'tambourine',   nameZh:'鈴鼓',       nameEn:'Tambourine',   family:'percussion', familyZh:'敲擊', img:'img/instruments/tambourine.svg', desc:'有小鈸片的手鼓',
+        { id:'tambourine',   nameZh:'鈴鼓',       nameEn:'Tambourine',   family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/tambourine.png', desc:'有小鈸片的手鼓',
+          history:'鈴鼓結合了鼓面和小金屬鈸片，搖晃或敲擊時發出節奏感十足的聲音。它廣泛用於各種音樂風格，從古典到流行，是最容易上手的敲擊樂器之一。',
+          video:'https://www.youtube.com/embed/P0pJr0Mz-Os',
           synthParams:{ noise:true, dur:0.35, filterType:'bandpass', filterFreq:6000, filterQ:1, vol:0.22 }},
-        { id:'glockenspiel', nameZh:'鐘琴',       nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'img/instruments/glockenspiel.svg', desc:'金屬音條，聲音像鐘聲',
+        { id:'glockenspiel', nameZh:'鐘琴',       nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/glockenspiel.png', desc:'金屬音條，聲音像鐘聲',
+          history:'鐘琴由金屬音條組成，音色清脆悅耳如同小鐘。它在管弦樂中增添亮麗色彩，莫札特的《魔笛》中的著名段落就使用了鐘琴的美妙音色。',
+          video:'https://www.youtube.com/embed/GXJQ3GzKL0o',
           synthParams:{ wave:'sine', freq:1760, dur:0.8, attack:0.001, vol:0.2, sustain:0.15 }},
-        { id:'marimba',      nameZh:'馬林巴琴',   nameEn:'Marimba',      family:'percussion', familyZh:'敲擊', img:'img/instruments/marimba.svg', desc:'大型木質音條敲擊樂器',
+        { id:'marimba',      nameZh:'馬林巴琴',   nameEn:'Marimba',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/marimba.png', desc:'大型木質音條敲擊樂器',
+          history:'馬林巴琴源自非洲和中美洲，是木琴的大型版本。每根木條下方都有共鳴管，使音色更為豐富溫暖，是危地馬拉和墨西哥的國樂器。',
+          video:'https://www.youtube.com/embed/kfp0tGB7I74',
           synthParams:{ wave:'sine', freq:440, dur:0.6, attack:0.003, vol:0.3, sustain:0.2 }},
-        { id:'vibraphone',   nameZh:'顫音琴',     nameEn:'Vibraphone',   family:'percussion', familyZh:'敲擊', img:'img/instruments/vibraphone.svg', desc:'金屬音條帶電動顫音效果',
+        { id:'vibraphone',   nameZh:'顫音琴',     nameEn:'Vibraphone',   family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/vibraphone.png', desc:'金屬音條帶電動顫音效果',
+          history:'顫音琴在1920年代發明，金屬音條下方的共鳴管內有電動旋轉盤，產生獨特的顫音效果。它是爵士樂中重要的旋律敲擊樂器。',
+          video:'https://www.youtube.com/embed/n_yI3DP0wMo',
           synthParams:{ wave:'sine', freq:880, dur:1.0, attack:0.002, vol:0.22, vibRate:5, vibDepth:4, sustain:0.2 }},
         { id:'drums',        nameZh:'爵士鼓',     nameEn:'Drums',        family:'percussion', familyZh:'敲擊', img:'img/instruments/drums.svg', desc:'包含多種鼓和鈸的套鼓',
+          history:'爵士鼓組在20世紀初隨著爵士樂發展而誕生，將多種鼓和鈸組合在一起由一人演奏。標準配置包括大鼓、小鼓、通鼓、腳踏鈸和吊鈸。',
+          video:'https://www.youtube.com/embed/Dbr7B1OvOns',
           synthParams:{ noise:true, dur:0.3, filterType:'highpass', filterFreq:3000, filterQ:0.5, vol:0.3 }},
 
         // ── 鍵盤 Keyboard ──
-        { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.svg', desc:'最常見的鍵盤樂器',
+        { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/cards/piano.png', desc:'最常見的鍵盤樂器',
+          history:'鋼琴在1700年由意大利人巴爾托洛梅奧·克里斯托福里發明，全名為Pianoforte，意為「輕聲和強聲」。現代鋼琴有88個鍵，音域寬廣，是最受歡迎的樂器之一。',
+          video:'https://www.youtube.com/embed/vGq3-Fi_zQY',
           synthParams:{ wave:'triangle', freq:523, dur:1.2, attack:0.005, vol:0.3, sustain:0.3 }},
         { id:'keyboard',     nameZh:'電子琴',     nameEn:'Keyboard',     family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/keyboard.svg', desc:'電子鍵盤樂器，可模仿多種音色',
+          history:'電子琴在1960年代開始流行，利用電子技術產生聲音，可模仿鋼琴、管風琴等多種樂器音色。它體積輕便、功能多樣，是音樂學習和表演的好幫手。',
+          video:'https://www.youtube.com/embed/3gb67NLCMHY',
           synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.005, vol:0.2, filterType:'lowpass', filterFreq:2000, filterQ:1 }},
-        { id:'organ',        nameZh:'管風琴',     nameEn:'Organ',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/organ.svg', desc:'用風管發聲的大型鍵盤樂器',
+        { id:'organ',        nameZh:'管風琴',     nameEn:'Organ',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/cards/organ.png', desc:'用風管發聲的大型鍵盤樂器',
+          history:'管風琴被稱為「樂器之王」，最早的水壓管風琴出現在公元前3世紀。大型管風琴有數千根音管，多層鍵盤和腳踏板，常見於教堂和音樂廳。',
+          video:'https://www.youtube.com/embed/JeB3JnKp8To',
           synthParams:{ wave:'sine', freq:262, dur:2.0, attack:0.05, vol:0.25, vibRate:3, vibDepth:2 }},
-        { id:'harpsichord',  nameZh:'大鍵琴',     nameEn:'Harpsichord',  family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/harpsichord.svg', desc:'撥弦發聲的古典鍵盤樂器',
+        { id:'harpsichord',  nameZh:'大鍵琴',     nameEn:'Harpsichord',  family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/cards/harpsichord.png', desc:'撥弦發聲的古典鍵盤樂器',
+          history:'大鍵琴是巴洛克時期（1600-1750）最重要的鍵盤樂器，通過撥片撥動弦線發聲，與鋼琴用槌敲弦的方式不同。巴赫的許多作品都是為大鍵琴而寫。',
+          video:'https://www.youtube.com/embed/48jQemMPBps',
           synthParams:{ wave:'triangle', freq:523, dur:0.6, attack:0.002, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:1 }},
-        { id:'accordion',    nameZh:'手風琴',     nameEn:'Accordion',    family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/accordion.svg', desc:'用風箱和按鍵演奏的樂器',
+        { id:'accordion',    nameZh:'手風琴',     nameEn:'Accordion',    family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/cards/accordion.png', desc:'用風箱和按鍵演奏的樂器',
+          history:'手風琴在1822年由奧地利人發明，通過拉伸和壓縮風箱使空氣流過金屬簧片發聲。它在法國香頌、阿根廷探戈和民間音樂中廣泛使用。',
+          video:'https://www.youtube.com/embed/dsXVFllBGig',
           synthParams:{ wave:'square', freq:440, dur:1.0, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:5, vibDepth:3 }},
     ];
 
@@ -6687,25 +6940,110 @@
         if (familyFilter && familyFilter !== 'all') items = items.filter(i => i.family === familyFilter);
 
         grid.innerHTML = items.map(inst => {
-            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img">` : `<div class="g4-study-emoji">🎵</div>`;
+            const isCard = inst.img && inst.img.includes('/cards/');
+            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img" loading="lazy">` : `<div class="g4-study-emoji">🎵</div>`;
             return `
-            <div class="g4-study-card">
+            <div class="g4-study-card${isCard ? ' has-card-img' : ''}" data-id="${inst.id}">
                 ${imgHtml}
                 <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
                 <div class="g4-study-name">${inst.nameZh}</div>
                 <div class="g4-study-en">${inst.nameEn}</div>
-                <div style="font-size:0.75rem;color:var(--text-light);margin-top:4px;">${inst.desc}</div>
+                <div class="g4-study-desc">${inst.desc}</div>
                 <button class="g4-study-listen" data-id="${inst.id}">🔊 試聽</button>
             </div>
         `}).join('');
 
         grid.querySelectorAll('.g4-study-listen').forEach(btn => {
-            btn.onclick = () => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
                 Audio.playInstrumentSound(btn.dataset.id);
                 btn.textContent = '🔊 播放中…';
                 setTimeout(() => { btn.textContent = '🔊 試聽'; }, 800);
             };
         });
+
+        grid.querySelectorAll('.g4-study-card').forEach(card => {
+            card.onclick = (e) => {
+                if (e.target.closest('.g4-study-listen')) return;
+                showInstrumentDetail(card.dataset.id);
+            };
+        });
+    }
+
+    // ── Game 4 Instrument Detail Modal ──
+    function showInstrumentDetail(instrId) {
+        const inst = INSTRUMENT_BANK.find(i => i.id === instrId);
+        if (!inst) return;
+
+        // Remove existing modal if any
+        closeInstrumentDetail();
+
+        const isCard = inst.img && inst.img.includes('/cards/');
+        const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-modal-img${isCard ? ' card-img' : ''}">` : '';
+        const videoHtml = inst.video
+            ? `<div class="g4-modal-section-title">🎬 演奏示範</div>
+               <div class="g4-modal-video-wrap">
+                   <iframe src="${inst.video}" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+               </div>`
+            : '';
+        const historyHtml = inst.history
+            ? `<div class="g4-modal-section-title">📖 樂器小故事</div>
+               <p class="g4-modal-history">${inst.history}</p>`
+            : '';
+
+        const modal = document.createElement('div');
+        modal.className = 'g4-instrument-modal';
+        modal.id = 'g4InstrumentModal';
+        modal.innerHTML = `
+            <div class="g4-instrument-modal-box">
+                <button class="g4-modal-close" id="g4ModalClose">✕</button>
+                <div class="g4-modal-header">
+                    ${imgHtml}
+                    <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
+                    <div class="g4-modal-name">${inst.nameZh}</div>
+                    <div class="g4-modal-en">${inst.nameEn}</div>
+                </div>
+                ${historyHtml}
+                ${videoHtml}
+                <button class="g4-modal-listen" id="g4ModalListen">🔊 試聽音色</button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+        // Close handlers
+        document.getElementById('g4ModalClose').onclick = closeInstrumentDetail;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeInstrumentDetail();
+        };
+        modal._escHandler = (e) => {
+            if (e.key === 'Escape') closeInstrumentDetail();
+        };
+        document.addEventListener('keydown', modal._escHandler);
+
+        // Listen button
+        const listenBtn = document.getElementById('g4ModalListen');
+        listenBtn.onclick = () => {
+            Audio.playInstrumentSound(instrId);
+            listenBtn.textContent = '🔊 播放中…';
+            setTimeout(() => { listenBtn.textContent = '🔊 試聽音色'; }, 1000);
+        };
+    }
+
+    function closeInstrumentDetail() {
+        const modal = document.getElementById('g4InstrumentModal');
+        if (!modal) return;
+        // Stop YouTube video
+        const iframe = modal.querySelector('iframe');
+        if (iframe) iframe.src = '';
+        // Remove escape listener
+        if (modal._escHandler) document.removeEventListener('keydown', modal._escHandler);
+        // Close animation
+        const box = modal.querySelector('.g4-instrument-modal-box');
+        if (box) box.style.animation = 'g4ModalBoxIn 0.18s ease reverse both';
+        modal.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
+        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; }, 180);
     }
 
 })();

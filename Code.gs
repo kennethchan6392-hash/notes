@@ -44,22 +44,44 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const sheetName = GAME_SHEETS[rec.game] || GAME_SHEETS['game1'];
+    // Input validation
+    const validGames = Object.keys(GAME_SHEETS);
+    if (validGames.indexOf(rec.game) === -1) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: 'invalid game' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const grade = parseInt(rec.grade);
+    if (isNaN(grade) || grade < 1 || grade > 6) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: 'invalid grade' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const score = parseInt(rec.score) || 0;
+    const accuracy = Math.max(0, Math.min(100, parseInt(rec.accuracy) || 0));
+    const name = String(rec.name || '').trim().slice(0, 20);
+    if (!name) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: 'invalid name' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const sheetName = GAME_SHEETS[rec.game];
     const sheet = getSheet(sheetName);
 
-    // 寫入順序必須與 COLUMNS 一致
+    // 寫入順序必須與 COLUMNS 一致 — use server timestamp
     sheet.appendRow([
-      String(rec.name             || '').trim(),
-      String(rec.grade            || ''),
+      name,
+      String(grade),
       String(rec.class            || '').trim(),
       String(rec.id               || '').trim(),
       String(rec.mode             || ''),
       String(rec.mode_name        || ''),
-      parseInt(rec.score)         || 0,
+      score,
       parseInt(rec.max_combo)     || 0,
       parseInt(rec.total_questions) || 0,
-      parseInt(rec.accuracy)      || 0,
-      rec.timestamp               || new Date().toLocaleString('zh-TW')
+      accuracy,
+      new Date().toLocaleString('zh-TW')
     ]);
 
     return ContentService
@@ -75,12 +97,17 @@ function doPost(e) {
 
 // ── 讀取排行榜（GET） ────────────────────────────────────────
 // 合併所有工作表，每筆紀錄加上 game 欄位供前端篩選
+// Supports optional ?game=game1 parameter to limit data returned
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let allRows = [];
+    const filterGame = (e && e.parameter && e.parameter.game) ? e.parameter.game : null;
+    const sheetsToLoad = filterGame && GAME_SHEETS[filterGame]
+      ? [[filterGame, GAME_SHEETS[filterGame]]]
+      : Object.entries(GAME_SHEETS);
 
-    Object.entries(GAME_SHEETS).forEach(([gameKey, sheetName]) => {
+    sheetsToLoad.forEach(([gameKey, sheetName]) => {
       const sheet = ss.getSheetByName(sheetName);
       if (!sheet) return;
       const data = sheet.getDataRange().getValues();
