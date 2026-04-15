@@ -1221,6 +1221,19 @@
         return TEXTBOOK_CONFIG[tbKey];
     }
 
+    function _getEffectiveGrade() {
+        const selectedGrade = parseInt(dom.userGrade?.value, 10);
+        if (!Number.isNaN(selectedGrade) && selectedGrade > 0) return selectedGrade;
+        const userGrade = parseInt(state.currentUser?.grade, 10);
+        if (!Number.isNaN(userGrade) && userGrade > 0) return userGrade;
+        return 3;
+    }
+
+    function _isLowerGradeNoAccidentals() {
+        const grade = _getEffectiveGrade();
+        return grade === 1 || grade === 2;
+    }
+
     function generateNote() {
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
@@ -1237,6 +1250,7 @@
             const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
             const lvl = (CHALLENGE_LEVELS[clef] && CHALLENGE_LEVELS[clef][gradeKey]) || CHALLENGE_LEVELS.treble[3];
             accidentalChance = lvl.accidentalChance;
+            if (_isLowerGradeNoAccidentals()) accidentalChance = 0;
             allowAbove = lvl.ledgerAbove; allowBelow = lvl.ledgerBelow;
             noteRange = lvl.noteRange;
             // Skip the clef selection below — we already chose
@@ -1258,6 +1272,7 @@
             // Practice mode — use difficulty-based config
             const config = _getPracticeConfig();
             clefOptions = config.clef; accidentalChance = config.accidentalChance; noteRange = config.noteRange; allowAbove = config.ledgerAbove; allowBelow = config.ledgerBelow;
+            if (_isLowerGradeNoAccidentals()) accidentalChance = 0;
         }
 
         const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
@@ -1293,6 +1308,7 @@
         } else {
             hasAccidentals = _getPracticeConfig().accidentalChance > 0;
         }
+        if (_isLowerGradeNoAccidentals()) hasAccidentals = false;
         const showSharp = hasAccidentals;
         const showFlat  = hasAccidentals;
 
