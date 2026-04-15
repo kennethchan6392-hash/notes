@@ -27,7 +27,7 @@
         classic60:{ name:'高音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'treble' },
         bass60:   { name:'低音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'bass' },
         mixed60:  { name:'混合譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1.2, forceClef:'mixed' },
-        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:60, maxWrong:1, scoreMulti:1.5 }
+        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 }
     };
 
     const TEXTBOOK_CONFIG = {
