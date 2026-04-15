@@ -6942,4 +6942,230 @@
             const pts = 10 + comboBonus;
             g4State.score += pts;
             document.getElementById('g4Message').textContent = `✅ 答對了！+${pts}分`;
-            Audio.playE
+            Audio.playEffect('countdown');
+        } else {
+            g4State.counts.wrong++;
+            g4State.combo = 0;
+            g4State.mistakes.push({
+                q: q.type.includes('family') ? `${q.instrument.nameZh}的家族` : q.type.includes('audio') ? `聽音辨別（${q.instrument.nameZh}）` : `${q.instrument.desc}`,
+                chosen, correct,
+                explain: `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`
+            });
+            document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
+            Audio.playEffect('wrong');
+        }
+
+        document.getElementById('g4Score').textContent = g4State.score;
+        document.getElementById('g4Combo').textContent = g4State.combo;
+
+        // Next question after delay
+        setTimeout(() => {
+            g4State.currentIdx++;
+            if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
+                // Generate more questions for challenge mode
+                const more = generateG4Questions(20);
+                g4State.questions = g4State.questions.concat(more);
+            }
+            renderG4Question();
+        }, isCorrect ? 600 : 1200);
+    }
+
+    function endGame4() {
+        if (!g4State) return;
+        if (g4State.timerId) { clearInterval(g4State.timerId); g4State.timerId = null; }
+
+        const { user, mode, score, maxCombo, counts, familyStats, mistakes } = g4State;
+        const totalAnswered = counts.correct + counts.wrong;
+        const accuracy = totalAnswered > 0 ? Math.round((counts.correct / totalAnswered) * 100) : 0;
+        const practiceNote = mode === 'practice' ? '<div class="report-item"><div class="report-label">模式</div><div class="report-value">📝 練習</div></div>' : '';
+
+        document.getElementById('g4ReportGrid').innerHTML =
+            `<div class="report-item"><div class="report-label">答對題數</div><div class="report-value">${counts.correct} / ${totalAnswered}</div></div>` +
+            `<div class="report-item"><div class="report-label">準確率</div><div class="report-value">${accuracy}%</div></div>` +
+            `<div class="report-item"><div class="report-label">總分</div><div class="report-value">${score}</div></div>` +
+            `<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
+
+        // Family breakdown
+        const fbEl = document.getElementById('g4FamilyBreakdown');
+        const families = [
+            { key: 'strings', zh: '弦樂', color: '#E8739E' },
+            { key: 'woodwind', zh: '木管', color: '#5DB85D' },
+            { key: 'brass', zh: '銅管', color: '#F5A623' },
+            { key: 'percussion', zh: '敲擊', color: '#4A90D9' },
+            { key: 'keyboard', zh: '鍵盤', color: '#9B59B6' },
+        ];
+        let fbHtml = '<div style="font-weight:800;margin-bottom:8px;">🎼 各家族表現</div>';
+        families.forEach(f => {
+            const s = familyStats[f.key];
+            if (s.total === 0) return;
+            const pct = Math.round((s.correct / s.total) * 100);
+            fbHtml += `<div class="g4-family-bar">
+                <div class="g4-family-bar-label">${f.zh}</div>
+                <div class="g4-family-bar-track"><div class="g4-family-bar-fill" style="width:${pct}%;background:${f.color};"></div></div>
+                <div class="g4-family-bar-val">${pct}%</div>
+            </div>`;
+        });
+        fbEl.innerHTML = fbHtml;
+
+        // Weakness
+        document.getElementById('g4Weakness').innerHTML = counts.wrong === 0
+            ? '<div>🌟 全部答對！你是樂器辨別小專家！🎉</div>'
+            : `<div>繼續練習加油！正確 ${counts.correct}/${totalAnswered} 題。</div>`;
+
+        // Mistake review
+        const mistakeEl = document.getElementById('g4MistakeReview');
+        if (mistakeEl) {
+            if (mistakes.length > 0) {
+                mistakeEl.innerHTML = '<div class="mistake-review-title">📝 錯題回顧</div>' +
+                    mistakes.map(m => `<div class="mistake-item">
+                        <div class="mistake-q">${escHtml(m.q)}</div>
+                        <div class="mistake-detail"><span class="mistake-wrong">你的答案：${escHtml(String(m.chosen))}</span> → <span class="mistake-correct">正確：${escHtml(String(m.correct))}</span></div>
+                        ${m.explain ? `<div class="mistake-explain">💡 ${escHtml(m.explain)}</div>` : ''}
+                    </div>`).join('');
+            } else {
+                mistakeEl.innerHTML = '';
+            }
+        }
+
+        // Save scores
+        saveLocalRank('game4', user, score, accuracy, maxCombo);
+        if (mode !== 'practice') {
+            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別');
+        }
+
+        renderLocalRankList('game4', 'g4RankList', user);
+        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 2500);
+        document.getElementById('g4PlayAgain').onclick = () => switchScreen('screen-g4-setup');
+        document.getElementById('g4BackToHub').onclick = () => switchScreen('screen-g4-setup');
+        const g4Layout = document.getElementById('g4LeaderboardLayout');
+        if (g4Layout) g4Layout.classList.remove('view-only');
+        const g4RBack = document.getElementById('g4ResultBack');
+        if (g4RBack) g4RBack.style.display = 'none';
+        switchScreen('screen-game4-result');
+    }
+
+    // ── Game 4 Study Screen ──
+    function renderG4Study(familyFilter) {
+        const grid = document.getElementById('g4StudyGrid');
+        if (!grid) return;
+        let items = INSTRUMENT_BANK;
+        if (familyFilter && familyFilter !== 'all') items = items.filter(i => i.family === familyFilter);
+
+        grid.innerHTML = items.map(inst => {
+            const isCard = inst.img && inst.img.includes('/cards/');
+            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img" loading="lazy">` : `<div class="g4-study-emoji">🎵</div>`;
+            return `
+            <div class="g4-study-card${isCard ? ' has-card-img' : ''}" data-id="${inst.id}">
+                ${imgHtml}
+                <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
+                <div class="g4-study-name">${inst.nameZh}</div>
+                <div class="g4-study-en">${inst.nameEn}</div>
+                <div class="g4-study-desc">${inst.desc}</div>
+                <button class="g4-study-listen" data-id="${inst.id}">🔊 試聽</button>
+            </div>
+        `}).join('');
+
+        // Single delegated handler for entire grid
+        grid.onclick = (e) => {
+            const listenBtn = e.target.closest('.g4-study-listen');
+            if (listenBtn) {
+                e.stopPropagation();
+                Audio.playInstrumentSound(listenBtn.dataset.id);
+                listenBtn.textContent = '🔊 播放中…';
+                setTimeout(() => { listenBtn.textContent = '🔊 試聽'; }, 800);
+                return;
+            }
+            const card = e.target.closest('.g4-study-card');
+            if (card) showInstrumentDetail(card.dataset.id);
+        };
+    }
+
+    // ── Game 4 Instrument Detail Modal ──
+    function showInstrumentDetail(instrId) {
+        const inst = INSTRUMENT_MAP ? INSTRUMENT_MAP.get(instrId) : INSTRUMENT_BANK.find(i => i.id === instrId);
+        if (!inst) return;
+
+        // Remove existing modal if any
+        closeInstrumentDetail();
+
+        const isCard = inst.img && inst.img.includes('/cards/');
+        const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-modal-img${isCard ? ' card-img' : ''}">` : `<div class="g4-modal-img-placeholder">🎵</div>`;
+
+        const modal = document.createElement('div');
+        modal.className = 'g4-instrument-modal';
+        modal.id = 'g4InstrumentModal';
+        modal.innerHTML = `
+            <div class="g4-instrument-modal-box">
+                <button class="g4-modal-close" id="g4ModalClose">✕</button>
+                <div class="g4-modal-left">
+                    ${imgHtml}
+                    <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
+                    <div class="g4-modal-name">${inst.nameZh}</div>
+                    <div class="g4-modal-en">${inst.nameEn}</div>
+                    <button class="g4-modal-listen" id="g4ModalListen">🔊 試聽音色</button>
+                    <div class="g4-modal-structure" id="g4ModalStructure">
+                        <div class="g4-modal-section-title">🔍 樂器結構</div>
+                        <img src="img/instruments/structure/${inst.id}.png" alt="${inst.nameZh}結構圖"
+                             class="g4-modal-structure-img"
+                             onerror="this.closest('.g4-modal-structure').style.display='none'">
+                    </div>
+                </div>
+                <div class="g4-modal-right">
+                    <div class="g4-modal-right-top">
+                        ${inst.history ? `<div class="g4-modal-section-title">📖 樂器小故事</div><p class="g4-modal-history">${inst.history}</p>` : '<div class="g4-modal-section-title">📖 樂器介紹</div><p class="g4-modal-history">${inst.desc}</p>'}
+                    </div>
+                    <div class="g4-modal-right-bottom">
+                        ${inst.video ? `<div class="g4-modal-section-title">🎬 演奏示範</div><div class="g4-modal-video-wrap g4-video-lazy" data-src="${inst.video}"><div class="g4-video-poster" style="background-image:url(https://img.youtube.com/vi/${(inst.video.match(/embed\/([^?]+)/) || [])[1]}/hqdefault.jpg)"><div class="g4-video-play">▶</div></div></div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+        // Single delegated click handler for modal
+        modal.onclick = (e) => {
+            if (e.target === modal) { closeInstrumentDetail(); return; }
+            if (e.target.closest('.g4-modal-close')) { closeInstrumentDetail(); return; }
+            if (e.target.closest('.g4-modal-listen')) {
+                Audio.playInstrumentSound(instrId);
+                const lb = e.target.closest('.g4-modal-listen');
+                lb.textContent = '🔊 播放中…';
+                setTimeout(() => { lb.textContent = '🔊 試聽音色'; }, 1000);
+                return;
+            }
+            // Lazy YouTube: click poster to load iframe
+            const poster = e.target.closest('.g4-video-poster');
+            if (poster) {
+                const wrap = poster.closest('.g4-video-lazy');
+                if (wrap) {
+                    wrap.innerHTML = `<iframe src="${wrap.dataset.src}?autoplay=1" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                    wrap.classList.remove('g4-video-lazy');
+                }
+                return;
+            }
+        };
+        modal._escHandler = (e) => { if (e.key === 'Escape') closeInstrumentDetail(); };
+        document.addEventListener('keydown', modal._escHandler);
+    }
+
+    function closeInstrumentDetail() {
+        const modal = document.getElementById('g4InstrumentModal');
+        if (!modal) return;
+        // Stop YouTube video
+        const iframe = modal.querySelector('iframe');
+        if (iframe) iframe.src = '';
+        // Remove escape listener
+        if (modal._escHandler) document.removeEventListener('keydown', modal._escHandler);
+        // Close animation
+        const box = modal.querySelector('.g4-instrument-modal-box');
+        if (box) box.style.animation = 'g4ModalBoxIn 0.18s ease reverse both';
+        modal.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
+        setTimeout(() => { modal.remove(); document.body.style.overflow = ''; }, 180);
+    }
+
+})();
+
+
+

@@ -3402,4 +3402,143 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     position: fixed; inset: 0; background: rgba(20, 14, 38, 0.55);
     display: flex; align-items: center; justify-content: center;
     z-index: 9000; padding: 16px;
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(1
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    animation: g4ModalBgIn 0.25s ease both;
+}
+@keyframes g4ModalBgIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Box: 2-column grid ── */
+.g4-instrument-modal-box {
+    display: grid; grid-template-columns: 42% 1fr;
+    width: 100%; max-width: 780px;
+    max-height: calc(100dvh - 32px);
+    border-radius: 28px; overflow: hidden; position: relative;
+    box-shadow: 0 28px 90px rgba(0,0,0,0.28), 0 0 0 1px rgba(139,102,255,0.08);
+    animation: g4ModalBoxIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes g4ModalBoxIn { from { opacity: 0; transform: scale(0.94) translateY(20px); } to { opacity: 1; transform: none; } }
+
+/* ── Close button ── */
+.g4-modal-close {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(255,255,255,0.85); border: none; border-radius: 50%;
+    width: 36px; height: 36px; font-size: 1.1rem; cursor: pointer;
+    color: #555; font-weight: 900; display: flex; align-items: center; justify-content: center;
+    z-index: 10; transition: all 0.18s; backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.g4-modal-close:hover { background: #fff; color: #8B66FF; transform: scale(1.1); }
+
+/* ── Left column: instrument photo + structure ── */
+.g4-modal-left {
+    background: linear-gradient(160deg, #f3f0ff 0%, #e8e2ff 100%);
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; padding: 28px 20px 24px; text-align: center;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
+}
+.g4-modal-img {
+    width: 100%; max-width: 220px; height: auto; max-height: 280px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.15));
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+.g4-modal-img.card-img { max-width: 200px; border-radius: 18px; }
+.g4-modal-img:hover { transform: scale(1.06); }
+.g4-modal-img-placeholder { font-size: 5rem; line-height: 1; }
+.g4-modal-structure {
+    width: 100%; margin-top: 10px;
+    border-top: 1px solid rgba(139,102,255,0.15); padding-top: 12px;
+}
+.g4-modal-structure .g4-modal-section-title { margin-bottom: 8px; justify-content: center; }
+.g4-modal-structure-img {
+    width: 100%; max-width: 220px; height: auto; border-radius: 12px;
+    object-fit: contain; display: block; margin: 0 auto;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.08));
+}
+.g4-modal-name {
+    font-size: 1.3rem; font-weight: 900; color: #2d2a3e; margin: 2px 0 0;
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+}
+.g4-modal-en { font-size: 0.8rem; color: #8B66FF; letter-spacing: 0.04em; font-weight: 700; }
+.g4-modal-listen {
+    margin-top: 6px;
+    background: linear-gradient(135deg, var(--primary-green), #00b87a);
+    color: #fff; border: none; border-radius: 24px; padding: 9px 26px;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    box-shadow: 0 4px 14px rgba(0,210,142,0.25);
+}
+.g4-modal-listen:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(0,210,142,0.35); }
+.g4-modal-listen:active { transform: scale(0.96); }
+
+/* ── Right column: history (top) + video (bottom) ── */
+.g4-modal-right {
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow-y: auto; max-height: calc(100dvh - 32px);
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
+}
+.g4-modal-right-top {
+    padding: 28px 22px 18px;
+    border-bottom: 1px solid rgba(139,102,255,0.1);
+    flex: 1 0 auto;
+}
+.g4-modal-right-bottom {
+    padding: 18px 22px 24px;
+    flex: 0 0 auto;
+}
+.g4-modal-section-title {
+    font-size: 0.82rem; font-weight: 800; color: #8B66FF; margin: 0 0 10px;
+    padding-bottom: 6px; border-bottom: 2px solid rgba(139,102,255,0.12);
+    display: flex; align-items: center; gap: 5px;
+}
+.g4-modal-history {
+    font-size: 0.87rem; line-height: 1.8; color: #3a3650; margin: 0;
+}
+.g4-modal-video-wrap {
+    position: relative; width: 100%; padding-top: 56.25%;
+    border-radius: 14px; overflow: hidden; background: #1a1a2e;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.g4-modal-video-wrap iframe {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
+}
+.g4-video-lazy { cursor: pointer; }
+.g4-video-poster {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    transition: filter 0.2s;
+}
+.g4-video-poster:hover { filter: brightness(1.1); }
+.g4-video-play {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: rgba(139,102,255,0.9); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; padding-left: 4px;
+    box-shadow: 0 4px 20px rgba(139,102,255,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.g4-video-poster:hover .g4-video-play { transform: scale(1.1); box-shadow: 0 6px 28px rgba(139,102,255,0.5); }
+
+/* ── Mobile: single column ── */
+@media (max-width: 600px) {
+    .g4-instrument-modal { padding: 0; align-items: flex-end; }
+    .g4-instrument-modal-box {
+        grid-template-columns: 1fr; max-width: 100%;
+        border-radius: 28px 28px 0 0;
+        max-height: calc(100dvh - 40px);
+    }
+    .g4-modal-left {
+        padding: 20px 16px 14px; flex-direction: row; flex-wrap: wrap;
+        justify-content: center; gap: 10px; overflow-y: visible;
+    }
+    .g4-modal-img { max-width: 100px; max-height: 120px; }
+    .g4-modal-structure { display: none; }
+    .g4-modal-name { font-size: 1.1rem; }
+    .g4-modal-right { max-height: 55vh; }
+    .g4-modal-right-top { padding: 16px 18px 14px; }
+    .g4-modal-right-bottom { padding: 14px 18px 20px; }
+    .g4-modal-history { font-size: 0.83rem; line-height: 1.7; }
+}
