@@ -3331,7 +3331,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 @keyframes g4-pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
 
 .g4-visual-emoji { font-size: 5rem; line-height: 1; margin: 12px 0 8px; text-align: center; }
-.g4-visual-img { width: 120px; height: 120px; object-fit: contain; margin: 12px auto 8px; display: block; border-radius: 12px; }
+.g4-visual-img { width: 160px; height: 160px; object-fit: contain; margin: 16px auto 10px; display: block; border-radius: 16px; box-shadow: 0 4px 16px rgba(106,17,203,.15); background: #f8f6ff; padding: 8px; }
 .g4-visual-hint { font-size: 0.95rem; color: var(--text-light); text-align: center; margin-bottom: 6px; }
 
 .g4-family-badge {
@@ -3397,89 +3397,148 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .g4-family-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
 .g4-family-bar-val { font-size: 0.8rem; font-weight: 800; min-width: 36px; }
 
-/* ===== Game 4 Instrument Detail Modal ===== */
+/* ===== Game 4 Instrument Detail Modal — Two-Column Layout ===== */
 .g4-instrument-modal {
     position: fixed; inset: 0; background: rgba(20, 14, 38, 0.55);
     display: flex; align-items: center; justify-content: center;
-    z-index: 9000; padding: 14px;
+    z-index: 9000; padding: 16px;
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     animation: g4ModalBgIn 0.25s ease both;
 }
-@keyframes g4ModalBgIn { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; backdrop-filter: blur(10px); } }
+@keyframes g4ModalBgIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Box: 2-column grid ── */
 .g4-instrument-modal-box {
-    background: linear-gradient(180deg, #ffffff 0%, #faf9ff 100%);
-    border-radius: 28px; width: 100%; max-width: 480px;
-    padding: 28px 24px 22px; position: relative;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(139,102,255,0.08);
-    max-height: calc(100dvh - 28px); overflow-y: auto;
-    display: flex; flex-direction: column; gap: 16px;
+    display: grid; grid-template-columns: 42% 1fr;
+    width: 100%; max-width: 780px;
+    max-height: calc(100dvh - 32px);
+    border-radius: 28px; overflow: hidden; position: relative;
+    box-shadow: 0 28px 90px rgba(0,0,0,0.28), 0 0 0 1px rgba(139,102,255,0.08);
     animation: g4ModalBoxIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
 }
-@keyframes g4ModalBoxIn { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes g4ModalBoxIn { from { opacity: 0; transform: scale(0.94) translateY(20px); } to { opacity: 1; transform: none; } }
+
+/* ── Close button ── */
 .g4-modal-close {
     position: absolute; top: 14px; right: 14px;
-    background: rgba(240,238,248,0.9); border: none; border-radius: 50%;
+    background: rgba(255,255,255,0.85); border: none; border-radius: 50%;
     width: 36px; height: 36px; font-size: 1.1rem; cursor: pointer;
-    color: #777; font-weight: 900; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: all 0.18s; z-index: 1;
-    backdrop-filter: blur(6px);
+    color: #555; font-weight: 900; display: flex; align-items: center; justify-content: center;
+    z-index: 10; transition: all 0.18s; backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
-.g4-modal-close:hover { background: #e0dcf0; color: #333; transform: scale(1.1); }
-.g4-modal-header {
-    display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+.g4-modal-close:hover { background: #fff; color: #8B66FF; transform: scale(1.1); }
+
+/* ── Left column: instrument photo + structure ── */
+.g4-modal-left {
+    background: linear-gradient(160deg, #f3f0ff 0%, #e8e2ff 100%);
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; padding: 28px 20px 24px; text-align: center;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
 }
 .g4-modal-img {
-    width: 140px; height: 140px; object-fit: contain; border-radius: 16px;
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.10));
-    transition: transform 0.3s;
+    width: 100%; max-width: 220px; height: auto; max-height: 280px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.15));
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
 }
-.g4-modal-img.card-img {
-    width: 180px; height: auto; max-height: 220px; border-radius: 18px;
+.g4-modal-img.card-img { max-width: 200px; border-radius: 18px; }
+.g4-modal-img:hover { transform: scale(1.06); }
+.g4-modal-img-placeholder { font-size: 5rem; line-height: 1; }
+.g4-modal-structure {
+    width: 100%; margin-top: 10px;
+    border-top: 1px solid rgba(139,102,255,0.15); padding-top: 12px;
 }
-.g4-modal-img:hover { transform: scale(1.05); }
+.g4-modal-structure .g4-modal-section-title { margin-bottom: 8px; justify-content: center; }
+.g4-modal-structure-img {
+    width: 100%; max-width: 220px; height: auto; border-radius: 12px;
+    object-fit: contain; display: block; margin: 0 auto;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.08));
+}
 .g4-modal-name {
-    font-size: 1.35rem; font-weight: 900; color: #2d2a3e; margin: 0;
+    font-size: 1.3rem; font-weight: 900; color: #2d2a3e; margin: 2px 0 0;
     font-family: 'Nunito', 'Noto Sans TC', sans-serif;
 }
-.g4-modal-en {
-    font-size: 0.82rem; color: var(--text-light); margin-top: -4px; letter-spacing: 0.03em;
+.g4-modal-en { font-size: 0.8rem; color: #8B66FF; letter-spacing: 0.04em; font-weight: 700; }
+.g4-modal-listen {
+    margin-top: 6px;
+    background: linear-gradient(135deg, var(--primary-green), #00b87a);
+    color: #fff; border: none; border-radius: 24px; padding: 9px 26px;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    box-shadow: 0 4px 14px rgba(0,210,142,0.25);
+}
+.g4-modal-listen:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(0,210,142,0.35); }
+.g4-modal-listen:active { transform: scale(0.96); }
+
+/* ── Right column: history (top) + video (bottom) ── */
+.g4-modal-right {
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow-y: auto; max-height: calc(100dvh - 32px);
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
+}
+.g4-modal-right-top {
+    padding: 28px 22px 18px;
+    border-bottom: 1px solid rgba(139,102,255,0.1);
+    flex: 1 0 auto;
+}
+.g4-modal-right-bottom {
+    padding: 18px 22px 24px;
+    flex: 0 0 auto;
 }
 .g4-modal-section-title {
-    font-size: 0.85rem; font-weight: 800; color: #8B66FF; margin: 0;
+    font-size: 0.82rem; font-weight: 800; color: #8B66FF; margin: 0 0 10px;
     padding-bottom: 6px; border-bottom: 2px solid rgba(139,102,255,0.12);
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 5px;
 }
 .g4-modal-history {
-    font-size: 0.88rem; line-height: 1.75; color: #444; margin: 0;
-    background: rgba(250,249,255,0.7); border-radius: 14px; padding: 14px 16px;
-    border: 1px solid rgba(139,102,255,0.06);
+    font-size: 0.87rem; line-height: 1.8; color: #3a3650; margin: 0;
 }
 .g4-modal-video-wrap {
     position: relative; width: 100%; padding-top: 56.25%;
-    border-radius: 16px; overflow: hidden; background: #1a1a2e;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    border-radius: 14px; overflow: hidden; background: #1a1a2e;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 .g4-modal-video-wrap iframe {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
-    border-radius: 16px;
 }
-.g4-modal-listen {
-    align-self: center;
-    background: linear-gradient(135deg, var(--primary-green), #00b87a);
-    color: #fff; border: none; border-radius: 24px; padding: 11px 32px;
-    font-size: 0.92rem; font-weight: 700; cursor: pointer;
-    transition: transform 0.18s, box-shadow 0.18s;
-    box-shadow: 0 4px 16px rgba(0,210,142,0.25);
+.g4-video-lazy { cursor: pointer; }
+.g4-video-poster {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    transition: filter 0.2s;
 }
-.g4-modal-listen:hover { transform: scale(1.06); box-shadow: 0 6px 22px rgba(0,210,142,0.35); }
-.g4-modal-listen:active { transform: scale(0.96); }
+.g4-video-poster:hover { filter: brightness(1.1); }
+.g4-video-play {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: rgba(139,102,255,0.9); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; padding-left: 4px;
+    box-shadow: 0 4px 20px rgba(139,102,255,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.g4-video-poster:hover .g4-video-play { transform: scale(1.1); box-shadow: 0 6px 28px rgba(139,102,255,0.5); }
 
-/* Responsive modal */
-@media (max-width: 480px) {
-    .g4-instrument-modal-box { padding: 20px 16px 18px; border-radius: 22px; }
-    .g4-modal-img { width: 110px; height: 110px; }
-    .g4-modal-img.card-img { width: 150px; }
-    .g4-modal-name { font-size: 1.2rem; }
-    .g4-modal-history { padding: 12px 14px; font-size: 0.84rem; }
+/* ── Mobile: single column ── */
+@media (max-width: 600px) {
+    .g4-instrument-modal { padding: 0; align-items: flex-end; }
+    .g4-instrument-modal-box {
+        grid-template-columns: 1fr; max-width: 100%;
+        border-radius: 28px 28px 0 0;
+        max-height: calc(100dvh - 40px);
+    }
+    .g4-modal-left {
+        padding: 20px 16px 14px; flex-direction: row; flex-wrap: wrap;
+        justify-content: center; gap: 10px; overflow-y: visible;
+    }
+    .g4-modal-img { max-width: 100px; max-height: 120px; }
+    .g4-modal-structure { display: none; }
+    .g4-modal-name { font-size: 1.1rem; }
+    .g4-modal-right { max-height: 55vh; }
+    .g4-modal-right-top { padding: 16px 18px 14px; }
+    .g4-modal-right-bottom { padding: 14px 18px 20px; }
+    .g4-modal-history { font-size: 0.83rem; line-height: 1.7; }
 }
