@@ -194,6 +194,12 @@
         normal: { tokenSet: 'basic',    bpm: 72,  winScale: 1.2, label: 'Normal', emoji: '⭐⭐' },
         hard:   { tokenSet: 'medium',   bpm: 84,  winScale: 1.0, label: 'Hard',   emoji: '⭐⭐⭐' },
         expert: { tokenSet: 'advanced', bpm: 96,  winScale: 0.9, label: 'Expert', emoji: '⭐⭐⭐⭐' },
+        p1: { label: '小一', emoji: '🌱' },
+        p2: { label: '小二', emoji: '🌿' },
+        p3: { label: '小三', emoji: '🌳' },
+        p4: { label: '小四', emoji: '⭐' },
+        p5: { label: '小五', emoji: '⭐⭐' },
+        p6: { label: '小六', emoji: '⭐⭐⭐' },
     };
 
     // ==========================================
@@ -300,8 +306,10 @@
                 totalAccuracy: 0, accuracyCount: 0,
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
-            diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
+            diffClears: { easy: 0, normal: 0, hard: 0, expert: 0, p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, p6: 0 },
             gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
+            gameAccuracy: { game1: 0, game2: 0, game3: 0, game4: 0 },
+            gameCount:    { game1: 0, game2: 0, game3: 0, game4: 0 },
         };
     }
 
@@ -316,6 +324,7 @@
     }
 
     function recordGameResult(user, gameKey, score, accuracy, maxCombo, difficulty, hitCounts) {
+        if (user && user.isGuest) return;
         const profile = loadProfile(user);
         profile.stats.totalPlayed++;
         profile.stats.totalScore += score;
@@ -323,6 +332,14 @@
         profile.stats.accuracyCount++;
         if (maxCombo > profile.stats.maxCombo) profile.stats.maxCombo = maxCombo;
         if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
+
+        // Per-game accuracy tracking
+        if (!profile.gameAccuracy) profile.gameAccuracy = { game1:0,game2:0,game3:0,game4:0 };
+        if (!profile.gameCount)    profile.gameCount    = { game1:0,game2:0,game3:0,game4:0 };
+        if (gameKey in profile.gameAccuracy) {
+            profile.gameAccuracy[gameKey] += accuracy;
+            profile.gameCount[gameKey]++;
+        }
 
         // FC / AP detection
         if (hitCounts) {
@@ -349,6 +366,57 @@
 
         saveProfile(profile);
         return profile;
+    }
+
+    async function syncProfileBestsFromSheet(user) {
+        if (!user || !user.name) return null;
+        try {
+            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { redirect: 'follow' });
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (!Array.isArray(data)) return null;
+
+            const userName = String(user.name).trim();
+            const userGrade = String(user.grade || '');
+            const userClass = String(user.class || '');
+
+            // Filter rows belonging to this user
+            const myRows = data.filter(r =>
+                String(r.name || '').trim() === userName &&
+                String(r.grade || '') === userGrade &&
+                String(r.class || '') === userClass
+            );
+
+            if (!myRows.length) return null;
+
+            // Compute max score per game
+            const bests = { game1: 0, game2: 0, game3: 0, game4: 0 };
+            myRows.forEach(r => {
+                const g = r.game;
+                if (bests.hasOwnProperty(g)) {
+                    const sc = parseInt(r.score) || 0;
+                    if (sc > bests[g]) bests[g] = sc;
+                }
+            });
+            // Zero means no record — keep as 0 for display logic
+
+            // Merge into local profile (take the higher of sheet vs local)
+            const profile = loadProfile(user);
+            let changed = false;
+            for (const g of Object.keys(bests)) {
+                if (bests[g] > (profile.gameBests[g] || 0)) {
+                    profile.gameBests[g] = bests[g];
+                    changed = true;
+                } else {
+                    // Keep local if higher; reflect local value in returned bests
+                    bests[g] = profile.gameBests[g] || 0;
+                }
+            }
+            if (changed) saveProfile(profile);
+            return bests;
+        } catch (e) {
+            return null;
+        }
     }
 
     function renderProfileScreen(user) {
@@ -386,12 +454,35 @@
         document.getElementById('pdHard').textContent = (p.diffClears.hard || 0) + ' 次通關';
         document.getElementById('pdExpert').textContent = (p.diffClears.expert || 0) + ' 次通關';
 
-        // Game bests
-        document.getElementById('pgbGame1').textContent = p.gameBests.game1 || '---';
-        document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
-        document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
-        const pgb4 = document.getElementById('pgbGame4');
-        if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
+        // Practice grade completions
+        ['p1','p2','p3','p4','p5','p6'].forEach(g => {
+            const el = document.getElementById('pd' + g.charAt(0).toUpperCase() + g.slice(1));
+            if (el) el.textContent = (p.diffClears[g] || 0) + ' 次完成';
+        });
+
+        // Game bests (from local profile; will be refreshed async from spreadsheet)
+        function _gameAvgAcc(g) {
+            const cnt = (p.gameCount || {})[g] || 0;
+            const total = (p.gameAccuracy || {})[g] || 0;
+            return cnt > 0 ? '均 ' + Math.round(total / cnt) + '%' : '';
+        }
+        function _updateBestUI(bests) {
+            document.getElementById('pgbGame1').textContent = bests.game1 || '---';
+            document.getElementById('pgbGame2').textContent = bests.game2 || '---';
+            document.getElementById('pgbGame3').textContent = bests.game3 || '---';
+            const pgb4 = document.getElementById('pgbGame4');
+            if (pgb4) pgb4.textContent = bests.game4 || '---';
+        }
+        ['game1','game2','game3','game4'].forEach((g, i) => {
+            const el = document.getElementById('pgbAccGame' + (i + 1));
+            if (el) el.textContent = _gameAvgAcc(g);
+        });
+        _updateBestUI(p.gameBests);
+
+        // Sync bests from spreadsheet
+        syncProfileBestsFromSheet(user).then(bests => {
+            if (bests) _updateBestUI(bests);
+        }).catch(() => {});
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
@@ -1616,6 +1707,7 @@
     // ==========================================
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
+        if (state.currentUser.isGuest) return;
         if (state.score === 0 && state.totalQuestions === 0) return;
 
         const controller = new AbortController();
@@ -1658,7 +1750,7 @@
     }
 
     async function submitScoreToGAS(game, user, score, accuracy, maxCombo, modeName) {
-        if (!user || !user.name) return;
+        if (!user || !user.name || user.isGuest) return;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         const record = {
@@ -2384,9 +2476,9 @@
         function getHubUser() {
             const displayName = _getHubDisplayName();
             if (_hubIsGuest) {
-                return { name: displayName || '訪客', grade: 0, class: '', seat: '' };
+                return { name: displayName || '訪客', grade: 0, class: '', seat: '', isGuest: true };
             }
-            return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
+            return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value, isGuest: false };
         }
 
         function requireHubLogin(nameFieldEl) {
@@ -2458,8 +2550,21 @@
             const badgeText = document.getElementById('g3PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
             let g3SelectedMode = 'practice';
-            let g3SelectedDiff = 'easy';
+            // Default practice grade to user's grade (p1–p6), challenge defaults to easy
+            const defaultPGrade = 'p' + (user.grade || 1);
+            let g3SelectedDiff = defaultPGrade;
             const g3DiffSel = document.getElementById('g3DiffSelector');
+            const g3PracticeGradeSel = document.getElementById('g3PracticeGradeSelector');
+
+            function updateSelectorVisibility() {
+                if (g3SelectedMode === 'challenge') {
+                    if (g3PracticeGradeSel) g3PracticeGradeSel.style.display = 'none';
+                    if (g3DiffSel) g3DiffSel.style.display = '';
+                } else {
+                    if (g3PracticeGradeSel) g3PracticeGradeSel.style.display = '';
+                    if (g3DiffSel) g3DiffSel.style.display = 'none';
+                }
+            }
 
             document.querySelectorAll('#g3ModeCards .mode-card').forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === 'practice');
@@ -2467,11 +2572,17 @@
                     g3SelectedMode = c.dataset.mode;
                     document.querySelectorAll('#g3ModeCards .mode-card').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
-                    if (g3DiffSel) g3DiffSel.style.display = (g3SelectedMode === 'challenge') ? '' : 'none';
+                    // Switch selected diff to match mode
+                    if (g3SelectedMode === 'challenge') {
+                        g3SelectedDiff = document.querySelector('#g3DiffCards .diff-card.active')?.dataset.diff || 'easy';
+                    } else {
+                        g3SelectedDiff = document.querySelector('#g3PracticeGradeCards .diff-card.active')?.dataset.pgrade || defaultPGrade;
+                    }
+                    updateSelectorVisibility();
                 };
             });
 
-            // Difficulty card selection
+            // Challenge difficulty card selection
             document.querySelectorAll('#g3DiffCards .diff-card').forEach(c => {
                 c.classList.toggle('active', c.dataset.diff === 'easy');
                 c.onclick = () => {
@@ -2480,7 +2591,18 @@
                     c.classList.add('active');
                 };
             });
-            if (g3DiffSel) g3DiffSel.style.display = 'none';
+
+            // Practice grade card selection (小一–小六)
+            document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(c => {
+                c.classList.toggle('active', c.dataset.pgrade === defaultPGrade);
+                c.onclick = () => {
+                    g3SelectedDiff = c.dataset.pgrade;
+                    document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
+                };
+            });
+
+            updateSelectorVisibility();
 
             document.getElementById('g3StartBtn').onclick = () => startGame3(user, g3SelectedMode, g3SelectedDiff);
             document.getElementById('g3StudyBtn').onclick = () => openStudyScreen();
@@ -2519,7 +2641,8 @@
             // Study button
             document.getElementById('g4StudyBtn').onclick = () => {
                 let studyFamily = 'all';
-                renderG4Study(studyFamily);
+                let studySearch = '';
+                renderG4Study(studyFamily, studySearch);
 
                 // Family tabs
                 document.querySelectorAll('#screen-g4-study .study-tab').forEach(tab => {
@@ -2528,9 +2651,30 @@
                         studyFamily = tab.dataset.cat;
                         document.querySelectorAll('#screen-g4-study .study-tab').forEach(t => t.classList.remove('active'));
                         tab.classList.add('active');
-                        renderG4Study(studyFamily);
+                        renderG4Study(studyFamily, studySearch);
                     };
                 });
+
+                // Search input
+                const searchInput = document.getElementById('g4StudySearch');
+                const searchClear = document.getElementById('g4StudySearchClear');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.oninput = () => {
+                        studySearch = searchInput.value;
+                        if (searchClear) searchClear.style.display = studySearch ? '' : 'none';
+                        renderG4Study(studyFamily, studySearch);
+                    };
+                }
+                if (searchClear) {
+                    searchClear.style.display = 'none';
+                    searchClear.onclick = () => {
+                        studySearch = '';
+                        if (searchInput) searchInput.value = '';
+                        searchClear.style.display = 'none';
+                        renderG4Study(studyFamily, studySearch);
+                    };
+                }
 
                 document.getElementById('g4StudyBack').onclick = () => switchScreen('screen-g4-setup');
                 document.getElementById('g4StudyStartBtn').onclick = () => switchScreen('screen-g4-setup');
@@ -2637,6 +2781,7 @@
     }
 
     function saveLocalRank(gameKey, user, score, accuracy, maxCombo, difficulty) {
+        if (user && user.isGuest) return;
         try {
             const all = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
             const idx = all.findIndex(r => r.name === user.name && r.class === user.class && r.grade === user.grade && (r.difficulty || '') === (difficulty || ''));
@@ -4027,6 +4172,7 @@
         if (omState.user && omState.user.name) {
             saveLocalRank('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
             submitScoreToGAS('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
+            recordGameResult(omState.user, 'game2', omState.score, accuracy, omState.correct, '1分鐘挑戰');
         }
 
         resultDiv.innerHTML = `
@@ -6033,6 +6179,7 @@
         normal: [1, 4],   // 小一至小四
         hard:   [3, 6],   // 小三至小六
         expert: [1, 6],   // 全部
+        p1: [1, 1], p2: [1, 2], p3: [1, 3], p4: [1, 4], p5: [1, 5], p6: [1, 6], // 練習模式按年級
     };
 
     // Distractor pools grouped by category
@@ -6097,6 +6244,13 @@
         let allSpecials = specials;
         if (difficulty === 'normal') allSpecials = (G3_SPECIAL_Q.easy || []).concat(specials);
         if (difficulty === 'expert') allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || [], G3_SPECIAL_Q.hard || []);
+        // For practice grades p1–p6: include specials based on grade level
+        if (/^p[1-6]$/.test(difficulty)) {
+            const pGrade = parseInt(difficulty[1]);
+            if (pGrade <= 2) allSpecials = G3_SPECIAL_Q.easy || [];
+            else if (pGrade <= 4) allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || []);
+            else allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || [], G3_SPECIAL_Q.hard || []);
+        }
 
         questions.push(...allSpecials);
         return questions;
@@ -6107,6 +6261,12 @@
         normal: () => g3GenerateQuestions('normal'),
         hard:   () => g3GenerateQuestions('hard'),
         expert: () => g3GenerateQuestions('expert'),
+        p1: () => g3GenerateQuestions('p1'),
+        p2: () => g3GenerateQuestions('p2'),
+        p3: () => g3GenerateQuestions('p3'),
+        p4: () => g3GenerateQuestions('p4'),
+        p5: () => g3GenerateQuestions('p5'),
+        p6: () => g3GenerateQuestions('p6'),
     };
 
     const TERMS_GRADE_BANK = { 1:'easy', 2:'easy', 3:'normal', 4:'normal', 5:'hard', 6:'hard' };
@@ -6528,8 +6688,8 @@
         if (mode !== 'practice') {
             saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
             submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '音樂術語·' + diffLabel);
-            recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
         }
+        recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
 
         const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
         document.getElementById('g3ReportGrid').innerHTML = `
@@ -6632,7 +6792,7 @@
           history:'巴松管在16世紀的意大利從柯塔爾管演變而成，管身展開長約2.6米，折疊成U型以便演奏，重量約3公斤。它使用雙簧片發聲，是木管家族中音域最低的常規成員，低音區音色溫暖渾厚，高音區則帶有鼻腔共鳴感。普羅高菲夫《彼得與狼》以巴松管代表爺爺的角色，莫扎特的《巴松管協奏曲》是該樂器最著名的獨奏曲目。更大型的倍低音巴松管音域比巴松管低一個八度。',
           video:'https://www.youtube.com/embed/oSQ0fQnGg84',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
-        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'', desc:'音樂課最常見的樂器',
+        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.jpg', desc:'音樂課最常見的樂器',
           history:'直笛（牧童笛）的歷史可追溯至中世紀歐洲，在文藝復興和巴洛克時期曾是宮廷最重要的管樂器，巴赫和韋瓦第均為其創作了大量作品。它以頂端的吹口直接吹入發聲，構造簡單，按孔便可改變音高，無需額外技巧即可入門。18世紀橫吹長笛興起後，直笛一度沉寂，直至20世紀古樂復興運動才重獲重視。現今直笛被廣泛用作兒童音樂教育的入門樂器，常見型號包括高音、中音和次中音。',
           video:'https://www.youtube.com/embed/dMb1vABS2aM',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
@@ -6740,6 +6900,38 @@
           history:'爵士鼓組於20世紀初隨著爵士樂在美國紐奧良發展而誕生，將大鼓、小鼓、通鼓、踏板鈸和吾鈸組合在一起由一人演奏。標準配置包括大鼓、小鼓、通鼓、腳踏鈸和吊鈸，但可根據風格自由搭配。爵士鼓手對整隊演奏起著不可替代的鼓動作用，圈骨人物如色台布尼·富加、第欠·比海和寞爾尼·潘母斯均重新定義了爵士鼓組的可能性。',
           video:'https://www.youtube.com/embed/HKXqWVWjs-g',
           synthParams:{ noise:true, dur:0.3, filterType:'highpass', filterFreq:3000, filterQ:0.5, vol:0.3 }},
+        { id:'cajon',        nameZh:'木箱鼓',     nameEn:'Cajón',        family:'percussion', familyZh:'敲擊', img:'img/instruments/木箱鼓.jpg', desc:'西班牙語「箱子」，坐着拍擊的木箱',
+          history:'木箱鼓起源於18至19世紀的秘魯，非洲奴隸以貨箱為鼓，在殖民禁鼓時期保留了音樂傳統。後經西班牙佛朗明哥音樂吸收，成為佛朗明哥樂隊的核心打擊樂器。演奏者坐在木箱上，以雙手拍擊正面打板，拍擊上方邊緣產生高頻清脆音，拍擊中央產生低沉鼓聲，底部鬆弦可增加響弦效果。木箱鼓現已廣泛用於世界音樂、爵士、流行樂中，結構簡單、便於攜帶，深受街頭樂手歡迎。',
+          video:'https://www.youtube.com/embed/xnXG8YAJfJg',
+          synthParams:{ noise:true, dur:0.35, filterType:'bandpass', filterFreq:180, filterQ:0.8, vol:0.38 }},
+        { id:'maracas',      nameZh:'沙槌',       nameEn:'Maracas',      family:'percussion', familyZh:'敲擊', img:'img/instruments/沙槌.jpg', desc:'裝有種子或珠粒的搖動樂器',
+          history:'沙槌（Maracas）原為南美洲及加勒比地區原住民的傳統樂器，以葫蘆盛裝種子或乾豆搖動發聲，後改用木材、塑膠或金屬製造。成對使用，左手與右手各持一支，可搖奏不同節奏型，是拉丁音樂、薩爾薩、曼波等風格的基礎節奏樂器。聲音輕盈而充滿律動感，製作簡便，常用於兒童音樂教育。全球各地均有類似樂器，如非洲的阿薩克韋，充分體現了人類對節奏的共同追求。',
+          video:'https://www.youtube.com/embed/N6xBthcGwnw',
+          synthParams:{ noise:true, dur:0.25, filterType:'highpass', filterFreq:4000, filterQ:0.6, vol:0.22 }},
+        { id:'egg-shakers',  nameZh:'沙蛋',       nameEn:'Egg Shakers',  family:'percussion', familyZh:'敲擊', img:'img/instruments/沙蛋.jpg', desc:'蛋形的小型沙鈴，適合兒童',
+          history:'沙蛋是沙槌家族中最小巧的成員，因形似雞蛋而得名。內部裝有微細砂粒或金屬珠，搖動時發出沙沙聲。體積小巧，手感圓潤，非常適合兒童課堂使用，也常用於音樂治療。在流行樂、民謠和兒童音樂教育中，沙蛋提供了輕柔的持續節奏背景，多位樂手可同時使用，共同構建豐富的律動層次。',
+          video:'https://www.youtube.com/embed/GGfrTQ8IPfc',
+          synthParams:{ noise:true, dur:0.2, filterType:'highpass', filterFreq:5000, filterQ:0.5, vol:0.18 }},
+        { id:'tubular-bells', nameZh:'管鐘',      nameEn:'Tubular Bells', family:'percussion', familyZh:'敲擊', img:'img/instruments/管鐘.jpg', desc:'一排垂掛的金屬管，音色如大鐘',
+          history:'管鐘（Tubular Bells）由一排按音高排列、垂掛於架上的金屬管組成，用小槌敲擊頂端發聲，音色渾厚如教堂大鐘。管鐘由英國人約翰·哈靈頓於1886年發明，目的是在管弦樂團中模擬教堂鐘聲，同時比真正的大鐘更易搬運。馬勒、普契尼和拉威爾均在作品中使用管鐘。1973年，麥克·歐菲爾德的唱片《Tubular Bells》更以此命名，成為史上最暢銷的器樂唱片之一，管鐘因此廣為人知。',
+          video:'https://www.youtube.com/embed/VKyRgtEMy2c',
+          synthParams:{ wave:'sine', freq:523, dur:2.5, attack:0.005, vol:0.22, sustain:0.25 }},
+        { id:'cabasa',       nameZh:'鐵沙鈴',     nameEn:'Cabasa',       family:'percussion', familyZh:'敲擊', img:'img/instruments/鐵沙鈴.jpg', desc:'外層包裹金屬珠鏈，轉動搖動發聲',
+          history:'鐵沙鈴（Cabasa）由非洲傳統的阿薩克韋（Agbe）演變而成，圓柱形木質或金屬鼓身外部包裹多排金屬珠鏈。演奏時一手握柄，另一手輕壓珠鏈轉動圓柱，或搖動使珠鏈摩擦鼓身發出獨特的沙沙聲。由LP（Latin Percussion）公司在1960年代將其改良標準化後廣為流行，成為拉丁音樂、爵士和流行樂的常見節奏色彩樂器，能為音樂增添輕盈而富有質感的律動層次。',
+          video:'https://www.youtube.com/embed/4sH-6Hf83kU',
+          synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:3500, filterQ:1.2, vol:0.2 }},
+        { id:'djembe',       nameZh:'非洲鼓',     nameEn:'Djembe',       family:'percussion', familyZh:'敲擊', img:'img/instruments/非洲鼓Drum Djembe.jpg', desc:'西非傳統杯形鼓，音色豐富',
+          history:'金貝鼓（Djembe）源自西非馬利帝國，距今已逾七百年歷史，在曼丁卡民族中有神聖地位，用於慶典、成年禮和通靈儀式。鼓身由整塊木材雕刻而成，呈高腳杯形，頂部蒙以羊皮或山羊皮，用繩索拉緊調音。演奏者用雙手以三種基本擊法——低音（Bass）、中音（Tone）和高音（Slap）——敲奏豐富的節奏層次。金貝鼓隨非洲移民文化走向全球，現已成為世界音樂、音樂治療和兒童教育的熱門樂器。',
+          video:'https://www.youtube.com/embed/kXAfPnwvchE',
+          synthParams:{ noise:true, dur:0.5, filterType:'bandpass', filterFreq:250, filterQ:1.5, vol:0.35 }},
+        { id:'castanets',    nameZh:'響板',       nameEn:'Castanets',    family:'percussion', familyZh:'敲擊', img:'img/instruments/響板.jpg', desc:'兩片木製貝殼形的碰擊樂器',
+          history:'響板（Castanets）是一對用橄欖木、栗木或合成材料製成的貝殼形碰擊樂器，演奏時以手指控制兩片相擊發出清脆的卡搭聲。響板起源於地中海地區，可追溯至古埃及和古希臘，在西班牙佛朗明哥舞蹈和傳統民間音樂中尤為重要，佛朗明哥舞者常邊跳邊以手指敲擊響板，兼具節奏和視覺效果。在管弦樂中，響板常由打擊樂手持棒敲擊，比才的《卡門》和拉威爾的《西班牙狂想曲》中均有響板的出色運用。',
+          video:'https://www.youtube.com/embed/f2ncikRsjTo',
+          synthParams:{ wave:'sine', freq:1800, dur:0.12, attack:0.001, vol:0.25, sustain:0.05 }},
+        { id:'congas',       nameZh:'康加鼓',     nameEn:'Congas',       family:'percussion', familyZh:'敲擊', img:'img/instruments/cango.jpg', desc:'古巴傳統高筒手鼓，常成對演奏',
+          history:'康加鼓（Congas）源自非洲，隨奴隸貿易傳入古巴，融合了非洲傳統和古巴民間音樂，在非裔古巴宗教儀式中扮演重要角色。鼓身為高筒形，通常以三個大小不同的鼓成組演奏（最小的稱Quinto，中型稱Conga，最大稱Tumbadora），演奏者站立或坐着，以雙手拍擊鼓皮，可產生開放音、悶音和邊緣音等多種音效。康加鼓是薩爾薩、曼波、倫巴和拉丁爵士的靈魂，名手艾迪·帕米里和卡洛斯·帕托·費爾南德斯均以康加演奏著稱。',
+          video:'https://www.youtube.com/embed/4pRlRU-LLDE',
+          synthParams:{ noise:true, dur:0.45, filterType:'bandpass', filterFreq:220, filterQ:1.2, vol:0.32 }},
 
         // ── 鍵盤 Keyboard ──
         { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.webp', desc:'最常見的鍵盤樂器',
@@ -6781,10 +6973,9 @@
 
     // Question type weights: [type, weight]
     const G4_Q_TYPES = [
-        ['listen-name',      0.25],  // 聽一聽，這是什麼樂器？ (YouTube demo → name)
-        ['image-name',       0.20],  // 這是甚麼樂器？ (image → name)
-        ['name-image',       0.17],  // 哪張是…？ (name → pick image)
-        ['name-family',      0.20],  // 屬於哪個樂器家族？ (name → family)
+        ['image-name',       0.30],  // 這是甚麼樂器？ (image → name)
+        ['name-image',       0.25],  // 哪張是…？ (name → pick image)
+        ['name-family',      0.27],  // 屬於哪個樂器家族？ (name → family)
         ['percussion-pitch', 0.08],  // 有固定音高嗎？ (percussion only)
         ['sound-source',     0.10],  // 靠甚麼方式發聲？ (image → sound method)
     ];
@@ -6957,10 +7148,22 @@
         document.getElementById('g4EndBtn').onclick = () => endGame4();
         document.getElementById('g4BackBtn').onclick = () => {
             if (g4State.timerId) clearInterval(g4State.timerId);
+            if (g4State._nextTimer) clearTimeout(g4State._nextTimer);
             switchScreen('screen-hub');
         };
 
         switchScreen('screen-game4');
+        renderG4Question();
+    }
+
+    function g4AdvanceNext() {
+        if (!g4State) return;
+        if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
+        g4State.currentIdx++;
+        if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
+            const more = generateG4Questions(20);
+            g4State.questions = g4State.questions.concat(more);
+        }
         renderG4Question();
     }
 
@@ -6970,6 +7173,9 @@
             return;
         }
         g4State.answered = false;
+        if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
+        const nb = document.getElementById('g4NextBtn');
+        if (nb) nb.style.display = 'none';
         const q = g4State.questions[g4State.currentIdx];
         const total = g4State.mode === 'practice' ? g4State.questions.length : '∞';
         const num = g4State.currentIdx + 1;
@@ -7062,7 +7268,7 @@
                 btn.className = 'quiz-opt-btn g4-img-opt-btn';
                 btn.dataset.optVal = instr.id;
                 btn.innerHTML = `<img src="${instr.img}" alt="${instr.nameZh}" loading="lazy"><span class="g4-img-opt-label">${instr.nameZh}</span>`;
-                btn.onclick = () => handleG4Answer(instr.id, q.answer, btn, q);
+                btn.onclick = (e) => { e.stopPropagation(); handleG4Answer(instr.id, q.answer, btn, q); };
                 optEl.appendChild(btn);
             });
         } else {
@@ -7071,7 +7277,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'quiz-opt-btn';
                 btn.textContent = opt;
-                btn.onclick = () => handleG4Answer(opt, q.answer, btn, q);
+                btn.onclick = (e) => { e.stopPropagation(); handleG4Answer(opt, q.answer, btn, q); };
                 optEl.appendChild(btn);
             });
         }
@@ -7102,7 +7308,7 @@
             const pts = 10 + comboBonus;
             g4State.score += pts;
             document.getElementById('g4Message').textContent = `✅ 答對了！+${pts}分`;
-            Audio.playEffect('countdown');
+            try { Audio.playEffect('countdown'); } catch(e) {}
         } else {
             g4State.counts.wrong++;
             g4State.combo = 0;
@@ -7140,27 +7346,30 @@
                 explain: explainMap[q.type] || ''
             });
             document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
-            Audio.playEffect('wrong');
+            try { Audio.playEffect('wrong'); } catch(e) {}
         }
 
         document.getElementById('g4Score').textContent = g4State.score;
         document.getElementById('g4Combo').textContent = g4State.combo;
 
-        // Next question after delay
-        setTimeout(() => {
-            g4State.currentIdx++;
-            if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
-                // Generate more questions for challenge mode
-                const more = generateG4Questions(20);
-                g4State.questions = g4State.questions.concat(more);
-            }
-            renderG4Question();
-        }, isCorrect ? 600 : 1200);
+        const delay = isCorrect ? 1000 : 2000;
+        if (g4State._nextTimer) clearTimeout(g4State._nextTimer);
+        g4State._nextTimer = setTimeout(g4AdvanceNext, delay);
+
+        // Also show a manual next button in case timer is unreliable
+        const nb = document.getElementById('g4NextBtn');
+        if (nb) {
+            nb.style.display = 'inline-block';
+            nb.onclick = (e) => { e.stopPropagation(); g4AdvanceNext(); };
+        }
     }
 
     function endGame4() {
         if (!g4State) return;
         if (g4State.timerId) { clearInterval(g4State.timerId); g4State.timerId = null; }
+        if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
+        const nb = document.getElementById('g4NextBtn');
+        if (nb) nb.style.display = 'none';
 
         const { user, mode, score, maxCombo, counts, familyStats, mistakes } = g4State;
         const totalAnswered = counts.correct + counts.wrong;
@@ -7220,6 +7429,7 @@
         if (mode !== 'practice') {
             submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別');
         }
+        recordGameResult(user, 'game4', score, accuracy, maxCombo, null);
 
         renderLocalRankList('game4', 'g4RankList', user);
         if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 2500);
@@ -7233,13 +7443,23 @@
     }
 
     // ── Game 4 Study Screen ──
-    function renderG4Study(familyFilter) {
+    function renderG4Study(familyFilter, searchQuery) {
         const grid = document.getElementById('g4StudyGrid');
         if (!grid) return;
         let items = INSTRUMENT_BANK;
         if (familyFilter && familyFilter !== 'all') items = items.filter(i => i.family === familyFilter);
+        if (searchQuery && searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            items = items.filter(i =>
+                i.nameZh.toLowerCase().includes(q) ||
+                i.nameEn.toLowerCase().includes(q) ||
+                (i.desc && i.desc.toLowerCase().includes(q))
+            );
+        }
 
-        grid.innerHTML = items.map(inst => {
+        grid.innerHTML = items.length === 0
+            ? `<div class="g4-study-empty">😔 找不到符合的樂器，請嘗試其他關鍵字。</div>`
+            : items.map(inst => {
             const isCard = inst.img && inst.img.includes('/cards/');
             const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img" loading="lazy">` : `<div class="g4-study-emoji">🎵</div>`;
             return `

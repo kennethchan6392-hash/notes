@@ -159,7 +159,7 @@
         </div>
         <div class="profile-playtime" id="profilePlaytime">🕐 累計遊戲時長：0 分鐘</div>
 
-        <div class="profile-section-title">� 音樂設定</div>
+        <div class="profile-section-title">🎶 音樂設定</div>
         <div class="card profile-sound-card" style="padding:14px 20px;">
             <div class="settings-group">
                 <div class="volume-control">
@@ -175,7 +175,7 @@
             </div>
         </div>
 
-        <div class="profile-section-title">�📊 綜合數據</div>
+        <div class="profile-section-title">📊 綜合數據</div>
         <div class="profile-stats-grid" id="profileStatsGrid">
             <div class="profile-stat"><div class="profile-stat-val" id="psTotalPlayed">0</div><div class="profile-stat-label">總遊戲次數</div></div>
             <div class="profile-stat"><div class="profile-stat-val" id="psCleared">0</div><div class="profile-stat-label">通關次數</div></div>
@@ -196,10 +196,20 @@
 
         <div class="profile-section-title">🎮 各遊戲最高分</div>
         <div class="profile-game-bests" id="profileGameBests">
-            <div class="profile-game-best"><span class="pgb-icon">🎵</span><span class="pgb-name">音名辨別</span><span class="pgb-score" id="pgbGame1">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏打擊</span><span class="pgb-score" id="pgbGame2">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-score" id="pgbGame3">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器辨別</span><span class="pgb-score" id="pgbGame4">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">🎵</span><span class="pgb-name">音名辨別</span><span class="pgb-acc" id="pgbAccGame1"></span><span class="pgb-score" id="pgbGame1">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏打擊</span><span class="pgb-acc" id="pgbAccGame2"></span><span class="pgb-score" id="pgbGame2">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-acc" id="pgbAccGame3"></span><span class="pgb-score" id="pgbGame3">---</span></div>
+            <div class="profile-game-best"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器辨別</span><span class="pgb-acc" id="pgbAccGame4"></span><span class="pgb-score" id="pgbGame4">---</span></div>
+        </div>
+
+        <div class="profile-section-title">📚 練習成就</div>
+        <div class="profile-diff-grid profile-grade-grid" id="profileGradeGrid">
+            <div class="profile-diff-item diff-p1"><div class="profile-diff-name">🌱 小一</div><div class="profile-diff-val" id="pdP1">0 次完成</div></div>
+            <div class="profile-diff-item diff-p2"><div class="profile-diff-name">🌿 小二</div><div class="profile-diff-val" id="pdP2">0 次完成</div></div>
+            <div class="profile-diff-item diff-p3"><div class="profile-diff-name">🌳 小三</div><div class="profile-diff-val" id="pdP3">0 次完成</div></div>
+            <div class="profile-diff-item diff-p4"><div class="profile-diff-name">⭐ 小四</div><div class="profile-diff-val" id="pdP4">0 次完成</div></div>
+            <div class="profile-diff-item diff-p5"><div class="profile-diff-name">⭐⭐ 小五</div><div class="profile-diff-val" id="pdP5">0 次完成</div></div>
+            <div class="profile-diff-item diff-p6"><div class="profile-diff-name">🏆 小六</div><div class="profile-diff-val" id="pdP6">0 次完成</div></div>
         </div>
 
         <div class="profile-avatars-section">
@@ -598,6 +608,43 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">1分鐘內答最多題，衝排行榜</div>
             </div>
         </div>
+        <!-- 練習模式：年級選擇 (小一至小六) -->
+        <div class="difficulty-selector" id="g3PracticeGradeSelector">
+            <div class="diff-title">📚 選擇年級（術語範圍）</div>
+            <div class="diff-cards diff-cards-grade" id="g3PracticeGradeCards">
+                <button class="diff-card diff-p1" data-pgrade="p1">
+                    <div class="diff-stars">🌱</div>
+                    <div class="diff-name">小一</div>
+                    <div class="diff-desc">力度入門<br>p · f · mp · mf</div>
+                </button>
+                <button class="diff-card diff-p2" data-pgrade="p2">
+                    <div class="diff-stars">🌿</div>
+                    <div class="diff-name">小二</div>
+                    <div class="diff-desc">+pp · ff<br>漸強漸弱 · 速度</div>
+                </button>
+                <button class="diff-card diff-p3" data-pgrade="p3">
+                    <div class="diff-stars">🌳</div>
+                    <div class="diff-name">小三</div>
+                    <div class="diff-desc">+奏法 · 調號<br>Adagio · Moderato</div>
+                </button>
+                <button class="diff-card diff-p4" data-pgrade="p4">
+                    <div class="diff-stars">⭐</div>
+                    <div class="diff-name">小四</div>
+                    <div class="diff-desc">+rit. · accel.<br>D.C. · D.S. · Fine</div>
+                </button>
+                <button class="diff-card diff-p5" data-pgrade="p5">
+                    <div class="diff-stars">⭐⭐</div>
+                    <div class="diff-name">小五</div>
+                    <div class="diff-desc">+情緒術語<br>Vivace · cantabile</div>
+                </button>
+                <button class="diff-card diff-p6" data-pgrade="p6">
+                    <div class="diff-stars">⭐⭐⭐</div>
+                    <div class="diff-name">小六</div>
+                    <div class="diff-desc">全部術語<br>Grave · maestoso</div>
+                </button>
+            </div>
+        </div>
+        <!-- 限時挑戰：難度選擇 -->
         <div class="difficulty-selector" id="g3DiffSelector" style="display:none;">
             <div class="diff-title">🎯 選擇難度</div>
             <div class="diff-cards" id="g3DiffCards">
@@ -815,6 +862,9 @@
             <div class="quiz-options" id="g4Options"></div>
         </div>
         <div class="message-box" id="g4Message">🎻 準備好就點選答案！</div>
+        <div id="g4NextWrap" style="text-align:center;margin:4px 0;min-height:44px;">
+            <button id="g4NextBtn" style="display:none;padding:10px 36px;background:#5DB85D;color:#fff;border:none;border-radius:50px;font-size:1rem;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #388E3C;">下一題 ▶</button>
+        </div>
         <div class="action-row">
             <button class="btn-action" id="g4EndBtn">🏁 結束遊戲</button>
             <button class="btn-action" id="g4BackBtn">🔙 返回大廳</button>
@@ -856,6 +906,13 @@
         <button class="btn-back-hub" id="g4StudyBack">← 返回</button>
         <h1 class="game-title" style="font-size:2.6rem;">📚 樂器圖鑑</h1>
         <div class="game-subtitle">認識各種樂器，準備好再挑戰！</div>
+
+        <!-- Search -->
+        <div class="g4-study-search-wrap">
+            <span class="g4-study-search-icon">🔍</span>
+            <input type="search" id="g4StudySearch" class="g4-study-search-input" placeholder="搜尋樂器名稱…" autocomplete="off" enterkeyhint="search">
+            <button class="g4-study-search-clear" id="g4StudySearchClear" aria-label="清除搜尋">✕</button>
+        </div>
 
         <!-- Family tabs -->
         <div class="study-tabs">
