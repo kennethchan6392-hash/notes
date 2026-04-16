@@ -3383,10 +3383,10 @@
         const startBtn = document.getElementById('rchalStartBtn');
         if (startBtn) startBtn.style.display = 'none';
         const statusEl = document.getElementById('rchalStatus');
-        if (statusEl) statusEl.textContent = '';
 
+        // Keep overlay hidden so students can see the rhythm notes during count-in
         const overlay = document.getElementById('rchalOverlay');
-        overlay.style.display = 'flex';
+        overlay.style.display = 'none';
 
         const lvl = rchalState.level;
         const beatMs = 60000 / lvl.bpm;
@@ -3396,15 +3396,16 @@
         const totalBeats = 4;
         const tick = () => {
             if (beat >= totalBeats) {
-                overlay.style.display = 'none';
+                if (statusEl) statusEl.textContent = '';
                 _rchalBeginPlay();
                 return;
             }
-            // Visual: show beat number
-            overlay.innerHTML = `<div class="rchal-cdn-beat">
-                <div class="rchal-cdn-num rchal-cdn-pop">${beat + 1}</div>
-                <div class="rchal-cdn-label">${beat === 0 ? 'Ready!' : ''}</div>
-            </div>`;
+            // Show beat number in the status bar (no overlay blur)
+            if (statusEl) {
+                statusEl.textContent = beat === 0 ? '🥁 Ready! 1' : `🥁 ${beat + 1}`;
+                statusEl.style.fontWeight = '900';
+                statusEl.style.fontSize = '1.4rem';
+            }
 
             // Highlight beat dot
             beatDots.forEach((d, i) => d.classList.toggle('active', i === beat));
@@ -3455,17 +3456,23 @@
         rowHL.className = 'rchal-row-highlight';
         trackEl.appendChild(rowHL);
 
-        // Schedule row highlighting
-        const BARS_PER_ROW = 4;
+        // Schedule row highlighting + smooth auto-scroll to active row
         const rows = rchalState.rowRanges || [];
         let currentRow = -1;
         const updateRow = (barIdx) => {
-            const newRow = Math.floor(barIdx / BARS_PER_ROW);
-            if (newRow !== currentRow && rows[newRow]) {
+            const newRow = rows.findIndex(r => r && barIdx >= r.startBar && barIdx <= r.endBar);
+            const rowData = newRow >= 0 ? rows[newRow] : null;
+            if (newRow !== currentRow && rowData) {
                 currentRow = newRow;
-                rowHL.style.top = rows[newRow].y + 'px';
-                rowHL.style.height = rows[newRow].h + 'px';
+                rowHL.style.top = rowData.y + 'px';
+                rowHL.style.height = rowData.h + 'px';
                 rowHL.style.opacity = '1';
+                // Smooth scroll so the active row is visible near the top of the track
+                const trackEl = document.getElementById('rchalTrack');
+                if (trackEl) {
+                    const targetScrollTop = Math.max(0, rowData.y - 8);
+                    trackEl.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                }
             }
         };
         updateRow(0);
@@ -3629,10 +3636,6 @@
             const color = jClass === 'perfect' ? '#10B981' : jClass === 'great' ? '#6366F1' : '#F59E0B';
             _vfColorNote(nm.el, color);
             if (nm.beamEl) _vfColorNote(nm.beamEl, color);
-            // Pulse animation on SVG element
-            nm.el.style.transition = 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)';
-            nm.el.style.transform = 'scale(1.25)';
-            setTimeout(() => { nm.el.style.transform = ''; }, 150);
         }
 
         // Score float — position near the note's row
@@ -4034,11 +4037,22 @@
             </div>
             <div class="om-result-btns">
                 <button class="om-btn-retry" id="omRetry">🔄 再玩一次</button>
+                <button class="om-btn-ranks" id="omViewRanks">🏆 查看排行榜</button>
                 <button class="om-btn-back" id="omBack">← 返回</button>
             </div>
         `;
         container.appendChild(resultDiv);
         document.getElementById('omRetry').onclick = () => _omLaunch(omState.user);
+        document.getElementById('omViewRanks').onclick = () => {
+            dom.leaderboardLayout.classList.add('view-only');
+            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
+            const gf = document.getElementById('rankGameFilter');
+            if (gf) { gf.value = 'game2'; gf.dispatchEvent(new Event('change')); }
+            if (dom.rankGradeFilter && omState.user) dom.rankGradeFilter.value = String(omState.user.grade || 0);
+            if (dom.rankClassFilter && omState.user) dom.rankClassFilter.value = String(omState.user.class || '0');
+            loadRanks();
+            switchScreen('screen-leaderboard');
+        };
         document.getElementById('omBack').onclick = () => {
             resultDiv.remove();
             switchScreen('screen-g2-setup');
@@ -5946,10 +5960,38 @@
             { q: '以下哪個力度最弱？', sym: 'pp  p  mp', ans: 'pp', opts: ['pp','p','mp','mf'], isText: true, explain: 'pp = pianissimo = 很弱，是三者中最弱的。' },
             { q: '以下哪個力度最強？', sym: 'f  mf  ff', ans: 'ff', opts: ['f','mf','ff','mp'], isText: true, explain: 'ff = fortissimo = 很強，是三者中最強的。' },
             { q: 'C大調的調號有多少個升降號？', ans: '沒有（0個）', opts: ['沒有（0個）','1個升號','1個降號','2個升號'], ksImg:'img/cards/keysig-0n.png', ksCaption:'<strong class="ks-major">C大調 / a小調</strong>', explain: 'C大調是唯一沒有升降號的大調。' },
+            // ── 強弱記號 Q1 ──
+            { q: '在音樂中，「f」代表什麼意思？', sym: 'f', ans: '強（Forte）', opts: ['強（Forte）','弱（Piano）','中強（Mezzo-forte）','很強（Fortissimo）'], isText: true, explain: 'f = forte = 強，是最常見的力度記號之一。' },
+            // ── 強弱記號 Q2 ──
+            { q: '如果你要輕聲唱歌，應該看哪一個力度符號？', sym: 'pp  p  mf  f', ans: 'p', opts: ['p','f','mf','ff'], isText: true, explain: 'p = piano = 弱，代表要輕聲演奏或演唱。' },
+            // ── 演奏方式 Q1 ──
+            { q: '音符上方或下方有一個小圓點（ · ），代表要怎麼彈奏？', sym: '·', ans: '斷奏（Staccato）', opts: ['斷奏（Staccato）','連奏（Legato）','重音（Accent）','保持音（Tenuto）'], isText: true, explain: '小圓點 = staccato = 斷奏 / 跳音，要把音符彈得短促而分離。' },
+            // ── 音樂常識 Q1 ──
+            { q: '樂譜開頭那個像大「G」字的符號叫什麼？', sym: '𝄞', ans: '高音譜號（Treble Clef）', opts: ['高音譜號（Treble Clef）','低音譜號（Bass Clef）','中音譜號（Alto Clef）','調號'], isText: true, explain: '高音譜號（Treble Clef）是五線譜最常見的譜號，形狀像大寫 G，圈住第二線（G4）。' },
+            // ── 音樂常識 Q2 ──
+            { q: '在單線譜（Single-line staff）中，通常是用來練習節奏還是音高？', sym: '— —— — ——', ans: '節奏（Rhythm）', opts: ['節奏（Rhythm）','音高（Pitch）','力度（Dynamics）','音色（Timbre）'], isText: true, explain: '單線譜不標示音高，只顯示節奏型，常用於打擊樂或節奏練習。' },
+            // ── 音樂常識 Q3 ──
+            { q: '一個四分音符（♩）通常等於幾拍？', sym: '♩', ans: '一拍', opts: ['一拍','兩拍','半拍','四拍'], isText: true, explain: '四分音符是基本拍值單位，在 4/4 拍中等於一拍。' },
+            // ── 音樂常識 Q4 ──
+            { q: '音符後面跟著一個小圓點（附點），這個音符的長度會變長還是變短？', sym: '♩.', ans: '變長（增加原本音長的一半）', opts: ['變長（增加原本音長的一半）','變短（縮短一半）','長度不變','變成兩倍長'], isText: true, explain: '附點令音符延長原本音值的一半。例如附點四分音符 = 1½ 拍。' },
         ],
         normal: [
             { q: '以下哪個速度最慢？', sym: 'Andante · Allegro · Moderato', ans: 'Andante', opts: ['Andante','Allegro','Moderato','Adagio'], isText: true, explain: 'Adagio < Andante < Moderato < Allegro。Andante 是三者中最慢的。' },
             { q: '以下哪個速度最快？', sym: 'Adagio · Moderato · Allegro', ans: 'Allegro', opts: ['Adagio','Moderato','Allegro','Andante'], isText: true, explain: 'Allegro（快板）是三者中最快的。' },
+            // ── 強弱記號 Q3 ──
+            { q: '「mf」比「f」還要響亮嗎？', sym: 'mf  vs  f', ans: '不是，mf（中強）比 f 弱', opts: ['不是，mf（中強）比 f 弱','是，mf 比 f 強','兩者一樣響亮','mf 是速度術語，無法比較'], isText: true, explain: 'pp → p → mp → mf → f → ff，mf 排在 f 之前，所以比 f 弱。' },
+            // ── 強弱記號 Q4 ──
+            { q: '聲音由小漸漸變大，這個術語叫做什麼？', sym: '<', ans: '漸強（Crescendo）', opts: ['漸強（Crescendo）','漸弱（Decrescendo）','突強（Sforzando）','回原速（A tempo）'], isText: true, explain: '「<」形狀由窄到寬，代表聲音由弱漸強 = crescendo（漸強）。' },
+            // ── 速度術語 Q1 ──
+            { q: '「Allegro」在音樂中通常代表什麼樣的速度？', sym: 'Allegro', ans: '快板（快速、活潑地）', opts: ['快板（快速、活潑地）','慢板（很慢）','中板（適中）','急板（極快）'], isText: true, explain: 'Allegro = 快板，是最常見的速度術語之一，代表快速而活潑的速度。' },
+            // ── 速度術語 Q3 ──
+            { q: '如果曲子最後要「逐漸慢下來」，符號通常會寫成什麼？', sym: 'rit.', ans: 'rit.（Ritardando / 漸慢）', opts: ['rit.（Ritardando / 漸慢）','accel.（Accelerando / 漸快）','a tempo（回原速）','Presto（急板）'], isText: true, explain: 'rit. = ritardando = 漸慢，指示演奏者逐漸放慢速度。' },
+            // ── 速度術語 Q4 ──
+            { q: '「Moderato」的意思是？', sym: 'Moderato', ans: '中板（適中、中等速度）', opts: ['中板（適中、中等速度）','快板（快速）','慢板（很慢）','急板（極快）'], isText: true, explain: 'Moderato = 中板，速度適中，介乎快慢之間。' },
+            // ── 演奏方式 Q3 ──
+            { q: '「Fine」出現在樂譜末尾附近，代表什麼意思？', sym: 'Fine', ans: '樂曲結束', opts: ['樂曲結束','從頭再奏','重複演奏','從記號重奏'], isText: true, explain: 'Fine（讀作 fee-nay）= 終止，是樂曲結束的標記。' },
+            // ── 演奏方式 Q4 ──
+            { q: '兩道雙槓加上兩個圓點（ ‖: :‖ ），代表什麼指令？', sym: '‖: :‖', ans: '重複記號（重複演奏一段）', opts: ['重複記號（重複演奏一段）','樂曲結束','從頭再奏','速度加快'], isText: true, explain: '‖: :‖ = 反覆記號，要把括號內的樂段重複演奏一次。' },
             { q: '「rit.」和「accel.」是甚麼關係？', sym: 'rit. ↔ accel.', ans: '相反（漸慢 vs 漸快）', opts: ['相反（漸慢 vs 漸快）','意思一樣','一個是力度一個是速度','沒有關係'], isText: true, explain: 'rit. = 漸慢，accel. = 漸快，兩者相反。' },
             { q: '「反覆記號」的作用是甚麼？', sym: '|: :|', ans: '重複演奏一段', opts: ['樂曲結束','重複演奏一段','從頭再奏','從記號重奏'], isText: true, explain: '|: :| = 將括號內的樂段重複演奏一次。' },
             { q: '這個調號是哪個大調？', ans: 'G大調', opts: ['C大調','G大調','D大調','F大調'], ksImg:'img/cards/keysig-1s.png', ksCaption:'<span class="ks-notes">升 Fa</span>', explain: 'G大調有1個升號，升Fa（F♯）。' },
@@ -5959,6 +6001,10 @@
         ],
         hard: [
             { q: '以下哪個速度最慢？', sym: 'Largo · Adagio · Presto', ans: 'Largo', opts: ['Largo','Adagio','Presto','Allegro'], isText: true, explain: 'Largo（廣板）是所有速度術語中最慢的之一。' },
+            // ── 速度術語 Q2 ──
+            { q: '慢板的義大利文術語是什麼？', sym: '慢板', ans: 'Adagio', opts: ['Adagio','Allegro','Moderato','Vivace'], isText: true, explain: 'Adagio = 柔板（很慢），是常見的慢速術語。Lento 同樣表示慢，但 Adagio 更常用。' },
+            // ── 演奏方式 Q2 ──
+            { q: '音符上面有一條橫線（ — ），代表保持音長並加重，這叫什麼？', sym: '—', ans: '保持音（Tenuto）', opts: ['保持音（Tenuto）','斷奏（Staccato）','延長號（Fermata）','重音（Accent）'], isText: true, explain: 'Tenuto（保持音）= 橫線符號，指示演奏者保持該音的完整時值，並稍作強調。' },
             { q: '以下哪個速度最快？', sym: 'Vivace · Allegro · Presto', ans: 'Presto', opts: ['Vivace','Allegro','Presto','Moderato'], isText: true, explain: 'Presto（急板）是三者中最快的。' },
             { q: '「D.C. al Fine」代表怎樣演奏？', sym: 'D.C. al Fine', ans: '從頭再奏至 Fine 結束', opts: ['從頭再奏至 Fine 結束','從記號重奏','直接結束','跳至尾聲'], isText: true, explain: 'D.C. = 從頭再奏，al Fine = 直到標記 Fine 處結束。' },
             { q: '「D.S. al Coda」代表怎樣演奏？', sym: 'D.S. al Coda', ans: '從記號重奏至 Coda 跳尾聲', opts: ['從記號重奏至 Coda 跳尾聲','從頭再奏','直接結束','重複一次'], isText: true, explain: 'D.S. = 從 Segno 記號重奏，al Coda = 到 Coda 記號跳尾聲。' },
@@ -6521,191 +6567,191 @@
     const INSTRUMENT_BANK = [
         // ── 弦樂 Strings ──
         { id:'violin',      nameZh:'小提琴',     nameEn:'Violin',       family:'strings',    familyZh:'弦樂', img:'img/instruments/violin.jpg', desc:'弦樂家族中音域最高的樂器',
-          history:'小提琴誕生於16世紀的意大利，由安德烈亞·阿馬蒂製作。它是管弦樂團中數量最多的樂器，有四根弦，用弓拉奏。著名的小提琴製作師包括斯特拉迪瓦里和瓜奈里。',
-          video:'https://www.youtube.com/embed/I03Hs6dwj7E',
+          history:'小提琴誕生於16世紀的意大利北部，由製琴師安德烈亞·阿馬蒂奠定基礎形制。克里蒙納城成為製琴聖地，斯特拉迪瓦里和瓜奈里·德·耶穌所製作的名琴至今仍是無價之寶，部分估值超過一億港元。小提琴有四根弦，調音為G-D-A-E，是管弦樂團中數量最多的樂器，佔據第一及第二小提琴聲部。著名作曲家帕格尼尼以超技炫技改變了小提琴演奏的可能性，而巴赫的《無伴奏奏鳴曲與組曲》至今仍是最高難度的獨奏曲目之一。',
+          video:'https://www.youtube.com/embed/Di0oB_KtqoY',
           synthParams:{ wave:'sawtooth', freq:660, dur:1.0, attack:0.05, vol:0.25, filterType:'lowpass', filterFreq:2200, filterQ:1, vibRate:5.5, vibDepth:4 }},
         { id:'viola',        nameZh:'中提琴',     nameEn:'Viola',        family:'strings',    familyZh:'弦樂', img:'img/instruments/viola.jpg', desc:'比小提琴稍大，音色較溫暖',
-          history:'中提琴與小提琴同時出現在16世紀，體型比小提琴大約15%。音色較溫暖深沉，在管弦樂團中負責中音聲部，使用中音譜號（C譜號）記譜。',
-          video:'https://www.youtube.com/embed/W8BufEHzcO8',
+          history:'中提琴與小提琴幾乎同時在16世紀的意大利出現，體型比小提琴大約15%至20%，調音為C-G-D-A。它音色較溫暖深沉，在管弦樂團中負責中音聲部，使用中音譜號（C譜號，亦稱中提琴譜號）記譜——這是現代管弦樂中少數仍使用C譜號的場合。中提琴長期被視為「次要樂器」，直到20世紀才逐漸受到重視，英國作曲家沃爾頓和巴爾托克均為其創作了重要的協奏曲。',
+          video:'https://www.youtube.com/embed/oHR_wn1Fe9M',
           synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.06, vol:0.25, filterType:'lowpass', filterFreq:1800, filterQ:1, vibRate:5, vibDepth:3.5 }},
         { id:'cello',        nameZh:'大提琴',     nameEn:'Cello',        family:'strings',    familyZh:'弦樂', img:'img/instruments/cello.jpg', desc:'坐着演奏的大型弦樂器',
-          history:'大提琴全名為Violoncello，16世紀在意大利誕生。演奏時需坐着，樂器以尾針支撐於地上。音域寬廣，既能演奏低音旋律，也能表現高亢的獨奏。',
-          video:'https://www.youtube.com/embed/PCicM6i59_I',
+          history:'大提琴全名Violoncello，16世紀在意大利誕生。演奏時坐着，以末端的尾針支撐於地上。它的音域寬廣達四個八度，既能演奏渾厚的低音旋律，也能唱出如人聲般高亢的獨奏線條。巴赫的六首《無伴奏大提琴組曲》是音樂史上最偉大的獨奏作品之一，曾被遺忘多年，由卡薩爾斯重新發現並推廣。大提琴在交響樂中與低音大提琴共同支撐和聲基礎。',
+          video:'https://www.youtube.com/embed/IDn88XRtCqE',
           synthParams:{ wave:'sawtooth', freq:220, dur:1.2, attack:0.07, vol:0.28, filterType:'lowpass', filterFreq:1500, filterQ:0.8, vibRate:4.5, vibDepth:3 }},
-        { id:'double-bass',  nameZh:'低音大提琴', nameEn:'Double Bass',  family:'strings',    familyZh:'弦樂', img:'img/instruments/double-bass.webp', desc:'弦樂家族中最大最低沉的',
-          history:'低音大提琴是弦樂家族中最大的樂器，高約180厘米。它既用於古典管弦樂團，也是爵士樂隊的重要成員。演奏者通常站着或坐在高凳上演奏。',
-          video:'https://www.youtube.com/embed/CES9q6ixlgg',
+        { id:'double-bass',  nameZh:'低音大提琴', nameEn:'Double Bass',  family:'strings',    familyZh:'弦樂', img:'img/instruments/double-bass.jpg', desc:'弦樂家族中最大最低沉的',
+          history:'低音大提琴是弦樂家族中最大的樂器，高約180厘米，演奏者通常站着或坐在高凳上演奏。它有四根（或五根）弦，比大提琴低一個八度。低音大提琴不僅是古典管弦樂團的低音支柱，在爵士樂中以撥弦方式（pizzicato）演奏，成為節奏組的靈魂。傳奇爵士音樂家查爾斯·明格斯將其發展為能演奏旋律和即興的主角樂器。',
+          video:'https://www.youtube.com/embed/Gs72OWYKISk',
           synthParams:{ wave:'sawtooth', freq:110, dur:1.2, attack:0.08, vol:0.3, filterType:'lowpass', filterFreq:1000, filterQ:0.7, vibRate:4, vibDepth:2 }},
         { id:'harp',         nameZh:'豎琴',       nameEn:'Harp',         family:'strings',    familyZh:'弦樂', img:'img/instruments/harp.png', desc:'用手指撥弦演奏的大型樂器',
-          history:'豎琴是最古老的樂器之一，可追溯至公元前3000年的古埃及。現代演奏用的踏板豎琴有47根弦和7個踏板，通過踏板可改變音高，演奏所有調性。',
-          video:'https://www.youtube.com/embed/7Vy8970q0Xc',
+          history:'豎琴是人類最古老的樂器之一，可追溯至公元前3000年的古埃及和美索不達米亞。現代演奏用的踏板豎琴由法國製琴師塞巴斯蒂安·艾拉爾在1810年改良定型，擁有47根弦和7個踏板。每個踏板有三個位置，可將對應音名升降半音，從而在所有調性中演奏。豎琴音色空靈夢幻，常用於製造閃爍的琶音效果，是管弦樂團中的特殊色彩樂器。',
+          video:'https://www.youtube.com/embed/QypI0Vt8qhU',
           synthParams:{ wave:'sine', freq:523, dur:1.5, attack:0.005, vol:0.3, sustain:0.3 }},
-        { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/guitar.webp', desc:'用手指或撥片彈奏的弦樂器',
-          history:'結他的歷史可追溯至4000年前。現代古典結他有6根弦，由西班牙工匠安東尼奧·德·托雷斯在19世紀定型。結他是世界上最流行的樂器之一。',
+        { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/guitar.jpg', desc:'用手指或撥片彈奏的弦樂器',
+          history:'結他（吉他）的歷史可追溯至4000年前的古代近東，現代六弦古典結他由西班牙工匠安東尼奧·德·托雷斯在19世紀中葉定型。20世紀電結他的發明徹底改變了流行音樂，搖滾、藍調、爵士均以電結他為核心。結他是世界上最流行的樂器，全球估計有數億名演奏者。著名結他手包括古典的塞戈維亞、爵士的喬·帕斯，以及搖滾的吉米·亨德里克斯。',
           video:'https://www.youtube.com/embed/W--hpA9WPTA',
           synthParams:{ wave:'triangle', freq:330, dur:1.0, attack:0.005, vol:0.3, filterType:'lowpass', filterFreq:2500, filterQ:0.5 }},
         { id:'bass-guitar',  nameZh:'低音結他',   nameEn:'Bass Guitar',  family:'strings',    familyZh:'弦樂', img:'img/instruments/bass-guitar.jpg', desc:'電低音弦樂器，節奏的支柱',
-          history:'電低音結他在1930年代發明，通常有4根弦。它在搖滾、流行和爵士音樂中不可或缺，負責節奏和低音線條，是樂隊的基礎支柱。',
+          history:'電低音結他（電貝斯）由列奧·芬德在1951年發明，設計目的是取代傳統爵士樂隊中笨重的低音大提琴，同時讓聲音更能通過擴音系統放大。它通常有4根弦（也有5或6弦型號），比結他低一個八度。傳奇貝斯手詹姆斯·詹姆森奠定了流行和節奏藍調音樂的貝斯風格，而約翰·保羅·瓊斯和約翰·班漢則把搖滾貝斯推向新高度。',
           video:'https://www.youtube.com/embed/2hDM0yO27Gs',
           synthParams:{ wave:'triangle', freq:165, dur:1.0, attack:0.005, vol:0.35, filterType:'lowpass', filterFreq:1200, filterQ:0.5 }},
         { id:'ukulele',      nameZh:'烏克麗麗',   nameEn:'Ukulele',      family:'strings',    familyZh:'弦樂', img:'img/instruments/ukulele.jpg', desc:'來自夏威夷的小型四弦琴',
-          history:'烏克麗麗在19世紀由葡萄牙移民帶到夏威夷並發展而成。名字在夏威夷語中意為「跳動的跳蚤」。它有4根弦，體型小巧，音色輕快明亮。',
+          history:'烏克麗麗（Ukulele）在19世紀由葡萄牙馬德拉島移民帶到夏威夷，並融合當地文化發展而成。其名字在夏威夷語中意為「跳動的跳蚤」，形容演奏者快速撥弦的手指動作。它有4根腸衣弦或尼龍弦，常見調音為G-C-E-A，體型小巧，分為高音、中音、次中音及低音四種型號。20世紀初夏威夷音樂的流行讓烏克麗麗享譽全球，近年再度成為兒童及初學者的熱門入門樂器。',
           video:'https://www.youtube.com/embed/5MgBikgcWnY',
           synthParams:{ wave:'triangle', freq:440, dur:0.6, attack:0.003, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.5 }},
-        { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/banjo.png', desc:'圓形共鳴體的撥弦樂器',
-          history:'班卓琴源自非洲，由被販賣到美洲的非洲人帶來。圓形琴身以動物皮膜覆蓋，產生獨特的清脆音色。它是美國鄉村音樂和藍草音樂的代表樂器。',
+        { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/banjo.jpg', desc:'圓形共鳴體的撥弦樂器',
+          history:'班卓琴源自西非的弦鼓，由被販賣到美洲的非洲人帶來並演變而成。圓形琴身以動物皮膜（現多為合成皮）覆蓋作共鳴板，產生獨特的清脆穿透音色。在美國南部，班卓琴成為鄉村音樂、藍草音樂和舊時爵士的核心樂器。典型演奏技法包括三指撥奏（三指技法）和雙指撥奏。名手厄爾·史克魯格斯的三指技法革命性地改變了班卓的演奏方式。',
           video:'https://www.youtube.com/embed/dxPVyieptwA',
           synthParams:{ wave:'triangle', freq:392, dur:0.5, attack:0.002, vol:0.28, filterType:'lowpass', filterFreq:3500, filterQ:0.8 }},
         { id:'mandolin',     nameZh:'曼陀林',     nameEn:'Mandolin',     family:'strings',    familyZh:'弦樂', img:'img/instruments/mandolin.jpg', desc:'淚滴形的小型弦樂器',
-          history:'曼陀林起源於17世紀的意大利，由魯特琴演變而來。它有8根弦（4組雙弦），用撥片彈奏，音色清澈明亮，在意大利民謠和藍草音樂中常見。',
+          history:'曼陀林起源於17世紀的意大利那不勒斯，由中世紀的魯特琴演變而來。它有8根鋼弦，按G-D-A-E四組雙弦排列，與小提琴音域相同，用撥片快速撥奏（顫音奏法）來模擬持續音效。曼陀林在意大利民謠、藍草音樂及古典音樂中均有重要地位。韋瓦第和貝多芬均為其創作過樂曲，而比爾·孟羅則是現代藍草曼陀林的奠基人。',
           video:'https://www.youtube.com/embed/0We5g77yBMM',
           synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 }},
 
         // ── 木管 Woodwind ──
         { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.jpg', desc:'橫吹的金屬管樂器，音色清亮',
-          history:'長笛是最古老的樂器之一，最早的骨笛可追溯至四萬年前。現代長笛由德國人特奧巴爾德·波姆在1847年改良，改用金屬製造並設計了精密的按鍵系統。',
-          video:'https://www.youtube.com/embed/wVWRzO2_r_Q',
+          history:'長笛是人類最古老的樂器之一，最早的骨笛可追溯至四萬年前的歐洲舊石器時代。現代橫吹長笛由德國人特奧巴爾德·波姆在1847年完成改良，改用銀製或鍍銀金屬管並設計了精密的環形按鍵系統，大幅提升了音準和音量。長笛是木管組中最高音的常規成員，演奏者向吹孔邊緣吹氣使空氣柱振動發聲，毋需使用簧片。莫札特、貝多芬、德布西和普羅高菲夫均為其創作了著名的協奏曲或奏鳴曲。',
+          video:'https://www.youtube.com/embed/111yvjBvDyU',
           synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 }},
         { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.jpg', desc:'用單簧片振動發聲',
-          history:'單簧管約在1700年由德國人約翰·克里斯托弗·丹納發明，由一片簧片振動發聲。它的音域寬廣達四個八度，在管弦樂和爵士樂中都很重要。',
-          video:'https://www.youtube.com/embed/3dzYpDATaqo',
+          history:'單簧管約在1700年由德國樂器師約翰·克里斯托弗·丹納在沙呂莫管的基礎上改良發明，使用一片蘆葦或合成簧片振動發聲。它音域寬廣達四個八度，低音區深沉如夜、高音區明亮輝煌，是管弦樂、爵士樂和室內樂中都極為重要的樂器。莫扎特深愛單簧管，其《A大調單簧管協奏曲》被譽為最美麗的木管協奏曲之一。爵士界的班尼·古德曼被稱為「搖擺樂之王」，更將單簧管推上流行文化的巔峰。',
+          video:'https://www.youtube.com/embed/xKIKiYgRnHc',
           synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 }},
         { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.jpg', desc:'音色尖銳明亮，用雙簧片發聲',
-          history:'雙簧管在17世紀由法國人從肖姆管發展而來，使用兩片蘆葦簧片振動發聲。管弦樂團通常以雙簧管的A音（440Hz）作為調音基準。',
-          video:'https://www.youtube.com/embed/eGUl-wYhPOg',
+          history:'雙簧管在17世紀由法國宮廷樂師從肖姆管改良發展而來，使用兩片薄蘆葦簧片夾合振動發聲，音色尖銳穿透且略帶哀愁。由於雙簧管的A音音準極為穩定，管弦樂團在演出前通常以雙簧管吹出的A音（440Hz）作為全團調音基準。雙簧管演奏者需自行削製蘆葦簧片，是樂手技藝的重要部分。巴赫、莫扎特、理察·施特勞斯均為其創作了重要作品，普羅高菲夫的《彼得與狼》中以雙簧管代表鴨子。',
+          video:'https://www.youtube.com/embed/NU-8cklBdYo',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.02, vol:0.15, filterType:'bandpass', filterFreq:1200, filterQ:3, vibRate:5, vibDepth:3 }},
         { id:'bassoon',      nameZh:'巴松管',     nameEn:'Bassoon',      family:'woodwind',   familyZh:'木管', img:'img/instruments/bassoon.jpg', desc:'木管家族中音域最低',
-          history:'巴松管在16世紀的意大利發展而成，管身長約2.6米，折疊成U型。它使用雙簧片發聲，是木管家族中音域最低的常規成員，音色溫暖渾厚。',
-          video:'https://www.youtube.com/embed/sLfH38m-VF8',
+          history:'巴松管在16世紀的意大利從柯塔爾管演變而成，管身展開長約2.6米，折疊成U型以便演奏，重量約3公斤。它使用雙簧片發聲，是木管家族中音域最低的常規成員，低音區音色溫暖渾厚，高音區則帶有鼻腔共鳴感。普羅高菲夫《彼得與狼》以巴松管代表爺爺的角色，莫扎特的《巴松管協奏曲》是該樂器最著名的獨奏曲目。更大型的倍低音巴松管音域比巴松管低一個八度。',
+          video:'https://www.youtube.com/embed/oSQ0fQnGg84',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
-        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.svg', desc:'音樂課最常見的樂器',
-          history:'牧童笛（直笛）的歷史可追溯至中世紀，在文藝復興和巴洛克時期非常流行。它構造簡單，是最適合初學者的管樂器，也是音樂課最常見的樂器。',
+        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'', desc:'音樂課最常見的樂器',
+          history:'直笛（牧童笛）的歷史可追溯至中世紀歐洲，在文藝復興和巴洛克時期曾是宮廷最重要的管樂器，巴赫和韋瓦第均為其創作了大量作品。它以頂端的吹口直接吹入發聲，構造簡單，按孔便可改變音高，無需額外技巧即可入門。18世紀橫吹長笛興起後，直笛一度沉寂，直至20世紀古樂復興運動才重獲重視。現今直笛被廣泛用作兒童音樂教育的入門樂器，常見型號包括高音、中音和次中音。',
           video:'https://www.youtube.com/embed/dMb1vABS2aM',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
         { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.jpg', desc:'比長笛更小，音域最高',
-          history:'短笛是長笛的小型版本，長度約為長笛的一半，音域比長笛高一個八度。它是管弦樂團中音域最高的木管樂器，聲音尖銳穿透力極強。',
-          video:'https://www.youtube.com/embed/Dw-wheB4gcM',
+          history:'短笛是長笛家族中最小的成員，長度約為標準長笛的一半，但音域比長笛高整整一個八度，是管弦樂團中音域最高的常規樂器。它在記譜時比實際音高低一個八度，以避免大量加線。短笛聲音尖銳穿透力極強，貝多芬在《第五交響曲》終樂章首次將其引入交響樂，此後成為管弦樂團的標準配置。在軍樂隊中，短笛是帶領隊伍行進的核心聲部。',
+          video:'https://www.youtube.com/embed/111yvjBvDyU',
           synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
         { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english-horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
-          history:'英國管其實既不是「英國的」也不是「號角」，名字可能來自法語的「彎角」。它比雙簧管長，音域低五度，末端有獨特的梨形喇叭口，音色溫暖哀愁。',
-          video:'https://www.youtube.com/embed/Se6m-OEBms4',
+          history:'英國管其實既不是「英國的」也不是「號角」，其法文名稱cor anglais可能源自「彎角」（cor anglé）的諧音。它是雙簧管的次中音版本，管身比雙簧管長，末端有獨特的梨形喇叭口，音域比雙簧管低五度。英國管音色溫暖憂鬱，常被用來表達思鄉、哀愁和遼闊的大自然。德沃夏克《新世界交響曲》第二樂章中英國管奏出的緩板主題，是音樂史上最令人動容的旋律之一。白遼士和西貝流士亦為其寫下精彩的獨奏段落。',
+          video:'https://www.youtube.com/embed/ycgzqC92DbQ',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.03, vol:0.18, filterType:'bandpass', filterFreq:1000, filterQ:2.5, vibRate:4.5, vibDepth:2.5 }},
         { id:'alto-sax',     nameZh:'中音薩克斯風', nameEn:'Alto Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/alto-sax.jpg', desc:'最常見的薩克斯風，音色溫暖',
-          history:'薩克斯風由比利時人阿道夫·薩克斯於1846年發明。中音薩克斯風是最常見的型號，雖然是銅製的，但因使用簧片發聲而被歸類為木管樂器。',
+          history:'薩克斯風由比利時樂器師阿道夫·薩克斯於1846年在法國巴黎發明並申請專利，目的是創造一種音量大於木管、音色柔和於銅管的樂器，以連接兩個家族。中音薩克斯風是最常見的型號，雖然管身由黃銅製造，但因使用單簧片發聲而依照聲學原理被歸類為木管樂器。薩克斯風在爵士樂的發展中舉足輕重，查理·帕克（中音）和約翰·科爾特蘭（次中音）重新定義了爵士樂的語言。',
           video:'https://www.youtube.com/embed/UYU4R-GfFr0',
           synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.02, vol:0.22, filterType:'lowpass', filterFreq:2200, filterQ:2, vibRate:5, vibDepth:3 }},
         { id:'tenor-sax',    nameZh:'次中音薩克斯風', nameEn:'Tenor Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/tenor-sax.jpg', desc:'爵士樂中最受歡迎的薩克斯風',
-          history:'次中音薩克斯風比中音薩克斯風大，音域更低。它是爵士樂中最受歡迎的樂器之一，著名演奏家包括約翰·科爾特蘭和索尼·羅林斯。',
+          history:'次中音薩克斯風比中音薩克斯風大，管身呈彎曲的U型，音域比中音薩克斯風低五度。它是爵士樂中最具代表性的聲音之一，傳奇演奏家約翰·科爾特蘭以其探索性的演奏重新定義了爵士樂的邊界，索尼·羅林斯則以強勁豪放的即興著稱。次中音薩克斯風在爵士大樂團、流行樂和搖滾樂中均有廣泛使用，其低沉有力的音色極具魅力。',
           video:'https://www.youtube.com/embed/cGjYy_9UCqI',
           synthParams:{ wave:'sawtooth', freq:330, dur:1.0, attack:0.02, vol:0.24, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:3 }},
         { id:'soprano-sax',  nameZh:'高音薩克斯風', nameEn:'Soprano Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/soprano-sax.jpg', desc:'直管型薩克斯風，音域最高',
-          history:'高音薩克斯風是薩克斯風家族中最小的常見成員，通常為直管形狀。它的音色明亮穿透，在爵士樂和古典音樂中都有出色表現。',
+          history:'高音薩克斯風是薩克斯風家族中最小的常見成員，通常為直管形狀，外觀與單簧管相似但末端微微上翹。它的音色明亮穿透，高音區甚至帶有嘹亮的哨音質感。在古典音樂中，高音薩克斯風常見於薩克斯風四重奏；在爵士界，史提夫·雷西和韋恩·蕭特以其創作了大量前衛風格作品。流行樂手肯尼·G更以高音薩克斯風獨特的綿長氣息聞名全球。',
           video:'https://www.youtube.com/embed/u4cMY7qeaiM',
           synthParams:{ wave:'sawtooth', freq:587, dur:0.9, attack:0.02, vol:0.2, filterType:'lowpass', filterFreq:2800, filterQ:2, vibRate:5.5, vibDepth:3.5 }},
         { id:'baritone-sax', nameZh:'上低音薩克斯風', nameEn:'Baritone Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/baritone-sax.jpg', desc:'最大的常見薩克斯風，音域最低',
-          history:'上低音薩克斯風是薩克斯風家族中體型最大的常見型號，重約5公斤。它提供深沉有力的低音，在爵士大樂團和管樂團中擔任低音聲部。',
+          history:'上低音薩克斯風是薩克斯風家族中體型最大的常見型號，管身折疊成巨大的J型，重約5公斤，演奏者通常需要肩帶支撐。它的音域比中音薩克斯風低兩個五度，提供深沉有力的低音，在爵士大樂團和管樂團中擔任低音聲部。傳奇爵士演奏家哈利·卡尼在艾靈頓公爵樂隊中以上低音薩克斯風打造了標誌性的音色，後來哈姆·彼得森更進一步拓展了其獨奏可能性。',
           video:'https://www.youtube.com/embed/k91FjkE3v3Q',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.2, attack:0.03, vol:0.26, filterType:'lowpass', filterFreq:1200, filterQ:1.8, vibRate:4, vibDepth:2 }},
         { id:'harmonica',    nameZh:'口琴',       nameEn:'Harmonica',    family:'woodwind',   familyZh:'木管', img:'img/instruments/harmonica.jpg', desc:'用嘴吹奏的小型簧片樂器',
-          history:'口琴在1820年代由歐洲人發明，體積小巧便於攜帶。通過吹氣和吸氣使金屬簧片振動發聲，在藍調、民謠和流行音樂中廣泛使用。',
+          history:'口琴在1820年代由德國和奧地利的工匠分別改良發展而成，體積小巧，可放入口袋中，是最便於攜帶的旋律樂器之一。演奏者通過向不同孔位吹氣和吸氣使內部的金屬自由簧片振動發聲，吹氣和吸氣可產生不同音高。口琴在藍調音樂中被稱為「harp」，鮑勃·狄倫和尼爾·楊將其帶入民謠和搖滾，而史帝維·旺達和西佐·波薩則以半音階口琴征服了流行樂壇。',
           video:'https://www.youtube.com/embed/eEKlRUvk9zc',
           synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.02, vol:0.18, filterType:'lowpass', filterFreq:2000, filterQ:1.5, vibRate:6, vibDepth:3 }},
         { id:'bagpipes',     nameZh:'風笛',       nameEn:'Bagpipes',     family:'woodwind',   familyZh:'木管', img:'img/instruments/bagpipes.jpg', desc:'蘇格蘭傳統的風袋管樂器',
-          history:'風笛的歷史可追溯至古羅馬時期，在蘇格蘭成為最具代表性的文化象徵。演奏者向風袋吹氣，風袋持續擠壓空氣通過管道發聲，可產生持續不斷的聲音。',
+          history:'風笛的歷史可追溯至古羅馬甚至更早的中東地區，後隨民族遷徙傳播至蘇格蘭、愛爾蘭、西班牙和東歐，各地均有獨特型號。演奏者向風袋吹氣，風袋持續擠壓空氣通過旋律管和持續音低音管發聲，可產生連綿不斷的聲音。蘇格蘭高地風笛是其中最著名的代表，音量極大，傳統上在戰場上激勵士氣。如今風笛在蘇格蘭婚禮、葬禮和節慶場合仍是不可缺少的樂器。',
           video:'https://www.youtube.com/embed/olA-LAG0aRc',
           synthParams:{ wave:'sawtooth', freq:466, dur:2.0, attack:0.1, vol:0.2, filterType:'bandpass', filterFreq:1000, filterQ:2, vibRate:3, vibDepth:2 }},
         { id:'pan-flute',    nameZh:'排笛',       nameEn:'Pan Flute',    family:'woodwind',   familyZh:'木管', img:'img/instruments/pan-flute.jpg', desc:'由長短不同的管子排成一排',
-          history:'排笛以希臘神話中的牧神潘命名，由多根長短不同的管子並排組成。它在南美洲安第斯地區的音樂傳統中尤其重要，音色空靈悠遠。',
+          history:'排笛（排蕭）以希臘神話中的牧神潘命名，傳說他用蘆葦管排列製成此笛。它由多根長短不同的管子並排組合，演奏者通過向各管頂端吹氣使氣柱振動發聲，音高由管子長度決定。排笛在南美洲安第斯山區的民間音樂傳統中尤其重要，是當地原住民文化的象徵。此外，古代埃及、羅馬和中國均有排笛的使用記錄。現代安第斯排笛音色空靈悠遠，在世界音樂中廣受歡迎。',
           video:'https://www.youtube.com/embed/RW9dzwtWzp8',
           synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
 
         // ── 銅管 Brass ──
         { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.jpg', desc:'音色明亮響亮的銅管樂器',
-          history:'小號的歷史可追溯至3000年前的古埃及，最初用於軍事和儀式。現代活塞小號在1820年代發明，有三個活塞，是銅管家族中音域最高的樂器。',
-          video:'https://www.youtube.com/embed/LBcmLzdMYD0',
+          history:'小號的歷史可追溯至3000年前的古埃及，最初用於軍事信號和宗教儀式。現代活塞小號於1820年代在法國發明，三個活塞系統讓演奏者能吹奏所有半音，取代了以往需換管演奏的天然號角。小號是銅管家族中音域最高的樂器，聲音明亮輝煌。爵士大師邁爾斯·戴維斯以柔和細膩的弱音小號開創了冷爵士風格，而海頓的《降E大調小號協奏曲》是古典獨奏曲目中最著名的一首。',
+          video:'https://www.youtube.com/embed/0JSNU1H5mQA',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:3 }},
         { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.jpg', desc:'用滑管改變音高',
-          history:'長號在15世紀出現，是銅管家族中唯一使用滑管（而非活塞）改變音高的樂器。滑管有七個把位，可以演奏出滑順的滑音效果。',
-          video:'https://www.youtube.com/embed/4fdhYpwAfr0',
+          history:'長號於1450年代在引入多層滑管機構後形式確立，是銅管家族中唯一不使用活塞而是用滑管改變音高的樂器。滑管有七個把位，配合口型可帶入更多音高，也能演奏流暢的滑音效果。巴赫大量使用長號，其宗教合唱曲中長號聲部至今仍是專業演奏者的挑戰。長號音色厚重莊嚴，在交響樂的高潮段落中尤具震撼力，演奏者需多年苦練才能將滑管控制得精準。',
+          video:'https://www.youtube.com/embed/b84jzHw653c',
           synthParams:{ wave:'sawtooth', freq:233, dur:1.0, attack:0.02, vol:0.25, filterType:'lowpass', filterFreq:2000, filterQ:2 }},
         { id:'french-horn',  nameZh:'圓號',       nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.jpg', desc:'圓形的銅管樂器，音色柔和',
-          history:'圓號源自狩獵號角，管身展開全長約3.7米。它被認為是最難演奏的銅管樂器，音色柔和溫暖，常用於表現大自然和英雄主題的音樂。',
-          video:'https://www.youtube.com/embed/NJPylPhiLrU',
+          history:'圓號由狩獵號角演變而來，管身展開全長約3.7米。現代圓號有四個調音管，可降低不同度數的半音以擴展音域。它被認為是最難演奏的銅管樂器，演奏者需精確控制口型和氣息才能達到正確音準。圓號音色柔和溫暖，常用於表現大自然、英雄主義和浩瀚情感，貝多芬、布拉姆斯、理查·施特勞斯和馬勒均為圓號寫下了傳世名作。',
+          video:'https://www.youtube.com/embed/JY7wZMX9vfo',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:4, vibDepth:2 }},
         { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.jpg', desc:'銅管家族最大最低沉',
-          history:'大號在1835年由德國人威廉·維普雷希特發明，是銅管家族中最大最低沉的樂器。它重約12公斤，管身展開長達5.5米，為管弦樂團提供低音基礎。',
-          video:'https://www.youtube.com/embed/yTnhDFxEfwQ',
+          history:'大號於1835年由德國人威廉·維普雷希特和約翰·戈特弗里德·莫里茨共同發明，是銅管家族中最大最低沉的樂器。它重約12公斤，管身展開長達5.5米，通常有四或五個調音管。大號為管弦樂團提供低音基礎，在進行樂隊和管樂隊中也是震撼人心的低音支柱。拉爾夫·沃恩·威廉姆斯曾為大號創作了一首著名的協奏曲，約翰·費利斯也以大號獨奏聞名於世。',
+          video:'https://www.youtube.com/embed/17HjK-TiM0g',
           synthParams:{ wave:'sawtooth', freq:131, dur:1.0, attack:0.03, vol:0.3, filterType:'lowpass', filterFreq:800, filterQ:1.5 }},
-        { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.svg', desc:'比小號稍小，音色較柔和',
-          history:'短號在1820年代發展自郵號，外形與小號相似但管身更短更圓錐形。音色比小號柔和甜美，在英式銅管樂隊中是最重要的獨奏樂器。',
+        { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.jpg', desc:'比小號稍小，音色較柔和',
+          history:'短號於1820年代由郵號發展而來，外形與小號相似但管身更短更圓錐形，音色比小號柔和甜美。在英式銅管樂隊中，短號是最重要的旋律獨奏樂器，地位猶如小提琴在弦樂團中的位置。著名演奏家赫伯特·克拉克將短號技藝帶至高峰，而爵士樂界的比克斯·拜德貝克以短號演奏的柔和風格影響了整個20世紀初的爵士樂壇。',
           video:'https://www.youtube.com/embed/QW_m5t16010',
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.2, filterType:'lowpass', filterFreq:2500, filterQ:2.5 }},
 
         // ── 敲擊 Percussion ──
         { id:'timpani',      nameZh:'定音鼓',     nameEn:'Timpani',      family:'percussion', familyZh:'敲擊', img:'img/instruments/timpani.jpg', desc:'可調音高的大型鼓',
-          history:'定音鼓起源於中世紀的阿拉伯鼓，是管弦樂團中最重要的敲擊樂器。它可以通過踏板精確調節音高，通常一組有2至5個大小不同的鼓。',
-          video:'https://www.youtube.com/embed/ONK-HHeJ6m8',
+          history:'定音鼓源自中世紀的阿拉伯戰鼓（Naqqara），十字軍將其帶入歐洲。現代踏板定音鼓於18世紀在德國發展成型，演奏者可通過踏板精確調節音高，從而與管弦樂團和聲，通常一組有2至5個大小不同的鼓。定音鼓是管弦樂團中最重要的敲擊樂器，能產生深山鳴響的低音。貝多芬、布拉姆斯和馬勒均善用定音鼓製造戲劇性的音樂效果。',
+          video:'https://www.youtube.com/embed/XPEfzkraPLc',
           synthParams:{ wave:'sine', freq:150, freqEnd:80, dur:0.8, attack:0.005, vol:0.35 }},
-        { id:'snare',        nameZh:'小軍鼓',     nameEn:'Snare Drum',   family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/snare.png', desc:'底部有響弦的小鼓',
-          history:'小軍鼓底部繃有金屬響弦，敲擊時產生獨特的「嘶嘶」聲。它源自中世紀的軍鼓，是行軍和軍樂不可缺少的樂器，也是爵士鼓組的重要成員。',
+        { id:'snare',        nameZh:'小軍鼓',     nameEn:'Snare Drum',   family:'percussion', familyZh:'敲擊', img:'img/instruments/snare.webp', desc:'底部有響弦的小鼓',
+          history:'小軍鼓的前身可追溯至14世紀中東的道材爾鼓，十字軍帶入歐洲並演變為現代軍鼓。底部繃有金屬響弦，敲擊時產生獨特的「嘶嘶」聲。小軍鼓在軍樂中用於節奏訊號和調子，在管弦樂團中負責強助聲部和樂勢高潮。爵士鼓組中小軍鼓的橫槳打法（cross-stick）和鑲嵌技巧將其的表現力大大擴展。許多放克小軍鼓獨奏樂器的演奏家度量模之高超吉他者。',
           video:'https://www.youtube.com/embed/NifOAvu7KQk',
           synthParams:{ noise:true, dur:0.2, filterType:'highpass', filterFreq:2000, filterQ:0.5, vol:0.35 }},
-        { id:'bass-drum',    nameZh:'大鼓',       nameEn:'Bass Drum',    family:'percussion', familyZh:'敲擊', img:'img/instruments/bass-drum.jpg', desc:'管弦樂中最大的鼓',
-          history:'大鼓是管弦樂團中最大的敲擊樂器，直徑可達100厘米。它產生深沉有力的低音，常用於強調音樂的高潮和節拍重音，一槌就能震撼全場。',
+        { id:'bass-drum',    nameZh:'大鼓',       nameEn:'Bass Drum',    family:'percussion', familyZh:'敲擊', img:'img/instruments/bass%20drum.jpg', desc:'管弦樂中最大的鼓',
+          history:'大鼓是管弦樂團中最大的敲擊樂器，直徑可達100厘米。它的前身可追溯至中世紀歐洲的大型軍鼓和非洲各地的傳統鼓類。它產生深沉有力的低音，常用於強調音樂的高潮和節拍重音，一槌就能震撼全場。大鼓在軍樂隊中習用於拍打強勁行進步伐，在管弦樂團中則能色彩壯麗的音樂高潮。巴赫、貝多芬、馬勒和查爾斯尼尼均列大鼓為演奏的主筆甲之。',
           video:'https://www.youtube.com/embed/ci48L1RZokU',
           synthParams:{ wave:'sine', freq:80, freqEnd:40, dur:0.6, attack:0.005, vol:0.4 }},
-        { id:'xylophone',    nameZh:'木琴',       nameEn:'Xylophone',    family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/xylophone.png', desc:'用小槌敲擊木條的樂器',
-          history:'木琴源自東南亞和非洲，由按音高排列的木條組成。演奏者用小槌敲擊木條，音色清脆明亮，在管弦樂和敲擊樂合奏中都很常見。',
+        { id:'xylophone',    nameZh:'木琴',       nameEn:'Xylophone',    family:'percussion', familyZh:'敲擊', img:'img/instruments/xylophone.jpg', desc:'用小槌敲擊木條的樂器',
+          history:'木琴起源於非洲和東南亞，由按音高排列的木條組成。演奏者用小槌敲擊木條，音色清脆明亮，每條木條下方有金屬共鳴筒增強音量。木琴在非洲大陸是含義深遠的儀式樂器，後經奉教士將其帶入拉丁美洲。木琴在管弦樂和敲擊樂合奏中都很常見，紀特·聖薩和山普雙均為其寫下經典曲目。現代木琴演奏家如徐索夫尼將其引入更廣闊的舞台。',
           video:'https://www.youtube.com/embed/IsfEj_7SKtQ',
           synthParams:{ wave:'sine', freq:880, dur:0.4, attack:0.002, vol:0.28, sustain:0.15 }},
-        { id:'triangle',     nameZh:'三角鐵',     nameEn:'Triangle',     family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/triangle.png', desc:'三角形的金屬棒，聲音清脆',
-          history:'三角鐵是一根彎成三角形的鋼棒，用金屬棒敲擊發聲。雖然構造簡單，但在管弦樂中扮演重要角色，聲音清亮穿透，能為音樂增添光彩。',
+        { id:'triangle',     nameZh:'三角鐵',     nameEn:'Triangle',     family:'percussion', familyZh:'敲擊', img:'img/instruments/三角鐵.jpg', desc:'三角形的金屬棒，聲音清脆',
+          history:'三角鐵是一根彎成三角形的鋼棒，用鐵棒敲擊發聲。雖然構造簡單，三角鐵卻包含一定程度的難度：它產生不限定的音高，需要演奏者精密控制力度和位置。三角鐵在管弦樂團中扮演重要角色，聲音清亮穿透，能為音樂增添光彩。李斯特《交響曲》和布拉姆斯《匯區拉雙豐演奏曲》中均有著名的三角鐵獨奏段落，而奧爾循《三角鐵協奏曲》更是專為其寫下的傳世謔謔。',
           video:'https://www.youtube.com/embed/0uLf5FfvY9c',
           synthParams:{ wave:'sine', freq:2200, dur:1.2, attack:0.001, vol:0.15, sustain:0.2 }},
-        { id:'cymbals',      nameZh:'鈸',         nameEn:'Cymbals',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/cymbals.png', desc:'兩片圓形金屬板互擊',
-          history:'鈸的歷史可追溯至古代中國和土耳其。由青銅合金製成的圓形金屬板，互相碰擊或用鼓棒敲擊發聲，能產生從輕柔到震耳的多種音效。',
+        { id:'cymbals',      nameZh:'鈸',         nameEn:'Cymbals',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cymbal.jpg', desc:'兩片圓形金屬板互擊',
+          history:'鈸的歷史可追溯至古代中國、埃及和土耳其。由青銅合金製成的圓形金屬板，互相碰擊或用鼓棒敲擊發聲，能產生從輕柔到震耳的多種音效。鈸在亞洲尼瓦納馬和土耳其火腦調儀式音樂中有深厚協作。爵士鼓組中的踏板鈸（hi-hat）和吾鈸是解放和自由的象徵。在管弦樂團中，鈸的黃銅質地和製作工藝決定了其音色特性。',
           video:'https://www.youtube.com/embed/X1rFyPGd95U',
           synthParams:{ noise:true, dur:0.8, filterType:'highpass', filterFreq:5000, filterQ:0.3, vol:0.25 }},
-        { id:'tambourine',   nameZh:'鈴鼓',       nameEn:'Tambourine',   family:'percussion', familyZh:'敲擊', img:'img/instruments/cards/tambourine.png', desc:'有小鈸片的手鼓',
-          history:'鈴鼓結合了鼓面和小金屬鈸片，搖晃或敲擊時發出節奏感十足的聲音。它廣泛用於各種音樂風格，從古典到流行，是最容易上手的敲擊樂器之一。',
+        { id:'tambourine',   nameZh:'鈴鼓',       nameEn:'Tambourine',   family:'percussion', familyZh:'敲擊', img:'img/instruments/tambourine.jpg', desc:'有小鈸片的手鼓',
+          history:'鈴鼓結合了鼓面和小金屬鈸片，搖晃或敲擊時發出節奏感十足的聲音。它起源於中東和南歐，日語中叫做「太鼓」，流入歐洲方言築中。鈴鼓廣泛用於世界各地的民流樂，從中世紀歐洲侏儒樂到印度客廳、從寺廟歌唱到現代流行樂，都有鈴鼓的跟隨。它是最容易上手的打擊樂器之一，也是舞台表演中常見的改屠道具。',
           video:'https://www.youtube.com/embed/KvIbXL84duI',
           synthParams:{ noise:true, dur:0.35, filterType:'bandpass', filterFreq:6000, filterQ:1, vol:0.22 }},
         { id:'glockenspiel', nameZh:'鐘琴',       nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'img/instruments/glockenspiel.jpg', desc:'金屬音條，聲音像鐘聲',
-          history:'鐘琴由金屬音條組成，音色清脆悅耳如同小鐘。它在管弦樂中增添亮麗色彩，莫札特的《魔笛》中的著名段落就使用了鐘琴的美妙音色。',
+          history:'鐘琴由金屬音條組成，音色清脆悅耳如同小鐘。它起源於16世紀的歐洲，著名演奏家首頭通常使用小槌敲擊。鐘琴在管弦樂中增添亮麗色彩，莫札特的《魔笛》中巴巴跟納之鑄著名的鐘琴樂段就使用了鐘琴的美妙音色。鐘琴在行進樂隊、管樂隊和山岳樂隊中常見，也常用於兒童音樂中。現代鐘琴用金屬音條前一舞台演奏的動作展現，具有視覺與聽覺雙重吸引力。',
           video:'https://www.youtube.com/embed/mxvkjsvgTUo',
           synthParams:{ wave:'sine', freq:1760, dur:0.8, attack:0.001, vol:0.2, sustain:0.15 }},
         { id:'marimba',      nameZh:'馬林巴琴',   nameEn:'Marimba',      family:'percussion', familyZh:'敲擊', img:'img/instruments/marimba.jpg', desc:'大型木質音條敲擊樂器',
-          history:'馬林巴琴源自非洲和中美洲，是木琴的大型版本。每根木條下方都有共鳴管，使音色更為豐富溫暖，是危地馬拉和墨西哥的國樂器。',
+          history:'馬林巴琴起源於非洲中部和中美洲，香山中大勒馬拉難和安第斯地區均有強大的傳統。它是危地馬拉和墨西哥的國樂器，演奏者常帶梓木共鳴管。馬林巴琴音色渾厚溫暖，音域寬廣達四個八度以上，是打擊樂家族中難度最高、表現力最豐富的樂器之一。安代斯·山普更和威娜布尼·吉貝均為其寫下了著名曲目。',
           video:'https://www.youtube.com/embed/sRJYuI8ya84',
           synthParams:{ wave:'sine', freq:440, dur:0.6, attack:0.003, vol:0.3, sustain:0.2 }},
         { id:'vibraphone',   nameZh:'顫音琴',     nameEn:'Vibraphone',   family:'percussion', familyZh:'敲擊', img:'img/instruments/vibraphone.webp', desc:'金屬音條帶電動顫音效果',
-          history:'顫音琴在1920年代發明，金屬音條下方的共鳴管內有電動旋轉盤，產生獨特的顫音效果。它是爵士樂中重要的旋律敲擊樂器。',
+          history:'顫音琴在1920年代由美國演奏家貴馬斯·安德森發明，金屬音條下方的共鳴管內裝有電動旋轉盤，產生獨特的顫音效果和柔和的延音。它是爵士樂中重要的旋律打擊樂器，常見了香山爾·考寬、米爾斯·戴維斯和送戰神布則·麥克泛河。現代創作音樂和世界音樂也廣泛採用顫音琴，其嬌貴的音色被許多作曲家視為獨一無二的色彩。',
           video:'https://www.youtube.com/embed/BkBu7Om6Bd4',
           synthParams:{ wave:'sine', freq:880, dur:1.0, attack:0.002, vol:0.22, vibRate:5, vibDepth:4, sustain:0.2 }},
-        { id:'drums',        nameZh:'爵士鼓',     nameEn:'Drums',        family:'percussion', familyZh:'敲擊', img:'img/instruments/drums.svg', desc:'包含多種鼓和鈸的套鼓',
-          history:'爵士鼓組在20世紀初隨著爵士樂發展而誕生，將多種鼓和鈸組合在一起由一人演奏。標準配置包括大鼓、小鼓、通鼓、腳踏鈸和吊鈸。',
+        { id:'drums',        nameZh:'爵士鼓',     nameEn:'Drums',        family:'percussion', familyZh:'敲擊', img:'img/instruments/drums.jpg', desc:'包含多種鼓和鈸的套鼓',
+          history:'爵士鼓組於20世紀初隨著爵士樂在美國紐奧良發展而誕生，將大鼓、小鼓、通鼓、踏板鈸和吾鈸組合在一起由一人演奏。標準配置包括大鼓、小鼓、通鼓、腳踏鈸和吊鈸，但可根據風格自由搭配。爵士鼓手對整隊演奏起著不可替代的鼓動作用，圈骨人物如色台布尼·富加、第欠·比海和寞爾尼·潘母斯均重新定義了爵士鼓組的可能性。',
           video:'https://www.youtube.com/embed/HKXqWVWjs-g',
           synthParams:{ noise:true, dur:0.3, filterType:'highpass', filterFreq:3000, filterQ:0.5, vol:0.3 }},
 
         // ── 鍵盤 Keyboard ──
         { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.webp', desc:'最常見的鍵盤樂器',
-          history:'鋼琴在1700年由意大利人巴爾托洛梅奧·克里斯托福里發明，全名為Pianoforte，意為「輕聲和強聲」。現代鋼琴有88個鍵，音域寬廣，是最受歡迎的樂器之一。',
+          history:'鋼琴於1700年由意大利人巴爾托洛梅奧·克里斯托福里發明，全名Pianoforte，意為「輕聲和強聲」，能根據鍵盤觸料力度控制音量，這是撥弦大鍵琴所缺乏的特性。現代鋼琴有88個鍵，音域長達七個多八度，是所有樂器中音域最寬廣的。著名作曲家蕭邦、貝多芬、李斯特和拉赫曼尼諾夫均是鋼琴大師，鋼琴協奏曲是古典音樂中最富盛的曲種之一。',
           video:'https://www.youtube.com/embed/vGq3-Fi_zQY',
           synthParams:{ wave:'triangle', freq:523, dur:1.2, attack:0.005, vol:0.3, sustain:0.3 }},
-        { id:'keyboard',     nameZh:'電子琴',     nameEn:'Keyboard',     family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/keyboard.svg', desc:'電子鍵盤樂器，可模仿多種音色',
-          history:'電子琴在1960年代開始流行，利用電子技術產生聲音，可模仿鋼琴、管風琴等多種樂器音色。它體積輕便、功能多樣，是音樂學習和表演的好幫手。',
+        { id:'keyboard',     nameZh:'電子琴',     nameEn:'Keyboard',     family:'keyboard',   familyZh:'鍵盤', img:'', desc:'電子鍵盤樂器，可模仿多種音色',
+          history:'電子琴於1960年代開始流行，利用電子技術產生聲音，可模仿鋼琴、管風琴等多種樂器音色。它體積輕便、功能多樣，是音樂學習和表演的好幫手。現代電子琴配備內置音符庫、錄音功能和教學模式，成為家庭和教學陳列室的普遍樂器。沒有電子琴的20世紀流行樂就難以想象，約翰·萊官和喬西·波薩均將電子琴化為音樂語言。',
           video:'https://www.youtube.com/embed/PltCtsNYfe4',
           synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.005, vol:0.2, filterType:'lowpass', filterFreq:2000, filterQ:1 }},
         { id:'organ',        nameZh:'管風琴',     nameEn:'Organ',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/organ.webp', desc:'用風管發聲的大型鍵盤樂器',
-          history:'管風琴被稱為「樂器之王」，最早的水壓管風琴出現在公元前3世紀。大型管風琴有數千根音管，多層鍵盤和腳踏板，常見於教堂和音樂廳。',
+          history:'管風琴被稱為「樂器之王」，最早的水壓管風琴出現在公元前3世紀的古希臘。中世紀時管風琴在教堂中成為不可或缺的儀式樂器。大型管風琴有數千根音管、多層鍵盤和腳踏板，能發出震撼整棟建築的鼓一般低音。巴赫、韓德爾和節之堡北霍克斯女均為管風琴寫下傳世名作。現代小型電子管風琴仍在世界各地的教堂和演奏區服務。',
           video:'https://www.youtube.com/embed/JeB3JnKp8To',
           synthParams:{ wave:'sine', freq:262, dur:2.0, attack:0.05, vol:0.25, vibRate:3, vibDepth:2 }},
-        { id:'harpsichord',  nameZh:'大鍵琴',     nameEn:'Harpsichord',  family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/cards/harpsichord.png', desc:'撥弦發聲的古典鍵盤樂器',
-          history:'大鍵琴是巴洛克時期（1600-1750）最重要的鍵盤樂器，通過撥片撥動弦線發聲，與鋼琴用槌敲弦的方式不同。巴赫的許多作品都是為大鍵琴而寫。',
+        { id:'harpsichord',  nameZh:'大鍵琴',     nameEn:'Harpsichord',  family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/harpsichord.jpg', desc:'撥弦發聲的古典鍵盤樂器',
+          history:'大鍵琴是巴洛克時期（1600–1750）最重要的鍵盤樂器，通過撥片撥動弦線發聲，與鋼琴用槌敲弦的方式不同。其最大特點是音量不能漸變，但可利用雙鍵盤或多鍵盤設計改變音色層次。巴赫的許多作品都是為大鍵琴而寫。隨20世紀古樂復興運動，大鍵琴重新成為被顧盼演奏巴洛克音樂的主要樂器。著名演奏家包括古德南·山普爾和髻文·裴寧。',
           video:'https://www.youtube.com/embed/itLh_yWsOX0',
           synthParams:{ wave:'triangle', freq:523, dur:0.6, attack:0.002, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:1 }},
         { id:'accordion',    nameZh:'手風琴',     nameEn:'Accordion',    family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/accordion.webp', desc:'用風箱和按鍵演奏的樂器',
-          history:'手風琴在1822年由奧地利人發明，通過拉伸和壓縮風箱使空氣流過金屬簧片發聲。它在法國香頌、阿根廷探戈和民間音樂中廣泛使用。',
+          history:'手風琴於1822年由奧地利人奇爾·迪畫利發明，通過拉伸和壓縮風箱使空氣流過金屬自由簧片發聲。它在法國香頌、阿根廷探戈和民間音樂中廣泛使用。巴揚的手風琴風格被許多中歐流行樂演奏者模仿，窘安·皮亞佐拉（丹哲）和紀謀·百麻斯將其帶入區域性特色音樂的巔峰。手風琴賦之主角地位使其成為某些國家的文化象徵。',
           video:'https://www.youtube.com/embed/aKxOpsUiFzU',
           synthParams:{ wave:'square', freq:440, dur:1.0, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:5, vibDepth:3 }},
     ];
@@ -6714,25 +6760,45 @@
     // Pre-index: instruments that have card/photo images (not SVG/emoji-only)
     const G4_IMG_POOL = INSTRUMENT_BANK.filter(i => i.img && /\.(png|jpg|jpeg|avif|webp)$/i.test(i.img));
 
+    // Sound source descriptions per family (Q4: 靠甚麼發聲？)
+    const SOUND_SOURCE_MAP = {
+        strings:   '弓拉或撥動弦線',
+        woodwind:  '吹氣通過管口或簧片',
+        brass:     '嘴唇振動吹入管口',
+        percussion:'敲擊使物體振動',
+        keyboard:  '按鍵觸動機械或電路',
+    };
+    // Percussion instruments that have fixed pitch (Q3: 有固定音高嗎？)
+    const PERCUSSION_HAS_PITCH = new Set(['timpani','xylophone','glockenspiel','marimba','vibraphone']);
+
     // Question type weights: [type, weight]
     const G4_Q_TYPES = [
-        ['audio-name',   0.18],  // hear → pick name
-        ['audio-family', 0.12],  // hear → pick family
-        ['visual-name',  0.15],  // emoji+desc → pick name
-        ['name-family',  0.20],  // name shown → pick family
-        ['image-name',   0.20],  // card/photo shown → pick name
-        ['image-family', 0.15],  // card/photo shown → pick family
+        ['listen-name',      0.25],  // 聽一聽，這是什麼樂器？ (YouTube demo → name)
+        ['image-name',       0.20],  // 這是甚麼樂器？ (image → name)
+        ['name-image',       0.17],  // 哪張是…？ (name → pick image)
+        ['name-family',      0.20],  // 屬於哪個樂器家族？ (name → family)
+        ['percussion-pitch', 0.08],  // 有固定音高嗎？ (percussion only)
+        ['sound-source',     0.10],  // 靠甚麼方式發聲？ (image → sound method)
     ];
 
     let g4State = null;
 
     /** Weighted random pick from G4_Q_TYPES, returns type string */
-    function pickG4Type(hasImage) {
-        const types = hasImage ? G4_Q_TYPES : G4_Q_TYPES.filter(t => !t[0].startsWith('image-'));
-        const total = types.reduce((s, t) => s + t[1], 0);
+    function pickG4Type() {
+        const total = G4_Q_TYPES.reduce((s, t) => s + t[1], 0);
         let r = Math.random() * total;
-        for (const [type, w] of types) { r -= w; if (r <= 0) return type; }
-        return types[types.length - 1][0];
+        for (const [type, w] of G4_Q_TYPES) { r -= w; if (r <= 0) return type; }
+        return G4_Q_TYPES[G4_Q_TYPES.length - 1][0];
+    }
+
+    /** Pick n distractor instrument objects for name-image type, prefer same-family */
+    function pickImgDistractors(correct, pool, n) {
+        const sameFamily = shuffle(pool.filter(p => p.id !== correct.id && p.family === correct.family));
+        const diffFamily = shuffle(pool.filter(p => p.id !== correct.id && p.family !== correct.family));
+        const result = [];
+        for (const p of sameFamily) { if (result.length >= Math.min(2, n)) break; result.push(p); }
+        for (const p of diffFamily) { if (result.length >= n) break; result.push(p); }
+        return result.slice(0, n);
     }
 
     /** Generate balanced distractors — prefer same-family, then cross-family, guaranteed unique */
@@ -6757,41 +6823,67 @@
 
     function generateG4Questions(count) {
         const pool = INSTRUMENT_BANK;
+        const percPool = pool.filter(i => i.family === 'percussion');
+        const imgPool = G4_IMG_POOL;
+        const videoPool = pool.filter(i => i.video);
         const questions = [];
         const recentIds = [];
         const recentWindow = Math.min(8, Math.floor(pool.length * 0.5));
-        // Track type counts for balance
-        const typeCounts = {};
+        const allSoundSources = Object.values(SOUND_SOURCE_MAP);
 
         for (let i = 0; i < count; i++) {
-            // Pick instrument — avoid recently used
+            const type = pickG4Type();
             let correct, safety = 0;
-            do {
-                correct = pool[Math.floor(Math.random() * pool.length)];
-                safety++;
-            } while (recentIds.includes(correct.id) && safety < 30);
+
+            // Select instrument based on type constraints
+            if (type === 'percussion-pitch') {
+                do { correct = percPool[Math.floor(Math.random() * percPool.length)]; safety++; }
+                while (recentIds.includes(correct.id) && safety < 20);
+            } else if (type === 'image-name' || type === 'sound-source') {
+                do { correct = imgPool[Math.floor(Math.random() * imgPool.length)]; safety++; }
+                while (recentIds.includes(correct.id) && safety < 30);
+            } else if (type === 'listen-name') {
+                const listenPool = videoPool.length ? videoPool : pool;
+                do { correct = listenPool[Math.floor(Math.random() * listenPool.length)]; safety++; }
+                while (recentIds.includes(correct.id) && safety < 30);
+            } else {
+                do { correct = pool[Math.floor(Math.random() * pool.length)]; safety++; }
+                while (recentIds.includes(correct.id) && safety < 30);
+            }
+
             recentIds.push(correct.id);
             if (recentIds.length > recentWindow) recentIds.shift();
 
-            // Pick type (image types only if instrument has an image)
-            const hasImg = correct.img && /\.(png|jpg|jpeg|avif|webp)$/i.test(correct.img);
-            let type = pickG4Type(hasImg);
-
-            // Generate options
-            let opts, answerKey;
-            if (type === 'audio-name' || type === 'visual-name' || type === 'image-name') {
+            let opts, answerKey, imgOptions = null;
+            if (type === 'listen-name') {
                 answerKey = correct.nameZh;
                 const wrongs = pickDistractors(correct, pool, 'nameZh', 3);
                 opts = shuffle([answerKey, ...wrongs]);
-            } else {
-                // family-type questions
+            } else if (type === 'image-name') {
+                answerKey = correct.nameZh;
+                const wrongs = pickDistractors(correct, pool, 'nameZh', 3);
+                opts = shuffle([answerKey, ...wrongs]);
+            } else if (type === 'name-image') {
+                answerKey = correct.id;
+                const wrongInstrs = pickImgDistractors(correct, imgPool, 3);
+                imgOptions = shuffle([correct, ...wrongInstrs]);
+                opts = imgOptions.map(i => i.id);
+            } else if (type === 'name-family') {
                 answerKey = correct.familyZh;
                 const allFamilies = ['弦樂', '木管', '銅管', '敲擊', '鍵盤'];
-                opts = shuffle(allFamilies);
+                const wrongFamilies = shuffle(allFamilies.filter(f => f !== answerKey));
+                opts = shuffle([answerKey, ...wrongFamilies.slice(0, 3)]);
+            } else if (type === 'percussion-pitch') {
+                const hasPitch = PERCUSSION_HAS_PITCH.has(correct.id);
+                answerKey = hasPitch ? '有固定音高' : '沒有固定音高';
+                opts = ['有固定音高', '沒有固定音高'];
+            } else { // sound-source
+                answerKey = SOUND_SOURCE_MAP[correct.family];
+                const wrongs = shuffle(allSoundSources.filter(s => s !== answerKey));
+                opts = shuffle([answerKey, ...wrongs.slice(0, 3)]);
             }
 
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-            questions.push({ instrument: correct, type, answer: answerKey, options: opts });
+            questions.push({ instrument: correct, type, answer: answerKey, options: opts, imgOptions });
         }
         return questions;
     }
@@ -6898,40 +6990,83 @@
             setTimeout(() => Audio.playInstrumentSound(q.instrument.id), 300);
         };
 
-        if (q.type === 'audio-name') {
-            questionEl.textContent = '🔊 聽一聽，這是什麼樂器？';
-            visualEl.innerHTML = `<div class="g4-visual-emoji">❓</div><div class="g4-visual-hint">點 🔊 再聽一次</div>`;
-            setupAudio();
-        } else if (q.type === 'audio-family') {
-            questionEl.textContent = '🔊 聽一聽，這種樂器屬於哪個家族？';
-            visualEl.innerHTML = `<div class="g4-visual-emoji">❓</div><div class="g4-visual-hint">點 🔊 再聽一次</div>`;
-            setupAudio();
+        if (q.type === 'listen-name') {
+            questionEl.textContent = '🎵 聽一聽，這是什麼樂器？';
+            const videoSrc = q.instrument.video;
+            visualEl.innerHTML = `
+                <div class="g4-listen-placeholder" id="g4ListenPlaceholder">
+                    <div class="g4-listen-icon">🎵</div>
+                    <div class="g4-listen-hint">點擊播放演奏示範</div>
+                </div>
+                <div id="g4ListenFrame" style="display:none;text-align:center;"></div>
+            `;
+            const loadFrame = () => {
+                const placeholder = document.getElementById('g4ListenPlaceholder');
+                const frame = document.getElementById('g4ListenFrame');
+                if (!frame) return;
+                if (videoSrc) {
+                    frame.innerHTML = `<iframe src="${videoSrc}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;max-width:320px;height:180px;border-radius:12px;border:none;"></iframe>`;
+                    frame.style.display = '';
+                    if (placeholder) placeholder.style.display = 'none';
+                }
+            };
+            const placeholderEl = document.getElementById('g4ListenPlaceholder');
+            if (placeholderEl) placeholderEl.onclick = loadFrame;
+            audioBtn.style.display = '';
+            audioBtn.onclick = () => {
+                const frame = document.getElementById('g4ListenFrame');
+                if (frame && frame.querySelector('iframe')) {
+                    const iframe = frame.querySelector('iframe');
+                    const s = iframe.src; iframe.src = ''; iframe.src = s;
+                } else {
+                    loadFrame();
+                }
+                audioBtn.classList.add('playing');
+                setTimeout(() => audioBtn.classList.remove('playing'), 3000);
+            };
+            setTimeout(loadFrame, 400);
         } else if (q.type === 'image-name') {
-            questionEl.textContent = '🖼️ 看圖片，這是什麼樂器？';
+            questionEl.textContent = '🖼️ 這是甚麼樂器？';
             visualEl.innerHTML = `<img class="g4-visual-img" src="${q.instrument.img}" alt="樂器圖片" loading="lazy">`;
-        } else if (q.type === 'image-family') {
-            questionEl.textContent = '🖼️ 看圖片，這種樂器屬於哪個家族？';
-            visualEl.innerHTML = `<img class="g4-visual-img" src="${q.instrument.img}" alt="樂器圖片" loading="lazy">`;
-        } else if (q.type === 'visual-name') {
-            questionEl.textContent = '猜猜看，這是什麼樂器？';
-            visualEl.innerHTML = `<div class="g4-visual-emoji">${q.instrument.emoji}</div>` +
-                `<div class="g4-visual-hint">${q.instrument.desc}</div>`;
+        } else if (q.type === 'name-image') {
+            questionEl.textContent = `🎯「${q.instrument.nameZh}」是哪一種樂器？點選正確圖片！`;
+            visualEl.innerHTML = `<div class="g4-visual-hint" style="font-size:1rem;font-weight:700;margin-top:6px;">${q.instrument.nameEn}</div>`;
         } else if (q.type === 'name-family') {
             questionEl.textContent = `「${q.instrument.nameZh}」屬於哪個樂器家族？`;
-            visualEl.innerHTML = `<div class="g4-visual-emoji">${q.instrument.emoji}</div>` +
-                `<div class="g4-visual-hint">${q.instrument.nameEn}</div>`;
+            visualEl.innerHTML = `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;margin-top:8px;">${q.instrument.nameEn}</div>` +
+                `<div class="g4-visual-hint" style="margin-top:4px;">${q.instrument.desc}</div>`;
+        } else if (q.type === 'percussion-pitch') {
+            questionEl.textContent = `「${q.instrument.nameZh}」有固定音高嗎？`;
+            visualEl.innerHTML = `<img class="g4-visual-img" src="${q.instrument.img}" alt="樂器圖片" loading="lazy">`;
+        } else if (q.type === 'sound-source') {
+            questionEl.textContent = `「${q.instrument.nameZh}」靠甚麼方式發聲？`;
+            visualEl.innerHTML = `<img class="g4-visual-img" src="${q.instrument.img}" alt="樂器圖片" loading="lazy">`;
         }
 
         // Render options
         const optEl = document.getElementById('g4Options');
         optEl.innerHTML = '';
-        q.options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'quiz-opt-btn';
-            btn.textContent = opt;
-            btn.onclick = () => handleG4Answer(opt, q.answer, btn, q);
-            optEl.appendChild(btn);
-        });
+
+        if (q.type === 'name-image' && q.imgOptions) {
+            optEl.classList.add('g4-img-opts');
+            q.imgOptions.forEach(instr => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-opt-btn g4-img-opt-btn';
+                btn.dataset.optVal = instr.id;
+                btn.innerHTML = `<img src="${instr.img}" alt="${instr.nameZh}" loading="lazy"><span class="g4-img-opt-label">${instr.nameZh}</span>`;
+                btn.onclick = () => handleG4Answer(instr.id, q.answer, btn, q);
+                optEl.appendChild(btn);
+            });
+        } else {
+            optEl.classList.remove('g4-img-opts');
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-opt-btn';
+                btn.textContent = opt;
+                btn.onclick = () => handleG4Answer(opt, q.answer, btn, q);
+                optEl.appendChild(btn);
+            });
+        }
     }
 
     function handleG4Answer(chosen, correct, btn, q) {
@@ -6945,7 +7080,8 @@
         // Highlight buttons
         document.querySelectorAll('#g4Options .quiz-opt-btn').forEach(b => {
             b.disabled = true;
-            if (b.textContent === correct) b.classList.add('correct');
+            const bVal = b.dataset.optVal !== undefined ? b.dataset.optVal : b.textContent;
+            if (bVal === correct) b.classList.add('correct');
             if (b === btn && !isCorrect) b.classList.add('wrong');
         });
 
@@ -6962,10 +7098,37 @@
         } else {
             g4State.counts.wrong++;
             g4State.combo = 0;
+            const qLabel = q.type === 'name-family' ? `${q.instrument.nameZh}屬於哪個樂器家族？`
+                : q.type === 'percussion-pitch' ? `${q.instrument.nameZh}有固定音高嗎？`
+                : q.type === 'sound-source' ? `${q.instrument.nameZh}靠甚麼方式發聲？`
+                : q.type === 'name-image' ? `哪一張是「${q.instrument.nameZh}」？`
+                : `這是甚麼樂器？（${q.instrument.desc}）`;
+            const chosenLabel = q.type === 'name-image'
+                ? (INSTRUMENT_BANK.find(i => i.id === chosen)?.nameZh || chosen) : chosen;
+            const correctLabel = q.type === 'name-image' ? q.instrument.nameZh : correct;
+            // For listen-name: stop video and reveal instrument image
+            if (q.type === 'listen-name') {
+                const frame = document.getElementById('g4ListenFrame');
+                if (frame) { const iframe = frame.querySelector('iframe'); if (iframe) iframe.src = ''; }
+                const visualEl2 = document.getElementById('g4Visual');
+                if (visualEl2 && q.instrument.img) {
+                    visualEl2.innerHTML = `<img class="g4-visual-img" src="${q.instrument.img}" alt="${q.instrument.nameZh}" loading="lazy">`;
+                } else if (visualEl2) {
+                    visualEl2.innerHTML = `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;">${q.instrument.nameZh}<br><span style="font-size:0.85rem;font-weight:400;color:var(--text-light)">${q.instrument.nameEn}</span></div>`;
+                }
+            }
+            const explainMap = {
+                'listen-name':      `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
+                'name-family':      `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`,
+                'percussion-pitch': `${q.instrument.nameZh}${PERCUSSION_HAS_PITCH.has(q.instrument.id) ? '有' : '沒有'}固定音高`,
+                'sound-source':     `${q.instrument.nameZh}的發聲方式：${SOUND_SOURCE_MAP[q.instrument.family]}`,
+                'image-name':       `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
+                'name-image':       `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
+            };
             g4State.mistakes.push({
-                q: q.type.includes('family') ? `${q.instrument.nameZh}的家族` : q.type.includes('audio') ? `聽音辨別（${q.instrument.nameZh}）` : `${q.instrument.desc}`,
-                chosen, correct,
-                explain: `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`
+                q: qLabel,
+                chosen: chosenLabel, correct: correctLabel,
+                explain: explainMap[q.type] || ''
             });
             document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
             Audio.playEffect('wrong');
@@ -7077,7 +7240,7 @@
                 <div class="g4-study-name">${inst.nameZh}</div>
                 <div class="g4-study-en">${inst.nameEn}</div>
                 <div class="g4-study-desc">${inst.desc}</div>
-                <button class="g4-study-listen" data-id="${inst.id}">🔊 試聽</button>
+                <button class="g4-study-listen" data-id="${inst.id}" data-name="${inst.nameZh}">🔊 讀音</button>
             </div>
         `}).join('');
 
@@ -7086,9 +7249,13 @@
             const listenBtn = e.target.closest('.g4-study-listen');
             if (listenBtn) {
                 e.stopPropagation();
-                Audio.playInstrumentSound(listenBtn.dataset.id);
-                listenBtn.textContent = '🔊 播放中…';
-                setTimeout(() => { listenBtn.textContent = '🔊 試聽'; }, 800);
+                const instrName = listenBtn.dataset.name || INSTRUMENT_MAP?.get(listenBtn.dataset.id)?.nameZh || listenBtn.dataset.id;
+                const utt = new SpeechSynthesisUtterance(instrName);
+                utt.lang = 'zh-HK';
+                speechSynthesis.cancel();
+                speechSynthesis.speak(utt);
+                listenBtn.textContent = '🔊 讀音中…';
+                setTimeout(() => { listenBtn.textContent = '🔊 讀音'; }, 1200);
                 return;
             }
             const card = e.target.closest('.g4-study-card');
@@ -7101,11 +7268,30 @@
         const inst = INSTRUMENT_MAP ? INSTRUMENT_MAP.get(instrId) : INSTRUMENT_BANK.find(i => i.id === instrId);
         if (!inst) return;
 
-        // Remove existing modal if any
         closeInstrumentDetail();
 
+        // ── Derived facts from existing data ──
+        const playMap = { strings:'弓拉 / 撥弦', woodwind:'管口吹奏', brass:'振唇吹奏', percussion:'敲擊', keyboard:'鍵盤按壓' };
+        const waveLabel = { sawtooth:'豐富泛音', sine:'純淨圓潤', square:'空心木質', triangle:'溫暖柔和', noise:'不定音高' };
+        const sp = inst.synthParams || {};
+        const freqHz = sp.freq || 0;
+        const rangeLabel = freqHz >= 800 ? '高音域' : freqHz >= 400 ? '中高音域' : freqHz >= 200 ? '中音域' : freqHz >= 100 ? '中低音域' : '低音域';
+        const toneLabel = waveLabel[sp.wave] || '多元音色';
+        const playLabel = playMap[inst.family] || '—';
+
+        const factsHtml = `
+            <div class="g4-fact-card"><div class="g4-fact-label">族群</div><div class="g4-fact-val">${inst.familyZh}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-label">演奏方式</div><div class="g4-fact-val">${playLabel}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-label">音色特質</div><div class="g4-fact-val">${toneLabel}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-label">音域範圍</div><div class="g4-fact-val">${rangeLabel}</div></div>`;
+
+        const videoId = inst.video ? (inst.video.match(/embed\/([^?]+)/) || [])[1] : '';
+        const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
+
         const isCard = inst.img && inst.img.includes('/cards/');
-        const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-modal-img${isCard ? ' card-img' : ''}">` : `<div class="g4-modal-img-placeholder">🎵</div>`;
+        const imgHtml = inst.img
+            ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-modal-img${isCard ? ' card-img' : ''}">`
+            : `<div class="g4-modal-img-placeholder">🎵</div>`;
 
         const modal = document.createElement('div');
         modal.className = 'g4-instrument-modal';
@@ -7113,25 +7299,42 @@
         modal.innerHTML = `
             <div class="g4-instrument-modal-box">
                 <button class="g4-modal-close" id="g4ModalClose">✕</button>
+
                 <div class="g4-modal-left">
                     ${imgHtml}
                     <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
                     <div class="g4-modal-name">${inst.nameZh}</div>
                     <div class="g4-modal-en">${inst.nameEn}</div>
-                    <button class="g4-modal-listen" id="g4ModalListen">🔊 試聽音色</button>
-                    <div class="g4-modal-structure" id="g4ModalStructure">
-                        <div class="g4-modal-section-title">🔍 樂器結構</div>
-                        <img src="img/instruments/structure/${inst.id}.png" alt="${inst.nameZh}結構圖"
-                             class="g4-modal-structure-img"
-                             onerror="this.closest('.g4-modal-structure').style.display='none'">
-                    </div>
+                    <button class="g4-modal-listen" id="g4ModalListen">🔊 讀音</button>
                 </div>
+
                 <div class="g4-modal-right">
-                    <div class="g4-modal-right-top">
-                        ${inst.history ? `<div class="g4-modal-section-title">📖 樂器小故事</div><p class="g4-modal-history">${inst.history}</p>` : '<div class="g4-modal-section-title">📖 樂器介紹</div><p class="g4-modal-history">${inst.desc}</p>'}
-                    </div>
-                    <div class="g4-modal-right-bottom">
-                        ${inst.video ? `<div class="g4-modal-section-title">🎬 演奏示範</div><div class="g4-modal-video-wrap g4-video-lazy" data-src="${inst.video}"><div class="g4-video-poster" style="background-image:url(https://img.youtube.com/vi/${(inst.video.match(/embed\/([^?]+)/) || [])[1]}/hqdefault.jpg)"><div class="g4-video-play">▶</div></div></div>` : ''}
+                    <nav class="g4-modal-tabs" role="tablist">
+                        <button class="g4-tab-btn active" data-tab="intro" role="tab">📖 介紹</button>
+                        <button class="g4-tab-btn" data-tab="history" role="tab">📜 歷史</button>
+                        ${inst.video ? '<button class="g4-tab-btn" data-tab="video" role="tab">🎬 演奏</button>' : ''}
+                    </nav>
+
+                    <div class="g4-tab-panels">
+                        <div class="g4-tab-panel active" data-panel="intro">
+                            <p class="g4-panel-lead">${inst.desc}</p>
+                            <div class="g4-facts-grid">${factsHtml}</div>
+                        </div>
+
+                        <div class="g4-tab-panel" data-panel="history">
+                            <div class="g4-history-body">
+                                <div class="g4-history-quote">${inst.history || inst.desc}</div>
+                            </div>
+                        </div>
+
+                        ${inst.video ? `
+                        <div class="g4-tab-panel" data-panel="video">
+                            <div class="g4-modal-video-wrap g4-video-lazy" data-src="${inst.video}">
+                                <div class="g4-video-poster" style="background-image:url(${thumbUrl})">
+                                    <div class="g4-video-play">▶</div>
+                                </div>
+                            </div>
+                        </div>` : ''}
                     </div>
                 </div>
             </div>
@@ -7145,10 +7348,24 @@
             if (e.target === modal) { closeInstrumentDetail(); return; }
             if (e.target.closest('.g4-modal-close')) { closeInstrumentDetail(); return; }
             if (e.target.closest('.g4-modal-listen')) {
-                Audio.playInstrumentSound(instrId);
                 const lb = e.target.closest('.g4-modal-listen');
-                lb.textContent = '🔊 播放中…';
-                setTimeout(() => { lb.textContent = '🔊 試聽音色'; }, 1000);
+                const utt = new SpeechSynthesisUtterance(inst.nameZh);
+                utt.lang = 'zh-HK';
+                speechSynthesis.cancel();
+                speechSynthesis.speak(utt);
+                lb.textContent = '🔊 讀音中…';
+                setTimeout(() => { lb.textContent = '🔊 讀音'; }, 1200);
+                return;
+            }
+            // Tab switching
+            const tabBtn = e.target.closest('.g4-tab-btn');
+            if (tabBtn) {
+                const box = tabBtn.closest('.g4-instrument-modal-box');
+                box.querySelectorAll('.g4-tab-btn').forEach(b => b.classList.remove('active'));
+                box.querySelectorAll('.g4-tab-panel').forEach(p => p.classList.remove('active'));
+                tabBtn.classList.add('active');
+                const panel = box.querySelector(`[data-panel="${tabBtn.dataset.tab}"]`);
+                if (panel) panel.classList.add('active');
                 return;
             }
             // Lazy YouTube: click poster to load iframe

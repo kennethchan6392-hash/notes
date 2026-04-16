@@ -2352,7 +2352,6 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .rchal-start-btn { width: calc(100% - 20px); padding: 8px; font-size: 0.85rem; margin: 0 auto 4px;
         box-shadow: 0 3px 0 #4338ca, 0 5px 14px rgba(99,102,241,0.3); }
     .rchal-cdn-num { font-size: 3.5rem; }
-    .rchal-overlay { backdrop-filter: blur(6px); }
 }
 /* Safe area for rchal on iPhone with notch/Dynamic Island */
 @supports (padding: env(safe-area-inset-bottom)) {
@@ -2367,7 +2366,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 /* ── Countdown overlay ── */
 .rchal-overlay {
     position: absolute; inset: 0; z-index: 50;
-    background: rgba(13,27,42,0.88); backdrop-filter: blur(8px);
+    background: rgba(13,27,42,0.88);
     display: flex; align-items: center; justify-content: center;
 }
 .rchal-cdn-num {
@@ -3197,13 +3196,17 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     font-size: 0.68rem; font-weight: 800; color: var(--text-light);
     margin-top: 2px;
 }
-.om-result-btns { display: flex; gap: 12px; margin-top: 8px; }
-.om-btn-retry, .om-btn-back {
+.om-result-btns { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.om-btn-retry, .om-btn-back, .om-btn-ranks {
     padding: 14px 30px; border: none; border-radius: var(--btn-radius);
     font-size: 0.95rem; font-weight: 900; cursor: pointer;
     transition: transform 0.1s;
 }
-.om-btn-retry:active, .om-btn-back:active { transform: scale(0.96); }
+.om-btn-retry:active, .om-btn-back:active, .om-btn-ranks:active { transform: scale(0.96); }
+.om-btn-ranks {
+    background: linear-gradient(180deg, #FFB800, #E09600); color: #fff;
+    box-shadow: 0 5px 0 #B07000, 0 8px 20px rgba(255,184,0,0.25);
+}
 .om-btn-retry {
     background: linear-gradient(180deg, var(--primary-purple), var(--primary-purple-dark)); color: #fff;
     box-shadow: 0 5px 0 #4A20CC, 0 8px 20px rgba(139,102,255,0.25);
@@ -3333,6 +3336,14 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .g4-visual-emoji { font-size: 5rem; line-height: 1; margin: 12px 0 8px; text-align: center; }
 .g4-visual-img { width: 160px; height: 160px; object-fit: contain; margin: 16px auto 10px; display: block; border-radius: 16px; box-shadow: 0 4px 16px rgba(106,17,203,.15); background: #f8f6ff; padding: 8px; }
 .g4-visual-hint { font-size: 0.95rem; color: var(--text-light); text-align: center; margin-bottom: 6px; }
+
+/* Game 4 – name-image: 4-image option grid */
+.g4-img-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.g4-img-opt-btn { flex-direction: column; padding: 10px 8px 12px; min-height: 130px; gap: 6px; }
+.g4-img-opt-btn img { width: 76px; height: 76px; object-fit: contain; border-radius: 10px; background: #f8f6ff; padding: 4px; pointer-events: none; display: block; margin: 0 auto; }
+.g4-img-opt-label { font-size: 0.82rem; font-weight: 800; line-height: 1.2; text-align: center; pointer-events: none; }
+.g4-img-opt-btn.correct img { filter: drop-shadow(0 0 6px rgba(0,210,142,0.7)); }
+.g4-img-opt-btn.wrong img { filter: grayscale(60%) opacity(0.6); }
 
 .g4-family-badge {
     display: inline-block; font-size: 0.7rem; font-weight: 800;
@@ -3472,30 +3483,88 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .g4-modal-listen:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(0,210,142,0.35); }
 .g4-modal-listen:active { transform: scale(0.96); }
 
-/* ── Right column: history (top) + video (bottom) ── */
+/* ── Right column: tabs ── */
 .g4-modal-right {
     background: #fff;
     display: flex; flex-direction: column;
-    overflow-y: auto; max-height: calc(100dvh - 32px);
-    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
+    overflow: hidden; max-height: calc(100dvh - 32px);
 }
-.g4-modal-right-top {
-    padding: 28px 22px 18px;
-    border-bottom: 1px solid rgba(139,102,255,0.1);
-    flex: 1 0 auto;
+
+/* Tab bar */
+.g4-modal-tabs {
+    display: flex; gap: 0;
+    border-bottom: 2px solid rgba(139,102,255,0.12);
+    padding: 0 20px;
+    background: #faf9ff;
+    flex-shrink: 0;
 }
-.g4-modal-right-bottom {
-    padding: 18px 22px 24px;
-    flex: 0 0 auto;
+.g4-tab-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 14px 16px 12px;
+    font-size: 0.82rem; font-weight: 700; color: #9b90c2;
+    position: relative; transition: color 0.18s;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
 }
+.g4-tab-btn:hover { color: #8B66FF; }
+.g4-tab-btn.active { color: #8B66FF; border-bottom-color: #8B66FF; }
+
+/* Tab panels container */
+.g4-tab-panels {
+    flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.18) transparent;
+}
+.g4-tab-panel { display: none; padding: 24px 24px 28px; }
+.g4-tab-panel.active { display: block; animation: g4PanelIn 0.2s ease both; }
+@keyframes g4PanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 介紹 tab */
+.g4-panel-lead {
+    font-size: 1.05rem; font-weight: 700; color: #2d2a3e;
+    line-height: 1.6; margin: 0 0 20px;
+    padding-bottom: 16px; border-bottom: 1px solid rgba(139,102,255,0.1);
+}
+.g4-facts-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.g4-fact-card {
+    background: linear-gradient(135deg, #f5f2ff 0%, #ede8ff 100%);
+    border-radius: 14px; padding: 12px 14px;
+    border: 1px solid rgba(139,102,255,0.12);
+}
+.g4-fact-label {
+    font-size: 0.7rem; font-weight: 800; color: #8B66FF;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+}
+.g4-fact-val {
+    font-size: 0.88rem; font-weight: 700; color: #2d2a3e;
+}
+
+/* 歷史 tab */
+.g4-history-body { padding: 0; }
+.g4-history-quote {
+    font-size: 0.9rem; line-height: 1.95; color: #3a3650;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, #faf9ff, #f3f0ff);
+    border-left: 3px solid #8B66FF;
+    border-radius: 0 14px 14px 0;
+    position: relative;
+}
+.g4-history-quote::before {
+    content: '\201C';
+    font-size: 3rem; line-height: 0; color: rgba(139,102,255,0.18);
+    position: absolute; top: 22px; left: 10px;
+    font-family: Georgia, serif; pointer-events: none;
+}
+
+/* Legacy (kept for compat) */
 .g4-modal-section-title {
     font-size: 0.82rem; font-weight: 800; color: #8B66FF; margin: 0 0 10px;
     padding-bottom: 6px; border-bottom: 2px solid rgba(139,102,255,0.12);
     display: flex; align-items: center; gap: 5px;
 }
-.g4-modal-history {
-    font-size: 0.87rem; line-height: 1.8; color: #3a3650; margin: 0;
-}
+.g4-modal-history { font-size: 0.87rem; line-height: 1.8; color: #3a3650; margin: 0; }
 .g4-modal-video-wrap {
     position: relative; width: 100%; padding-top: 56.25%;
     border-radius: 14px; overflow: hidden; background: #1a1a2e;
@@ -3522,7 +3591,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .g4-video-poster:hover .g4-video-play { transform: scale(1.1); box-shadow: 0 6px 28px rgba(139,102,255,0.5); }
 
-/* ── Mobile: single column ── */
+/* Video tab panel */
+.g4-tab-panel[data-panel="video"] { padding: 20px 20px 24px; }
 @media (max-width: 600px) {
     .g4-instrument-modal { padding: 0; align-items: flex-end; }
     .g4-instrument-modal-box {
@@ -3531,14 +3601,18 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
         max-height: calc(100dvh - 40px);
     }
     .g4-modal-left {
-        padding: 20px 16px 14px; flex-direction: row; flex-wrap: wrap;
+        padding: 16px 16px 12px; flex-direction: row; flex-wrap: wrap;
         justify-content: center; gap: 10px; overflow-y: visible;
     }
-    .g4-modal-img { max-width: 100px; max-height: 120px; }
+    .g4-modal-img { max-width: 90px; max-height: 110px; }
     .g4-modal-structure { display: none; }
     .g4-modal-name { font-size: 1.1rem; }
-    .g4-modal-right { max-height: 55vh; }
-    .g4-modal-right-top { padding: 16px 18px 14px; }
-    .g4-modal-right-bottom { padding: 14px 18px 20px; }
-    .g4-modal-history { font-size: 0.83rem; line-height: 1.7; }
+    .g4-modal-right { max-height: 58vh; }
+    .g4-modal-tabs { padding: 0 12px; }
+    .g4-tab-btn { padding: 12px 12px 10px; font-size: 0.78rem; }
+    .g4-tab-panel { padding: 18px 16px 22px; }
+    .g4-panel-lead { font-size: 0.95rem; }
+    .g4-facts-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .g4-history-quote { font-size: 0.83rem; line-height: 1.8; }
+    .g4-tab-panel[data-panel="video"] { padding: 14px 14px 18px; }
 }
