@@ -3527,6 +3527,21 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 @keyframes g4PanelIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* 介紹 tab */
+.g4-intro-banner {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 12px; border-radius: 10px; margin-bottom: 12px;
+    font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
+    flex-wrap: wrap;
+}
+.g4-intro-banner-icon { font-size: 1.15rem; line-height: 1; flex-shrink: 0; }
+.g4-intro-banner-txt { color: inherit; }
+.g4-intro-banner-dot { opacity: 0.45; font-size: 0.9rem; }
+.g4-intro-banner-strings  { background: rgba(232,115,158,0.13); color: #b03868; }
+.g4-intro-banner-woodwind { background: rgba(93,184,93,0.13);   color: #2d7d2d; }
+.g4-intro-banner-brass    { background: rgba(245,166,35,0.14);  color: #9a6200; }
+.g4-intro-banner-percussion { background: rgba(74,144,217,0.13); color: #1a5fa0; }
+.g4-intro-banner-keyboard { background: rgba(155,89,182,0.13);  color: #6a2a92; }
+
 .g4-panel-lead {
     font-size: 0.92rem; font-weight: 700; color: #2d2a3e;
     line-height: 1.6; margin: 0 0 14px;
@@ -3537,12 +3552,14 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .g4-fact-card {
     background: linear-gradient(135deg, #f5f2ff 0%, #ede8ff 100%);
-    border-radius: 11px; padding: 9px 11px;
+    border-radius: 11px; padding: 10px 11px 9px;
     border: 1px solid rgba(139,102,255,0.12);
+    display: flex; flex-direction: column; gap: 2px;
 }
+.g4-fact-icon { font-size: 1.25rem; line-height: 1; margin-bottom: 3px; }
 .g4-fact-label {
-    font-size: 0.65rem; font-weight: 800; color: #8B66FF;
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px;
+    font-size: 0.63rem; font-weight: 800; color: #8B66FF;
+    text-transform: uppercase; letter-spacing: 0.06em;
 }
 .g4-fact-val {
     font-size: 0.82rem; font-weight: 700; color: #2d2a3e;

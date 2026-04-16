@@ -7281,17 +7281,19 @@
         // ── Derived facts from existing data ──
         const playMap = { strings:'弓拉 / 撥弦', woodwind:'管口吹奏', brass:'振唇吹奏', percussion:'敲擊', keyboard:'鍵盤按壓' };
         const waveLabel = { sawtooth:'豐富泛音', sine:'純淨圓潤', square:'空心木質', triangle:'溫暖柔和', noise:'不定音高' };
+        const familyIconMap = { strings:'🎻', woodwind:'🎵', brass:'🎺', percussion:'🥁', keyboard:'🎹' };
         const sp = inst.synthParams || {};
         const freqHz = sp.freq || 0;
         const rangeLabel = freqHz >= 800 ? '高音域' : freqHz >= 400 ? '中高音域' : freqHz >= 200 ? '中音域' : freqHz >= 100 ? '中低音域' : '低音域';
         const toneLabel = waveLabel[sp.wave] || '多元音色';
         const playLabel = playMap[inst.family] || '—';
+        const familyIcon = familyIconMap[inst.family] || '🎵';
 
         const factsHtml = `
-            <div class="g4-fact-card"><div class="g4-fact-label">族群</div><div class="g4-fact-val">${inst.familyZh}</div></div>
-            <div class="g4-fact-card"><div class="g4-fact-label">演奏方式</div><div class="g4-fact-val">${playLabel}</div></div>
-            <div class="g4-fact-card"><div class="g4-fact-label">音色特質</div><div class="g4-fact-val">${toneLabel}</div></div>
-            <div class="g4-fact-card"><div class="g4-fact-label">音域範圍</div><div class="g4-fact-val">${rangeLabel}</div></div>`;
+            <div class="g4-fact-card"><div class="g4-fact-icon">🎼</div><div class="g4-fact-label">族群</div><div class="g4-fact-val">${inst.familyZh}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-icon">🤲</div><div class="g4-fact-label">演奏方式</div><div class="g4-fact-val">${playLabel}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-icon">🎨</div><div class="g4-fact-label">音色特質</div><div class="g4-fact-val">${toneLabel}</div></div>
+            <div class="g4-fact-card"><div class="g4-fact-icon">📊</div><div class="g4-fact-label">音域範圍</div><div class="g4-fact-val">${rangeLabel}</div></div>`;
 
         const videoId = inst.video ? (inst.video.match(/embed\/([^?]+)/) || [])[1] : '';
         const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
@@ -7325,6 +7327,12 @@
 
                     <div class="g4-tab-panels">
                         <div class="g4-tab-panel active" data-panel="intro">
+                            <div class="g4-intro-banner g4-intro-banner-${inst.family}">
+                                <span class="g4-intro-banner-icon">${familyIcon}</span>
+                                <span class="g4-intro-banner-txt">${inst.familyZh}樂器</span>
+                                <span class="g4-intro-banner-dot">·</span>
+                                <span class="g4-intro-banner-txt">${inst.nameEn}</span>
+                            </div>
                             <p class="g4-panel-lead">${inst.desc}</p>
                             <div class="g4-facts-grid">${factsHtml}</div>
                         </div>
