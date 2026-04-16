@@ -2513,13 +2513,7 @@
                 };
             });
 
-            document.getElementById('g4StartBtn').onclick = () => {
-                if (g4SelectedMode === 'quick') {
-                    startG4Quick();
-                } else {
-                    startGame4(user, g4SelectedMode);
-                }
-            };
+            document.getElementById('g4StartBtn').onclick = () => startGame4(user, g4SelectedMode);
 
             // Study button
             document.getElementById('g4StudyBtn').onclick = () => {
@@ -2543,17 +2537,6 @@
             };
 
             document.getElementById('g4BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
-
-            // Quick challenge screen buttons
-            document.getElementById('g4QuickBack').onclick = () => {
-                clearInterval(g4QuickTimer);
-                switchScreen('screen-g4-setup');
-            };
-            document.getElementById('g4qNextBtn').onclick = () => startG4Quick();
-            document.getElementById('g4qBackBtn').onclick = () => {
-                clearInterval(g4QuickTimer);
-                switchScreen('screen-g4-setup');
-            };
             document.getElementById('g4SetupViewRanks').onclick = () => {
                 const layout = document.getElementById('g4LeaderboardLayout');
                 if (layout) layout.classList.add('view-only');
@@ -6479,6 +6462,10 @@
             : q.img
             ? `<img src="${escHtml(q.img)}" class="quiz-card-img" alt="${escHtml(q.sym || '')}" loading="eager">`
             : `<div class="term-display term-italic">${escHtml(q.sym || '')}</div>`;
+        // Fallback: if card image fails to load, show the symbol as text
+        const visualEl = document.getElementById('g3Visual');
+        const imgEl = visualEl && visualEl.querySelector('img.quiz-card-img');
+        if (imgEl) { const sym_ = q.sym || ''; imgEl.onerror = () => { imgEl.outerHTML = `<div class="term-display term-italic">${escHtml(sym_)}</div>`; }; }
         document.getElementById('g3Message').textContent = '📖 快速選出正確答案！';
         document.getElementById('g3Message').className = 'message-box';
 
@@ -7419,177 +7406,4 @@
         setTimeout(() => { modal.remove(); document.body.style.overflow = ''; }, 180);
     }
 
-
-    // ══════════════════════════════════════════════════════
-    // 限時一題：快問快答 (Quick Single-Question Challenge)
-    // ══════════════════════════════════════════════════════
-    const QUICK_SECONDS = 15;
-    let g4QuickTimer = null;
-    let g4QuickAnswered = false;
-
-    function startG4Quick() {
-        // Pick a question that has an image (most visual)
-        const types = ['image-name', 'name-image', 'name-family'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        const qs = generateG4Questions(1);
-        // Re-generate until we get a usable question type with image
-        const imgQ = (() => {
-            for (let i = 0; i < 8; i++) {
-                const q = generateG4Questions(1)[0];
-                if (q.type === 'image-name' || q.type === 'name-image' || q.type === 'name-family') return q;
-            }
-            return qs[0]; // fallback
-        })();
-
-        g4QuickAnswered = false;
-
-        // Hide result, show card
-        document.getElementById('g4qResult').style.display = 'none';
-        document.getElementById('g4qCard').style.display = '';
-
-        // Render question
-        const questionEl = document.getElementById('g4qQuestion');
-        const visualEl   = document.getElementById('g4qVisual');
-        const optEl      = document.getElementById('g4qOptions');
-        optEl.innerHTML = '';
-        optEl.className = 'g4q-options';
-
-        if (imgQ.type === 'image-name') {
-            questionEl.textContent = '🖼️ 這是甚麼樂器？';
-            visualEl.innerHTML = `<img class="g4q-img" src="${imgQ.instrument.img}" alt="${imgQ.instrument.nameZh}" loading="lazy">`;
-            imgQ.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'quiz-opt-btn g4q-opt';
-                btn.textContent = opt;
-                btn.onclick = () => resolveG4Quick(opt, imgQ.answer, btn, imgQ);
-                optEl.appendChild(btn);
-            });
-        } else if (imgQ.type === 'name-image') {
-            questionEl.textContent = `🎯「${imgQ.instrument.nameZh}」是哪一種樂器？`;
-            visualEl.innerHTML = `<div class="g4q-name-hint">${imgQ.instrument.nameEn}</div>`;
-            optEl.classList.add('g4q-img-grid');
-            (imgQ.imgOptions || []).forEach(instr => {
-                const btn = document.createElement('button');
-                btn.className = 'quiz-opt-btn g4q-img-opt';
-                btn.dataset.optVal = instr.id;
-                btn.innerHTML = `<img src="${instr.img}" alt="${instr.nameZh}"><span>${instr.nameZh}</span>`;
-                btn.onclick = () => resolveG4Quick(instr.id, imgQ.answer, btn, imgQ);
-                optEl.appendChild(btn);
-            });
-        } else { // name-family
-            questionEl.textContent = `「${imgQ.instrument.nameZh}」屬於哪個樂器家族？`;
-            const imgSrc = imgQ.instrument.img || '';
-            visualEl.innerHTML = imgSrc
-                ? `<img class="g4q-img" src="${imgSrc}" alt="${imgQ.instrument.nameZh}" loading="lazy">`
-                : `<div class="g4q-name-hint">${imgQ.instrument.nameEn}</div>`;
-            imgQ.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'quiz-opt-btn g4q-opt';
-                btn.textContent = opt;
-                btn.onclick = () => resolveG4Quick(opt, imgQ.answer, btn, imgQ);
-                optEl.appendChild(btn);
-            });
-        }
-
-        // Store current question for timeout resolution
-        g4QuickCurrentQ = imgQ;
-
-        // Start countdown
-        clearInterval(g4QuickTimer);
-        let timeLeft = QUICK_SECONDS;
-        updateG4QuickRing(timeLeft, QUICK_SECONDS);
-
-        g4QuickTimer = setInterval(() => {
-            timeLeft--;
-            updateG4QuickRing(timeLeft, QUICK_SECONDS);
-            if (timeLeft <= 0) {
-                clearInterval(g4QuickTimer);
-                if (!g4QuickAnswered) resolveG4Quick(null, imgQ.answer, null, imgQ, true);
-            }
-        }, 1000);
-
-        switchScreen('screen-g4-quick');
-    }
-
-    let g4QuickCurrentQ = null;
-
-    function updateG4QuickRing(timeLeft, total) {
-        const countdownEl = document.getElementById('g4qCountdown');
-        const ringFill = document.getElementById('g4qRingFill');
-        if (!countdownEl || !ringFill) return;
-
-        countdownEl.textContent = Math.max(0, timeLeft);
-        const r = 52;
-        const circ = 2 * Math.PI * r;
-        const pct = Math.max(0, timeLeft / total);
-        ringFill.style.strokeDashoffset = circ * (1 - pct);
-
-        // Color: green → yellow → red
-        if (pct > 0.5) {
-            ringFill.style.stroke = '#00D28E';
-            countdownEl.style.color = '#00a870';
-        } else if (pct > 0.25) {
-            ringFill.style.stroke = '#FFB700';
-            countdownEl.style.color = '#c98a00';
-        } else {
-            ringFill.style.stroke = '#FF4A6B';
-            countdownEl.style.color = '#e0003a';
-        }
-    }
-
-    function resolveG4Quick(chosen, correct, btn, q, timeout = false) {
-        if (g4QuickAnswered) return;
-        g4QuickAnswered = true;
-        clearInterval(g4QuickTimer);
-
-        // Highlight buttons
-        document.querySelectorAll('.g4q-opt, .g4q-img-opt').forEach(b => {
-            b.disabled = true;
-            const bVal = b.dataset.optVal !== undefined ? b.dataset.optVal : b.textContent;
-            if (bVal === correct) b.classList.add('correct');
-            if (b === btn && !timeout && bVal !== correct) b.classList.add('wrong');
-        });
-
-        const isCorrect = !timeout && chosen === correct;
-
-        // Play sound
-        if (isCorrect) Audio.playEffect('countdown');
-        else Audio.playEffect('wrong');
-
-        // Show result
-        const resultEl = document.getElementById('g4qResult');
-        const iconEl   = document.getElementById('g4qResultIcon');
-        const msgEl    = document.getElementById('g4qResultMsg');
-        const detailEl = document.getElementById('g4qResultDetail');
-
-        const correctLabel = q.type === 'name-image'
-            ? q.instrument.nameZh
-            : correct;
-
-        if (timeout) {
-            iconEl.textContent = '⏰';
-            msgEl.textContent = '時間到！';
-            detailEl.innerHTML = `正確答案是 <strong>${correctLabel}</strong>（${q.instrument.nameEn}）`;
-        } else if (isCorrect) {
-            iconEl.textContent = '✅';
-            msgEl.textContent = '答對了！太棒了！';
-            detailEl.innerHTML = `<strong>${correctLabel}</strong>（${q.instrument.nameEn}）`;
-        } else {
-            iconEl.textContent = '❌';
-            msgEl.textContent = '答錯了！';
-            detailEl.innerHTML = `正確答案是 <strong>${correctLabel}</strong>（${q.instrument.nameEn}）`;
-        }
-
-        // Animate ring to show result colour
-        const ringFill = document.getElementById('g4qRingFill');
-        if (ringFill) {
-            ringFill.style.stroke = isCorrect ? '#00D28E' : (timeout ? '#FFB700' : '#FF4A6B');
-        }
-
-        resultEl.style.display = '';
-        resultEl.className = 'g4q-result ' + (isCorrect ? 'correct' : timeout ? 'timeout' : 'wrong');
-    }
-
 })();
-
-
