@@ -783,6 +783,9 @@
             <div class="mode-card challenge" data-mode="challenge" id="g4ModeChallenge">
                 <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">1分鐘內答最多題，衝排行榜</div>
             </div>
+            <div class="mode-card quick" data-mode="quick" id="g4ModeQuick">
+                <div class="mode-icon">⚡</div><div class="mode-name">限時一題</div><div class="mode-desc">15秒內辨別樂器！快問快答</div>
+            </div>
         </div>
 
         <button class="btn-view-ranks" id="g4StudyBtn" style="background:linear-gradient(135deg,#EEFAF5,#E8FFF5);color:#00865a;border-color:rgba(0,210,142,0.35);box-shadow:0 5px 0 rgba(0,210,142,0.25);">📚 先看樂器圖鑑</button>
@@ -845,6 +848,39 @@
                 <div class="student-rank-hint" id="g4RankHint" style="display:none;"></div>
                 <div class="rank-list" id="g4RankList"><div style="text-align:center;padding:30px;color:var(--text-light);font-weight:800;">📡 載入中...</div></div>
                 <div style="text-align:center;font-size:0.8rem;color:#888;">排名即時更新 📡</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲四：限時一題 (Quick Challenge)      -->
+    <!-- ===================================== -->
+    <div id="screen-g4-quick" class="screen">
+        <button class="btn-back-hub" id="g4QuickBack">← 返回</button>
+        <div class="g4q-wrap">
+            <!-- Countdown ring -->
+            <div class="g4q-timer-wrap">
+                <svg class="g4q-ring" viewBox="0 0 120 120">
+                    <circle class="g4q-ring-bg" cx="60" cy="60" r="52"/>
+                    <circle class="g4q-ring-fill" id="g4qRingFill" cx="60" cy="60" r="52"/>
+                </svg>
+                <div class="g4q-countdown" id="g4qCountdown">15</div>
+            </div>
+
+            <!-- Question card -->
+            <div class="card g4q-card" id="g4qCard">
+                <div class="g4q-qtext" id="g4qQuestion">載入中...</div>
+                <div class="g4q-visual" id="g4qVisual"></div>
+                <div class="g4q-options" id="g4qOptions"></div>
+            </div>
+
+            <!-- Result overlay -->
+            <div class="g4q-result" id="g4qResult" style="display:none;">
+                <div class="g4q-result-icon" id="g4qResultIcon">✅</div>
+                <div class="g4q-result-msg" id="g4qResultMsg">答對了！</div>
+                <div class="g4q-result-detail" id="g4qResultDetail"></div>
+                <button class="btn-start g4q-next-btn" id="g4qNextBtn">⚡ 再一題！</button>
+                <button class="btn-view-ranks g4q-back-btn" id="g4qBackBtn" style="margin-top:8px;">← 返回設定</button>
             </div>
         </div>
     </div>
