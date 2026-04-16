@@ -1308,7 +1308,7 @@
         } else {
             hasAccidentals = _getPracticeConfig().accidentalChance > 0;
         }
-        if (_isLowerGradeNoAccidentals()) hasAccidentals = false;
+        if (gradeKey === 1 || gradeKey === 2) hasAccidentals = false;
         const showSharp = hasAccidentals;
         const showFlat  = hasAccidentals;
 
