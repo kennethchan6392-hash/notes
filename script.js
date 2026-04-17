@@ -2714,7 +2714,19 @@
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
-            if (dfWrap) dfWrap.style.display = (gfVal === 'game2' || gfVal === 'game3' || gfVal === 'game4') ? '' : 'none';
+            const dfSel = document.getElementById('rankDiffFilter');
+            if (dfWrap && dfSel) {
+                if (gfVal === 'game2') {
+                    dfWrap.style.display = '';
+                    dfSel.innerHTML = '<option value="0">全部類型</option><option value="節奏挑戰">節奏挑戰</option><option value="1分鐘挑戰">1分鐘挑戰</option><option value="時值辨別">時值辨別</option>';
+                } else if (gfVal === 'game3') {
+                    dfWrap.style.display = '';
+                    dfSel.innerHTML = '<option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option>';
+                } else {
+                    dfWrap.style.display = 'none';
+                    dfSel.innerHTML = '<option value="0">全部難度</option>';
+                }
+            }
             if (!state.allRanks.length) { loadRanks(); return; }
             renderRanks();
         });
@@ -3355,10 +3367,10 @@
         if (fG !== 0) data = data.filter(r => parseInt(r.grade) === fG);
         if (fD !== '0') data = data.filter(r => (r.mode_name || '').includes(fD));
         data.sort((a,b) => (b.score||0) - (a.score||0));
-        // Dedup: keep highest score per student per difficulty
+        // Dedup: keep highest score per student (when filtering by difficulty, dedup per student+difficulty)
         const seen = new Set();
         const deduped = data.filter(r => {
-            const diffKey = fD !== '0' ? '' : `|${(r.mode_name||'').split('·')[1]||''}`;
+            const diffKey = fD !== '0' ? `|${fD}` : '';
             const k = `${String(r.name||'').trim()}|${r.grade}|${r.class}|${String(r.id||r.seat||'').trim()}${diffKey}`;
             if (seen.has(k)) return false; seen.add(k); return true;
         });
