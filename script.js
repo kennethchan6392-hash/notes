@@ -73,21 +73,21 @@
     const KEY_SIGNATURES = [
         { id:'C',  name:'C大調',  sharps:0, flats:0, img:'img/cards/keysig-0n.png', grade:1,
           sharpNotes:[], flatNotes:[], scale:['C','D','E','F','G','A','B'] },
-        { id:'G',  name:'G大調',  sharps:1, flats:0, img:'img/cards/keysig-1s.png', grade:3,
+        { id:'G',  name:'G大調',  sharps:1, flats:0, img:'img/cards/keysig-1s.png', grade:1,
           sharpNotes:['F'], flatNotes:[], scale:['G','A','B','C','D','E','F#'] },
-        { id:'F',  name:'F大調',  sharps:0, flats:1, img:'img/cards/keysig-1f.png', grade:3,
+        { id:'F',  name:'F大調',  sharps:0, flats:1, img:'img/cards/keysig-1f.png', grade:1,
           sharpNotes:[], flatNotes:['B'], scale:['F','G','A','B♭','C','D','E'] },
-        { id:'D',  name:'D大調',  sharps:2, flats:0, img:'img/cards/keysig-2s.png', grade:4,
+        { id:'D',  name:'D大調',  sharps:2, flats:0, img:'img/cards/keysig-2s.png', grade:3,
           sharpNotes:['F','C'], flatNotes:[], scale:['D','E','F#','G','A','B','C#'] },
-        { id:'Bb', name:'B♭大調', sharps:0, flats:2, img:'img/cards/keysig-2f.png', grade:4,
+        { id:'Bb', name:'B♭大調', sharps:0, flats:2, img:'img/cards/keysig-2f.png', grade:3,
           sharpNotes:[], flatNotes:['B','E'], scale:['B♭','C','D','E♭','F','G','A'] },
-        { id:'A',  name:'A大調',  sharps:3, flats:0, img:'img/cards/keysig-3s.png', grade:5,
+        { id:'A',  name:'A大調',  sharps:3, flats:0, img:'img/cards/keysig-3s.png', grade:4,
           sharpNotes:['F','C','G'], flatNotes:[], scale:['A','B','C#','D','E','F#','G#'] },
-        { id:'Eb', name:'E♭大調', sharps:0, flats:3, img:'img/cards/keysig-3f.png', grade:5,
+        { id:'Eb', name:'E♭大調', sharps:0, flats:3, img:'img/cards/keysig-3f.png', grade:4,
           sharpNotes:[], flatNotes:['B','E','A'], scale:['E♭','F','G','A♭','B♭','C','D'] },
-        { id:'E',  name:'E大調',  sharps:4, flats:0, img:'img/cards/keysig-4s.png', grade:6,
+        { id:'E',  name:'E大調',  sharps:4, flats:0, img:'img/cards/keysig-4s.png', grade:5,
           sharpNotes:['F','C','G','D'], flatNotes:[], scale:['E','F#','G#','A','B','C#','D#'] },
-        { id:'Ab', name:'A♭大調', sharps:0, flats:4, img:'img/cards/keysig-4f.png', grade:6,
+        { id:'Ab', name:'A♭大調', sharps:0, flats:4, img:'img/cards/keysig-4f.png', grade:5,
           sharpNotes:[], flatNotes:['B','E','A','D'], scale:['A♭','B♭','C','D♭','E♭','F','G'] },
         { id:'B',  name:'B大調',  sharps:5, flats:0, img:'img/cards/keysig-5s.png', grade:6,
           sharpNotes:['F','C','G','D','A'], flatNotes:[], scale:['B','C#','D#','E','F#','G#','A#'] },
@@ -120,11 +120,11 @@
 
     // Solfège grade config: which keys available + note range for treble clef
     const SOLFEGE_LEVELS = {
-        1: { keys:['C'],        noteRange:[0,4]  },
-        2: { keys:['C'],        noteRange:[0,7]  },
-        3: { keys:['C','G','F'],noteRange:[0,9]  },
-        4: { keys:['C','G','F','D','Bb'], noteRange:[0,9] },
-        5: { keys:['C','G','F','D','Bb','A','Eb'], noteRange:[0,11] },
+        1: { keys:['C','G','F'],noteRange:[0,7]  },
+        2: { keys:['C','G','F'],noteRange:[0,7]  },
+        3: { keys:['C','G','F','D','Bb'], noteRange:[0,9]  },
+        4: { keys:['C','G','F','D','Bb','A','Eb'], noteRange:[0,9] },
+        5: { keys:['C','G','F','D','Bb','A','Eb','E','Ab'], noteRange:[0,11] },
         6: { keys:['C','G','F','D','Bb','A','Eb','E','Ab','B','Db'], noteRange:[0,12] }
     };
 
@@ -2577,14 +2577,12 @@
                 state.currentMode = isPractice ? 'keysig_practice' : 'keysig60';
                 state.modeConfig = MODE_CONFIG[state.currentMode];
                 if (keysigSubRow) keysigSubRow.style.display = '';
-                if (keysigGradeRow) keysigGradeRow.style.display = '';
             } else if (mode === 'solfege_practice') {
                 const activeSolMode = document.querySelector('.sol-mode-btn.active');
                 const isPractice = !activeSolMode || activeSolMode.dataset.solmode === 'practice';
                 state.currentMode = isPractice ? 'solfege_practice' : 'solfege60';
                 state.modeConfig = MODE_CONFIG[state.currentMode];
                 if (solfegeSubRow) solfegeSubRow.style.display = '';
-                if (solfegeGradeRow) solfegeGradeRow.style.display = '';
             }
             saveSettings();
         }));
@@ -2651,9 +2649,9 @@
           const isSolfege = state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60';
           if (clefSelectorRow) clefSelectorRow.style.display = isChallenge ? '' : 'none';
           if (keysigSubRow) keysigSubRow.style.display = isKeysig ? '' : 'none';
-          if (keysigGradeRow) keysigGradeRow.style.display = isKeysig ? '' : 'none';
+          if (keysigGradeRow) keysigGradeRow.style.display = 'none';
           if (solfegeSubRow) solfegeSubRow.style.display = isSolfege ? '' : 'none';
-          if (solfegeGradeRow) solfegeGradeRow.style.display = isSolfege ? '' : 'none';
+          if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
           if (isChallenge) { clefSelBtns.forEach(b => b.classList.toggle('active', b.dataset.clef === state.currentMode));
               const challengeCard = document.querySelector('.mode-card[data-mode="classic60"]');
               if (challengeCard) { dom.modeCards.forEach(c => c.classList.remove('active')); challengeCard.classList.add('active'); }
