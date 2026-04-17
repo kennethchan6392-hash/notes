@@ -7776,7 +7776,7 @@
           history:'巴松管在16世紀的意大利從柯塔爾管演變而成，管身展開長約2.6米，折疊成U型以便演奏，重量約3公斤。它使用雙簧片發聲，是木管家族中音域最低的常規成員，低音區音色溫暖渾厚，高音區則帶有鼻腔共鳴感。普羅高菲夫《彼得與狼》以巴松管代表爺爺的角色，莫扎特的《巴松管協奏曲》是該樂器最著名的獨奏曲目。更大型的倍低音巴松管音域比巴松管低一個八度。',
           video:'https://www.youtube.com/embed/oSQ0fQnGg84',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
-        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'', desc:'音樂課最常見的樂器',
+        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.jpg', desc:'音樂課最常見的樂器',
           history:'直笛（牧童笛）的歷史可追溯至中世紀歐洲，在文藝復興和巴洛克時期曾是宮廷最重要的管樂器，巴赫和韋瓦第均為其創作了大量作品。它以頂端的吹口直接吹入發聲，構造簡單，按孔便可改變音高，無需額外技巧即可入門。18世紀橫吹長笛興起後，直笛一度沉寂，直至20世紀古樂復興運動才重獲重視。現今直笛被廣泛用作兒童音樂教育的入門樂器，常見型號包括高音、中音和次中音。',
           video:'https://www.youtube.com/embed/dMb1vABS2aM',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
