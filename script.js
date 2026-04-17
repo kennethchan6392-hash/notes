@@ -2239,7 +2239,7 @@
             grade: user.grade,
             class: user.class,
             id: user.seat || user.id || '',
-            mode: game,
+            mode: modeName || game,
             mode_name: modeName,
             score,
             max_combo: maxCombo,
@@ -3408,8 +3408,8 @@
         try {
             const all = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
             const idx = all.findIndex(r => r.name === user.name && r.class === user.class && r.grade === user.grade && (r.difficulty || '') === (difficulty || ''));
-            if (idx >= 0) { if (score > (all[idx].score || 0)) { all[idx].score = score; all[idx].accuracy = accuracy; all[idx].maxCombo = maxCombo; } }
-            else all.push({ name: user.name, grade: user.grade, class: user.class, seat: user.seat, score, accuracy, maxCombo, difficulty: difficulty || '' });
+            if (idx >= 0) { if (score > (all[idx].score || 0)) { all[idx].score = score; all[idx].accuracy = accuracy; all[idx].max_combo = maxCombo; } }
+            else all.push({ name: user.name, grade: user.grade, class: user.class, id: user.seat || user.id || '', score, accuracy, max_combo: maxCombo, difficulty: difficulty || '' });
             localStorage.setItem('musicGameRanks_' + gameKey, JSON.stringify(all));
         } catch(e) {}
     }
@@ -7029,7 +7029,7 @@
         const clsEl = document.getElementById(gameKey === 'game2' ? 'g2RankClass' : gameKey === 'game4' ? 'g4RankClass' : 'g3RankClass');
         const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : gameKey === 'game4' ? 'g4RankGrade' : 'g3RankGrade');
         // Prefer GAS data; fall back to localStorage if not yet loaded
-        let data = state.allRanks.filter(r => r.game === gameKey || r.mode === gameKey);
+        let data = state.allRanks.filter(r => r.game === gameKey);
         if (!data.length) data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
         if (clsEl && clsEl.value !== '0') data = data.filter(r => r.class === clsEl.value);
         if (gradeEl && parseInt(gradeEl.value) !== 0) data = data.filter(r => parseInt(r.grade) === parseInt(gradeEl.value));
@@ -8174,11 +8174,11 @@
         const setupAudio = () => {
             audioBtn.style.display = '';
             audioBtn.onclick = () => {
-                Audio.playInstrumentSound(q.instrument.id);
+                audio.playInstrumentSound(q.instrument.id);
                 audioBtn.classList.add('playing');
                 setTimeout(() => audioBtn.classList.remove('playing'), 600);
             };
-            setTimeout(() => Audio.playInstrumentSound(q.instrument.id), 300);
+            setTimeout(() => audio.playInstrumentSound(q.instrument.id), 300);
         };
 
         if (q.type === 'listen-name') {
@@ -8224,7 +8224,8 @@
             visualEl.innerHTML = `<div class="g4-visual-hint" style="font-size:1rem;font-weight:700;margin-top:6px;">${q.instrument.nameEn}</div>`;
         } else if (q.type === 'name-family') {
             questionEl.textContent = `「${q.instrument.nameZh}」屬於哪個樂器家族？`;
-            visualEl.innerHTML = `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;margin-top:8px;">${q.instrument.nameEn}</div>` +
+            visualEl.innerHTML = (q.instrument.img ? `<img class="g4-visual-img" src="${q.instrument.img}" alt="${q.instrument.nameZh}" loading="lazy">` : '') +
+                `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;margin-top:8px;">${q.instrument.nameEn}</div>` +
                 `<div class="g4-visual-hint" style="margin-top:4px;">${q.instrument.desc}</div>`;
         } else if (q.type === 'percussion-pitch') {
             questionEl.textContent = `「${q.instrument.nameZh}」有固定音高嗎？`;
@@ -8285,7 +8286,7 @@
             const pts = 10 + comboBonus;
             g4State.score += pts;
             document.getElementById('g4Message').textContent = `✅ 答對了！+${pts}分`;
-            Audio.playEffect('countdown');
+            audio.playEffect('countdown');
         } else {
             g4State.counts.wrong++;
             g4State.combo = 0;
@@ -8323,7 +8324,7 @@
                 explain: explainMap[q.type] || ''
             });
             document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
-            Audio.playEffect('wrong');
+            audio.playEffect('wrong');
         }
 
         document.getElementById('g4Score').textContent = g4State.score;
@@ -8394,7 +8395,7 @@
         // Save scores
         saveLocalRank('game4', user, score, accuracy, maxCombo);
         if (mode !== 'practice') {
-            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別');
+            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別·挑戰');
         }
 
         renderLocalRankList('game4', 'g4RankList', user);
