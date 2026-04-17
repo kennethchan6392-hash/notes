@@ -27,7 +27,11 @@
         classic60:{ name:'高音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'treble' },
         bass60:   { name:'低音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'bass' },
         mixed60:  { name:'混合譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1.2, forceClef:'mixed' },
-        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 }
+        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 },
+        keysig_practice:  { name:'調號練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'keysig' },
+        keysig60:         { name:'調號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'keysig' },
+        solfege_practice: { name:'唱名練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'solfege' },
+        solfege60:        { name:'唱名挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'solfege' }
     };
 
     const TEXTBOOK_CONFIG = {
@@ -62,6 +66,85 @@
 
     const SOLFEGE = {C:'Do',D:'Re',E:'Mi',F:'Fa',G:'Sol',A:'La',B:'Si'};
     const noteSol = n => { const b = SOLFEGE[n.letter]; if (!b) return ''; return b + (n.accidental==='#'?'♯':n.accidental==='♭'?'♭':''); };
+
+    // ==========================================
+    // 調號辨別 + 唱名辨別 資料
+    // ==========================================
+    const KEY_SIGNATURES = [
+        { id:'C',  name:'C大調',  sharps:0, flats:0, img:'img/cards/keysig-0n.png', grade:1,
+          sharpNotes:[], flatNotes:[], scale:['C','D','E','F','G','A','B'] },
+        { id:'G',  name:'G大調',  sharps:1, flats:0, img:'img/cards/keysig-1s.png', grade:3,
+          sharpNotes:['F'], flatNotes:[], scale:['G','A','B','C','D','E','F#'] },
+        { id:'F',  name:'F大調',  sharps:0, flats:1, img:'img/cards/keysig-1f.png', grade:3,
+          sharpNotes:[], flatNotes:['B'], scale:['F','G','A','B♭','C','D','E'] },
+        { id:'D',  name:'D大調',  sharps:2, flats:0, img:'img/cards/keysig-2s.png', grade:4,
+          sharpNotes:['F','C'], flatNotes:[], scale:['D','E','F#','G','A','B','C#'] },
+        { id:'Bb', name:'B♭大調', sharps:0, flats:2, img:'img/cards/keysig-2f.png', grade:4,
+          sharpNotes:[], flatNotes:['B','E'], scale:['B♭','C','D','E♭','F','G','A'] },
+        { id:'A',  name:'A大調',  sharps:3, flats:0, img:'img/cards/keysig-3s.png', grade:5,
+          sharpNotes:['F','C','G'], flatNotes:[], scale:['A','B','C#','D','E','F#','G#'] },
+        { id:'Eb', name:'E♭大調', sharps:0, flats:3, img:'img/cards/keysig-3f.png', grade:5,
+          sharpNotes:[], flatNotes:['B','E','A'], scale:['E♭','F','G','A♭','B♭','C','D'] },
+        { id:'E',  name:'E大調',  sharps:4, flats:0, img:'img/cards/keysig-4s.png', grade:6,
+          sharpNotes:['F','C','G','D'], flatNotes:[], scale:['E','F#','G#','A','B','C#','D#'] },
+        { id:'Ab', name:'A♭大調', sharps:0, flats:4, img:'img/cards/keysig-4f.png', grade:6,
+          sharpNotes:[], flatNotes:['B','E','A','D'], scale:['A♭','B♭','C','D♭','E♭','F','G'] },
+        { id:'B',  name:'B大調',  sharps:5, flats:0, img:'img/cards/keysig-5s.png', grade:6,
+          sharpNotes:['F','C','G','D','A'], flatNotes:[], scale:['B','C#','D#','E','F#','G#','A#'] },
+        { id:'Db', name:'D♭大調', sharps:0, flats:5, img:'img/cards/keysig-5f.png', grade:6,
+          sharpNotes:[], flatNotes:['B','E','A','D','G'], scale:['D♭','E♭','F','G♭','A♭','B♭','C'] }
+    ];
+
+    function getKeysigPool(grade) {
+        let pool = KEY_SIGNATURES.filter(k => k.grade <= grade);
+        // Ensure at least 2 options for question generation; expand grade if needed
+        if (pool.length < 2) {
+            for (let g = grade + 1; g <= 6 && pool.length < 2; g++) {
+                pool = KEY_SIGNATURES.filter(k => k.grade <= g);
+            }
+        }
+        return pool;
+    }
+
+    // 首調唱名法 (moveable Do): maps each key's scale degrees to solfège names
+    const SOLFEGE_NAMES = ['Do','Re','Mi','Fa','Sol','La','Si'];
+
+    // For solfège mode: given a key and a note on the staff, find the solfège name
+    // noteWithAcc is like 'F#' or 'B♭' or 'C'
+    function getSolfege(keySig, noteWithAcc) {
+        const idx = keySig.scale.indexOf(noteWithAcc);
+        if (idx >= 0) return SOLFEGE_NAMES[idx];
+        // Try enharmonic: # ↔ ♭ not needed for diatonic notes within key
+        return null;
+    }
+
+    // Solfège grade config: which keys available + note range for treble clef
+    const SOLFEGE_LEVELS = {
+        1: { keys:['C'],        noteRange:[0,4]  },
+        2: { keys:['C'],        noteRange:[0,7]  },
+        3: { keys:['C','G','F'],noteRange:[0,9]  },
+        4: { keys:['C','G','F','D','Bb'], noteRange:[0,9] },
+        5: { keys:['C','G','F','D','Bb','A','Eb'], noteRange:[0,11] },
+        6: { keys:['C','G','F','D','Bb','A','Eb','E','Ab','B','Db'], noteRange:[0,12] }
+    };
+
+    // Key signature drawing positions on treble clef (yFactor values for sharp/flat positions)
+    // Sharps order: F C G D A — standard key signature positions
+    const KEYSIG_SHARP_POS_TREBLE = [
+        { letter:'F', yFactor:0 },    // F5: top line
+        { letter:'C', yFactor:1.5 },  // C5: 3rd space
+        { letter:'G', yFactor:-0.5 }, // G5: above top line
+        { letter:'D', yFactor:1 },    // D5: 4th line
+        { letter:'A', yFactor:2.5 }   // A4: 2nd space
+    ];
+    // Flats order: B E A D G
+    const KEYSIG_FLAT_POS_TREBLE = [
+        { letter:'B', yFactor:2 },    // B4: 3rd line
+        { letter:'E', yFactor:0.5 },  // E5: 4th space
+        { letter:'A', yFactor:2.5 },  // A4: 2nd space
+        { letter:'D', yFactor:1 },    // D5: 4th line
+        { letter:'G', yFactor:3 }     // G4: 2nd line
+    ];
 
     const MAPS = {
         treble: [{letter:'C',octave:4,yFactor:5},{letter:'D',octave:4,yFactor:4.5},{letter:'E',octave:4,yFactor:4},{letter:'F',octave:4,yFactor:3.5},{letter:'G',octave:4,yFactor:3},{letter:'A',octave:4,yFactor:2.5},{letter:'B',octave:4,yFactor:2},{letter:'C',octave:5,yFactor:1.5},{letter:'D',octave:5,yFactor:1},{letter:'E',octave:5,yFactor:0.5},{letter:'F',octave:5,yFactor:0},{letter:'G',octave:5,yFactor:-0.5},{letter:'A',octave:5,yFactor:-1}],
@@ -578,7 +661,9 @@
             showAnswerHighlight: false,
             slowNoteStats: {},
             lastNoteLetter: null,
-            practiceDiff: '3'
+            practiceDiff: '3',
+            keysigGrade: 1,
+            solfegeGrade: 1
         };
     }
 
@@ -1115,6 +1200,8 @@
         if (dom.inputs) dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
         s.lastMode = state.currentMode;
         s.practiceDiff = state.practiceDiff;
+        s.keysigGrade = state.keysigGrade;
+        s.solfegeGrade = state.solfegeGrade;
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
@@ -1129,11 +1216,17 @@
             if (s) {
                 if (dom.inputs) dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
+                if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
+                if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
                 if (s.lastMode && MODE_CONFIG[s.lastMode]) {
                     state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode];
                     dom.modeCards.forEach(c => c.classList.remove('active'));
                     const isClefChallenge = s.lastMode === 'classic60' || s.lastMode === 'bass60' || s.lastMode === 'mixed60';
+                    const isKeysigMode = s.lastMode === 'keysig_practice' || s.lastMode === 'keysig60';
+                    const isSolfegeMode = s.lastMode === 'solfege_practice' || s.lastMode === 'solfege60';
                     if (isClefChallenge) { dom.modeCardMap.get('classic60')?.classList.add('active'); }
+                    else if (isKeysigMode) { dom.modeCardMap.get('keysig_practice')?.classList.add('active'); }
+                    else if (isSolfegeMode) { dom.modeCardMap.get('solfege_practice')?.classList.add('active'); }
                     else { dom.modeCardMap.get(s.lastMode)?.classList.add('active'); }
                 }
                 // Restore saved student name after populating dropdown
@@ -1436,6 +1529,14 @@
     function startGame() {
         audio.init(); 
         audio.warmUp();
+        // Ensure keysig/solfege UI is hidden for normal note-name game
+        showKeysigUI(false);
+        showSolfegeUI(false);
+        if (dom.notesGrid) dom.notesGrid.style.display = '';
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        if (canvasWrapper) canvasWrapper.style.display = '';
+        const clefBadge = document.getElementById('clefBadge');
+        if (clefBadge) clefBadge.style.display = '';
         const playerName = getPlayerName();
         if (!playerName) {
             dom.nameField.classList.add('error');
@@ -1509,6 +1610,471 @@
             audio.playEffect('timeup'); 
             endGame(); 
         }
+    }
+
+    // ==========================================
+    // 調號辨別遊戲
+    // ==========================================
+    let _keysigCurrentQ = null;
+
+    function showKeysigUI(show) {
+        const keysigDisplay = document.getElementById('keysigDisplay');
+        const keysigOptions = document.getElementById('keysigOptions');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const clefBadge = document.getElementById('clefBadge');
+        if (keysigDisplay) keysigDisplay.style.display = show ? 'flex' : 'none';
+        if (keysigOptions) keysigOptions.style.display = show ? 'grid' : 'none';
+        if (canvasWrapper) canvasWrapper.style.display = show ? 'none' : '';
+        if (clefBadge) clefBadge.style.display = show ? 'none' : '';
+        if (dom.notesGrid) dom.notesGrid.style.display = show ? 'none' : '';
+    }
+
+    function generateKeysigQuestion(grade) {
+        const pool = getKeysigPool(grade);
+        if (pool.length < 2) return null;
+        const correct = pool[Math.floor(Math.random() * pool.length)];
+        // Pick 3 distractors
+        const others = pool.filter(k => k.id !== correct.id);
+        const shuffled = others.sort(() => Math.random() - 0.5);
+        const distractors = shuffled.slice(0, Math.min(3, shuffled.length));
+        const options = [correct, ...distractors].sort(() => Math.random() - 0.5);
+        return { correct, options, img: correct.img };
+    }
+
+    function renderKeysigQuestion(q) {
+        _keysigCurrentQ = q;
+        const keysigImg = document.getElementById('keysigImg');
+        const keysigOptions = document.getElementById('keysigOptions');
+        if (keysigImg) { keysigImg.src = q.img; keysigImg.alt = '辨別此調號'; }
+        if (!keysigOptions) return;
+        keysigOptions.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'keysig-opt-btn';
+            btn.textContent = opt.name;
+            btn.disabled = false;
+            btn.addEventListener('click', () => handleKeysigAnswer(opt, btn));
+            keysigOptions.appendChild(btn);
+        });
+    }
+
+    function handleKeysigAnswer(selected, btn) {
+        if (!state.gameActive || state.answered) return;
+        const q = _keysigCurrentQ;
+        if (!q) return;
+        const isFirstAttempt = !state.attemptedThisQuestion;
+        const elapsed = Date.now() - state.questionStartTime;
+        if (isFirstAttempt) {
+            state.answerTimeList.push(elapsed / 1000);
+            state.totalQuestions++;
+            state.attemptedThisQuestion = true;
+        }
+        const correct = selected.id === q.correct.id;
+        if (correct) {
+            state.answered = true;
+            state.combo++;
+            if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+            if (isFirstAttempt && elapsed > 4000) {
+                state.slowNoteStats[q.correct.name] = (state.slowNoteStats[q.correct.name] || 0) + 1;
+            }
+            const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
+            if (pts) state.score += pts;
+            const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : '';
+            dom.messageBox.textContent = `✅ 答對了！${q.correct.name}${_secs} ✨ 得分：${state.score}`;
+            dom.messageBox.className = 'message-box correct';
+            if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
+            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            if (state.modeConfig.type === 'practice') {
+                const correctCount = state.totalQuestions - state.wrongCount;
+                if (correctCount > 0 && correctCount % 20 === 0) {
+                    showComboBurst(correctCount); spawnConfetti(30);
+                    dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
+                }
+            }
+            setTimeout(() => { if (!state.gameActive) return; nextKeysigQuestion(); }, 500);
+        } else {
+            state.wrongNoteStats[q.correct.name] = (state.wrongNoteStats[q.correct.name] || 0) + 1;
+            state.combo = 0;
+            audio.playEffect('wrong');
+            state.answered = true;
+            state.wrongCount++;
+            dom.messageBox.textContent = `❌ 答錯了！正確答案是 ${q.correct.name}，記住了嗎？`;
+            dom.messageBox.className = 'message-box wrong';
+            if (btn) btn.classList.add('wrong');
+            // Highlight correct
+            const opts = document.querySelectorAll('.keysig-opt-btn');
+            opts.forEach(b => { if (b.textContent === q.correct.name) b.classList.add('correct'); });
+            setTimeout(() => { if (!state.gameActive) return; if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextKeysigQuestion(); }, 1500);
+        }
+        updateScoreboard();
+    }
+
+    function nextKeysigQuestion() {
+        const grade = state.keysigGrade || state.currentUser.grade || 3;
+        const q = generateKeysigQuestion(grade);
+        if (!q) return;
+        state.answered = false;
+        state.attemptedThisQuestion = false;
+        state.questionStartTime = Date.now();
+        renderKeysigQuestion(q);
+        enableGameControls(true);
+    }
+
+    function startKeysigGame() {
+        audio.init(); audio.warmUp();
+        const playerName = getPlayerName();
+        if (!playerName) { dom.nameField.classList.add('error'); alert('❗ 請先選擇你的名字才可以開始哦！'); return; }
+        dom.nameField.classList.remove('error');
+        saveSettings();
+        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
+
+        showKeysigUI(true);
+        showSolfegeUI(false);
+        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
+        dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
+
+        state.gameActive = false;
+        state.timeLeft = state.modeConfig.duration;
+        state.score = 0; state.totalQuestions = 0; state.wrongCount = 0;
+        state.combo = 0; state.maxCombo = 0; state.answered = false;
+        state.wrongNoteStats = {}; state.answerTimeList = []; state.slowNoteStats = {};
+        state.attemptedThisQuestion = false;
+        if (state.timer) { clearInterval(state.timer); state.timer = null; }
+
+        audio.bgPlay();
+        switchScreen('screen-game');
+
+        startCountdown(() => {
+            state.gameActive = true;
+            if (state.timeLeft !== Infinity) {
+                state.timer = setInterval(updateTimer, 1000);
+                dom.timeDisplay.textContent = `${state.timeLeft}s`;
+            } else {
+                dom.timeDisplay.textContent = '∞';
+            }
+            dom.timeProgress.style.width = '100%';
+            dom.timeProgress.style.transition = 'none';
+            updateScoreboard();
+            dom.messageBox.textContent = `🎼 ${state.modeConfig.name} — 開始了！加油！`;
+            dom.messageBox.className = 'message-box';
+            nextKeysigQuestion();
+            if (state.timeLeft !== Infinity) {
+                setTimeout(() => {
+                    dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;
+                    dom.timeProgress.style.width = '0%';
+                }, 50);
+            }
+        });
+    }
+
+    // ==========================================
+    // 唱名辨別遊戲
+    // ==========================================
+    let _solfegeCurrentAnswer = null;
+
+    function showSolfegeUI(show) {
+        const solfegeGrid = document.getElementById('solfegeGrid');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        if (solfegeGrid) solfegeGrid.style.display = show ? 'flex' : 'none';
+        if (show) {
+            if (canvasWrapper) canvasWrapper.style.display = '';
+            if (dom.notesGrid) dom.notesGrid.style.display = 'none';
+            const keysigDisplay = document.getElementById('keysigDisplay');
+            const keysigOptions = document.getElementById('keysigOptions');
+            if (keysigDisplay) keysigDisplay.style.display = 'none';
+            if (keysigOptions) keysigOptions.style.display = 'none';
+        }
+    }
+
+    function generateSolfegeNote(grade) {
+        const level = SOLFEGE_LEVELS[grade] || SOLFEGE_LEVELS[3];
+        // Pick random key
+        const keyId = level.keys[Math.floor(Math.random() * level.keys.length)];
+        const keySig = KEY_SIGNATURES.find(k => k.id === keyId);
+        if (!keySig) return null;
+
+        // Build diatonic note pool from treble MAPS within noteRange
+        const noteRange = level.noteRange;
+        const mapNotes = MAPS.treble.slice(noteRange[0], noteRange[1] + 1);
+
+        // Filter to only diatonic notes in this key
+        const diatonicPool = [];
+        mapNotes.forEach(mapNote => {
+            // Check if this note letter (with key sig accidental) is in the scale
+            const letter = mapNote.letter;
+            // Determine what this note sounds like with the key signature applied
+            let noteWithAcc = letter;
+            if (keySig.sharpNotes.includes(letter)) noteWithAcc = letter + '#';
+            else if (keySig.flatNotes.includes(letter)) noteWithAcc = letter + '♭';
+
+            const solName = getSolfege(keySig, noteWithAcc);
+            if (solName) {
+                diatonicPool.push({ ...mapNote, clef: 'treble', accidental: null, noteWithAcc, correctSolfege: solName });
+            }
+        });
+
+        if (!diatonicPool.length) return null;
+
+        // Anti-repeat
+        let pick = diatonicPool[Math.floor(Math.random() * diatonicPool.length)];
+        if (diatonicPool.length > 1) {
+            let tries = 0;
+            while (pick.letter === state.lastNoteLetter && tries < 20) {
+                pick = diatonicPool[Math.floor(Math.random() * diatonicPool.length)];
+                tries++;
+            }
+        }
+        state.lastNoteLetter = pick.letter;
+
+        return {
+            ...pick,
+            correctName: pick.noteWithAcc,
+            freqKey: (pick.noteWithAcc.replace('♭','b')) + pick.octave,
+            keySig
+        };
+    }
+
+    function drawStaffWithKeySig() {
+        // First draw the normal staff
+        if (!dom.canvas.logicalWidth) setupHDPI();
+        const w = dom.canvas.logicalWidth, h = dom.canvas.logicalHeight, ctx = dom.ctx;
+        if (!w || !h) return;
+        ctx.clearRect(0, 0, w, h);
+
+        const dpr = window.devicePixelRatio || 1;
+        const currentClef = 'treble';
+        const clefLoaded = clefImages[currentClef]?.complete && clefImages[currentClef]?.naturalWidth > 0;
+        const ls = w < 340 ? 14 : w < 400 ? 16 : 22;
+
+        // Rebuild staff cache for treble clef
+        if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded || _staffCache.clef !== currentClef || _staffCache._isSolfegeCache) {
+            const oc = document.createElement('canvas');
+            oc.width = w * dpr; oc.height = h * dpr;
+            const oc_ctx = oc.getContext('2d');
+            oc_ctx.scale(dpr, dpr);
+            const _baseY = Math.round(h / 2 - ls * 1.15), _startX = w < 400 ? 30 : 50;
+            oc_ctx.strokeStyle = '#1E1E2F'; oc_ctx.lineWidth = 2; oc_ctx.lineCap = 'round';
+            oc_ctx.beginPath();
+            for (let i = 0; i < 5; i++) { oc_ctx.moveTo(_startX, _baseY + i * ls); oc_ctx.lineTo(w - _startX, _baseY + i * ls); }
+            oc_ctx.stroke();
+            drawTrebleClef(oc_ctx, _startX + (w < 400 ? 20 : 35), _baseY + ls * 3, ls);
+            _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, clef: currentClef, baseY: _baseY, startX: _startX, _isSolfegeCache: false };
+        }
+        ctx.drawImage(_staffCache.canvas, 0, 0, w, h);
+
+        const baseY = _staffCache.baseY, startX = _staffCache.startX;
+        const clefEndX = startX + (w < 400 ? 20 : 35) + ls * 3;
+
+        // Draw key signature accidentals after clef
+        const keySig = state.currentNote ? state.currentNote.keySig : null;
+        let ksWidth = 0;
+        if (keySig) {
+            const ksStartX = clefEndX + ls * 0.5;
+            const spacing = ls * 1.0;
+            if (keySig.sharps > 0) {
+                for (let i = 0; i < keySig.sharps; i++) {
+                    const pos = KEYSIG_SHARP_POS_TREBLE[i];
+                    const y = baseY + pos.yFactor * ls;
+                    drawSharp(ctx, ksStartX + i * spacing, y, ls);
+                }
+                ksWidth = keySig.sharps * spacing + ls * 0.5;
+            } else if (keySig.flats > 0) {
+                for (let i = 0; i < keySig.flats; i++) {
+                    const pos = KEYSIG_FLAT_POS_TREBLE[i];
+                    const y = baseY + pos.yFactor * ls;
+                    drawFlat(ctx, ksStartX + i * spacing, y, ls);
+                }
+                ksWidth = keySig.flats * spacing + ls * 0.5;
+            }
+        }
+
+        // Note position: center between key sig end and staff end
+        const noteAreaStart = clefEndX + ksWidth + ls;
+        const staffEndX = w - startX;
+        const centerX = Math.round(noteAreaStart + (staffEndX - noteAreaStart) / 2);
+        const middleLineY = baseY + 2 * ls;
+
+        if (!state.currentNote) return;
+
+        const noteY = baseY + state.currentNote.yFactor * ls;
+
+        // Highlight line
+        const highlightLineEl = dom.highlightLine;
+        if (highlightLineEl && highlightLineEl.checked && !state.answered) {
+            ctx.strokeStyle = 'rgba(6, 214, 160, 0.4)'; ctx.lineWidth = ls * 0.8;
+            ctx.beginPath(); ctx.moveTo(centerX - 35, noteY); ctx.lineTo(centerX + 35, noteY); ctx.stroke();
+        }
+
+        // Ledger lines
+        ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; const lW = 24;
+        ctx.beginPath();
+        if (state.currentNote.yFactor > 4) for (let i = 1; i <= Math.floor(state.currentNote.yFactor - 4); i++) { ctx.moveTo(centerX - lW, baseY + (4 + i) * ls); ctx.lineTo(centerX + lW, baseY + (4 + i) * ls); }
+        if (state.currentNote.yFactor < 0) for (let i = 1; i <= Math.floor(Math.abs(state.currentNote.yFactor)); i++) { ctx.moveTo(centerX - lW, baseY - i * ls); ctx.lineTo(centerX + lW, baseY - i * ls); }
+        ctx.stroke();
+
+        // Note: NO individual accidental drawn (key signature handles it)
+
+        // Draw note head (always filled for solfège mode)
+        ctx.fillStyle = '#1E1E2F'; ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.ellipse(centerX, noteY, ls * 0.65, ls * 0.48, -0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        if (noteY < middleLineY) { ctx.moveTo(centerX - ls * 0.55, noteY + 2); ctx.lineTo(centerX - ls * 0.55, noteY + ls * 3.5); }
+        else { ctx.moveTo(centerX + ls * 0.55, noteY - 2); ctx.lineTo(centerX + ls * 0.55, noteY - ls * 3.5); }
+        ctx.stroke();
+
+        // Key name badge
+        if (keySig) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(124, 58, 237, 0.85)';
+            ctx.font = `bold ${Math.round(ls * 0.7)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+            ctx.fillText(keySig.name, startX + 4, baseY + ls * 4.3);
+            ctx.restore();
+        }
+
+        // Answer highlight
+        if (state.showAnswerHighlight) {
+            ctx.save();
+            ctx.strokeStyle = '#FF4A6B'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
+            ctx.beginPath(); ctx.arc(centerX, noteY, ls * 1.3, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#FF4A6B';
+            ctx.font = `bold ${Math.round(ls * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
+            ctx.fillText(state.currentNote.correctSolfege + ' (' + state.currentNote.correctName + ')', centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
+            ctx.restore();
+        }
+    }
+
+    function handleSolfegeAnswer(solName) {
+        if (!state.gameActive || state.answered) return;
+        if (!state.currentNote || !state.currentNote.correctSolfege) return;
+
+        const isFirstAttempt = !state.attemptedThisQuestion;
+        const elapsed = Date.now() - state.questionStartTime;
+        if (isFirstAttempt) {
+            state.answerTimeList.push(elapsed / 1000);
+            state.totalQuestions++;
+            state.attemptedThisQuestion = true;
+        }
+
+        const correct = solName === state.currentNote.correctSolfege;
+        const btn = document.querySelector(`.solfege-btn[data-sol="${solName}"]`);
+
+        if (correct) {
+            state.answered = true;
+            state.combo++;
+            if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+            if (isFirstAttempt && elapsed > 4000) {
+                const statKey = state.currentNote.correctSolfege + ' (' + (state.currentNote.keySig ? state.currentNote.keySig.name : '') + ')';
+                state.slowNoteStats[statKey] = (state.slowNoteStats[statKey] || 0) + 1;
+            }
+            const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
+            if (pts) state.score += pts;
+            const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : '';
+            const keyLabel = state.currentNote.keySig ? ` (${state.currentNote.keySig.name})` : '';
+            dom.messageBox.textContent = `✅ 答對了！${state.currentNote.correctSolfege} = ${state.currentNote.correctName}${keyLabel}${_secs} ✨ 得分：${state.score}`;
+            dom.messageBox.className = 'message-box correct';
+            audio.playNote(state.currentNote.freqKey);
+            if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
+            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            if (state.modeConfig.type === 'practice') {
+                const correctCount = state.totalQuestions - state.wrongCount;
+                if (correctCount > 0 && correctCount % 20 === 0) {
+                    showComboBurst(correctCount); spawnConfetti(30);
+                    dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
+                }
+            }
+            setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('correct', 'wrong'); nextSolfegeQuestion(); }, 500);
+        } else {
+            const statKey = state.currentNote.correctSolfege + ' (' + (state.currentNote.keySig ? state.currentNote.keySig.name : '') + ')';
+            state.wrongNoteStats[statKey] = (state.wrongNoteStats[statKey] || 0) + 1;
+            state.combo = 0;
+            audio.playEffect('wrong');
+            state.answered = true;
+            state.wrongCount++;
+            state.showAnswerHighlight = true; drawStaffWithKeySig();
+            const keyLabel = state.currentNote.keySig ? ` (${state.currentNote.keySig.name})` : '';
+            dom.messageBox.textContent = `❌ 答錯了！正確答案是 ${state.currentNote.correctSolfege} = ${state.currentNote.correctName}${keyLabel}，記住了嗎？`;
+            dom.messageBox.className = 'message-box wrong';
+            if (btn) btn.classList.add('wrong');
+            // Highlight correct button
+            const correctBtn = document.querySelector(`.solfege-btn[data-sol="${state.currentNote.correctSolfege}"]`);
+            if (correctBtn) correctBtn.classList.add('correct');
+            setTimeout(() => {
+                if (!state.gameActive) return;
+                document.querySelectorAll('.solfege-btn').forEach(b => b.classList.remove('correct', 'wrong'));
+                if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextSolfegeQuestion();
+            }, 1500);
+        }
+        updateScoreboard();
+    }
+
+    function nextSolfegeQuestion() {
+        const grade = state.solfegeGrade || state.currentUser.grade || 3;
+        const note = generateSolfegeNote(grade);
+        if (!note) return;
+        state.currentNote = note;
+        state.answered = false;
+        state.attemptedThisQuestion = false;
+        state.showAnswerHighlight = false;
+        state.questionStartTime = Date.now();
+        // Invalidate staff cache so key sig is redrawn
+        _staffCache = null;
+        drawStaffWithKeySig();
+        // Enable solfege buttons
+        document.querySelectorAll('.solfege-btn').forEach(b => { b.disabled = false; });
+        enableGameControls(true);
+    }
+
+    function startSolfegeGame() {
+        audio.init(); audio.warmUp();
+        const playerName = getPlayerName();
+        if (!playerName) { dom.nameField.classList.add('error'); alert('❗ 請先選擇你的名字才可以開始哦！'); return; }
+        dom.nameField.classList.remove('error');
+        saveSettings();
+        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
+
+        showKeysigUI(false);
+        showSolfegeUI(true);
+        if (dom.clefBadge) dom.clefBadge.textContent = '高音譜號';
+        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
+        dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
+
+        state.gameActive = false;
+        state.timeLeft = state.modeConfig.duration;
+        state.score = 0; state.totalQuestions = 0; state.wrongCount = 0;
+        state.combo = 0; state.maxCombo = 0; state.answered = false;
+        state.wrongNoteStats = {}; state.answerTimeList = []; state.slowNoteStats = {};
+        state.lastNoteLetter = null; state.attemptedThisQuestion = false;
+        state.showAnswerHighlight = false;
+        if (state.timer) { clearInterval(state.timer); state.timer = null; }
+
+        audio.bgPlay();
+        switchScreen('screen-game');
+
+        startCountdown(() => {
+            state.gameActive = true;
+            if (state.timeLeft !== Infinity) {
+                state.timer = setInterval(updateTimer, 1000);
+                dom.timeDisplay.textContent = `${state.timeLeft}s`;
+            } else {
+                dom.timeDisplay.textContent = '∞';
+            }
+            dom.timeProgress.style.width = '100%';
+            dom.timeProgress.style.transition = 'none';
+            updateScoreboard();
+            dom.messageBox.textContent = `🎤 ${state.modeConfig.name} — 開始了！加油！`;
+            dom.messageBox.className = 'message-box';
+            nextSolfegeQuestion();
+            if (state.timeLeft !== Infinity) {
+                setTimeout(() => {
+                    dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;
+                    dom.timeProgress.style.width = '0%';
+                }, 50);
+            }
+        });
     }
 
     function generateReport() {
@@ -1973,25 +2539,104 @@
         // Mode card selection + clef sub-selector
         const clefSelectorRow = document.getElementById('clefSelectorRow');
         const clefSelBtns = document.querySelectorAll('.clef-sel-btn');
+        const keysigSubRow = document.getElementById('keysigSubRow');
+        const keysigGradeRow = document.getElementById('keysigGradeRow');
+        const solfegeSubRow = document.getElementById('solfegeSubRow');
+        const solfegeGradeRow = document.getElementById('solfegeGradeRow');
+
+        // Helper to hide all sub-rows
+        function hideAllSubRows() {
+            if (clefSelectorRow) clefSelectorRow.style.display = 'none';
+            if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = 'none';
+            if (keysigSubRow) keysigSubRow.style.display = 'none';
+            if (keysigGradeRow) keysigGradeRow.style.display = 'none';
+            if (solfegeSubRow) solfegeSubRow.style.display = 'none';
+            if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
+        }
+
         dom.modeCards.forEach(card => card.addEventListener('click', () => {
             audio.init(); audio.playClick('select');
             dom.modeCards.forEach(c => c.classList.remove('active'));
             card.classList.add('active');
             const mode = card.dataset.mode;
+            hideAllSubRows();
+
             if (mode === 'practice' || mode === 'noMiss') {
                 state.currentMode = mode;
                 state.modeConfig = MODE_CONFIG[mode];
-                if (clefSelectorRow) clefSelectorRow.style.display = 'none';
-            } else {
-                // classic60 card = 1-min challenge, show clef sub-selector
+                if (mode === 'practice' && dom.practiceDiffRow) dom.practiceDiffRow.style.display = '';
+            } else if (mode === 'classic60') {
                 const activeClef = document.querySelector('.clef-sel-btn.active');
                 state.currentMode = activeClef ? activeClef.dataset.clef : 'classic60';
                 state.modeConfig = MODE_CONFIG[state.currentMode];
                 if (clefSelectorRow) clefSelectorRow.style.display = '';
+            } else if (mode === 'keysig_practice') {
+                // Default to practice; sub-row lets user toggle challenge
+                const activeKsMode = document.querySelector('.ks-mode-btn.active');
+                const isPractice = !activeKsMode || activeKsMode.dataset.ksmode === 'practice';
+                state.currentMode = isPractice ? 'keysig_practice' : 'keysig60';
+                state.modeConfig = MODE_CONFIG[state.currentMode];
+                if (keysigSubRow) keysigSubRow.style.display = '';
+                if (keysigGradeRow) keysigGradeRow.style.display = '';
+            } else if (mode === 'solfege_practice') {
+                const activeSolMode = document.querySelector('.sol-mode-btn.active');
+                const isPractice = !activeSolMode || activeSolMode.dataset.solmode === 'practice';
+                state.currentMode = isPractice ? 'solfege_practice' : 'solfege60';
+                state.modeConfig = MODE_CONFIG[state.currentMode];
+                if (solfegeSubRow) solfegeSubRow.style.display = '';
+                if (solfegeGradeRow) solfegeGradeRow.style.display = '';
             }
-            if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = mode === 'practice' ? '' : 'none';
             saveSettings();
         }));
+
+        // Keysig sub-mode buttons (practice / challenge)
+        document.querySelectorAll('.ks-mode-btn').forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            document.querySelectorAll('.ks-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.currentMode = btn.dataset.ksmode === 'challenge' ? 'keysig60' : 'keysig_practice';
+            state.modeConfig = MODE_CONFIG[state.currentMode];
+            saveSettings();
+        }));
+        // Keysig grade buttons
+        document.querySelectorAll('.ks-grade-btn').forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.keysigGrade = parseInt(btn.dataset.grade);
+            saveSettings();
+        }));
+
+        // Solfege sub-mode buttons (practice / challenge)
+        document.querySelectorAll('.sol-mode-btn').forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            document.querySelectorAll('.sol-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.currentMode = btn.dataset.solmode === 'challenge' ? 'solfege60' : 'solfege_practice';
+            state.modeConfig = MODE_CONFIG[state.currentMode];
+            saveSettings();
+        }));
+        // Solfege grade buttons
+        document.querySelectorAll('.sol-grade-btn').forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.solfegeGrade = parseInt(btn.dataset.grade);
+            saveSettings();
+        }));
+
+        // Solfege answer buttons
+        document.querySelectorAll('.solfege-btn').forEach(btn => btn.addEventListener('click', () => {
+            if (!state.gameActive || state.answered) return;
+            handleSolfegeAnswer(btn.dataset.sol);
+        }));
+
+        // Init keysig/solfege grade from student profile
+        if (!state.keysigGrade) state.keysigGrade = parseInt(state.currentUser?.grade) || 1;
+        if (!state.solfegeGrade) state.solfegeGrade = parseInt(state.currentUser?.grade) || 1;
+        document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.keysigGrade));
+        document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.solfegeGrade));
+
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             audio.init(); audio.playClick('select');
             clefSelBtns.forEach(b => b.classList.remove('active'));
@@ -2002,10 +2647,26 @@
         }));
         // Init visibility
         { const isChallenge = state.currentMode === 'classic60' || state.currentMode === 'bass60' || state.currentMode === 'mixed60';
+          const isKeysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
+          const isSolfege = state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60';
           if (clefSelectorRow) clefSelectorRow.style.display = isChallenge ? '' : 'none';
+          if (keysigSubRow) keysigSubRow.style.display = isKeysig ? '' : 'none';
+          if (keysigGradeRow) keysigGradeRow.style.display = isKeysig ? '' : 'none';
+          if (solfegeSubRow) solfegeSubRow.style.display = isSolfege ? '' : 'none';
+          if (solfegeGradeRow) solfegeGradeRow.style.display = isSolfege ? '' : 'none';
           if (isChallenge) { clefSelBtns.forEach(b => b.classList.toggle('active', b.dataset.clef === state.currentMode));
               const challengeCard = document.querySelector('.mode-card[data-mode="classic60"]');
               if (challengeCard) { dom.modeCards.forEach(c => c.classList.remove('active')); challengeCard.classList.add('active'); }
+          }
+          if (isKeysig) {
+              const ksCard = document.querySelector('.mode-card[data-mode="keysig_practice"]');
+              if (ksCard) { dom.modeCards.forEach(c => c.classList.remove('active')); ksCard.classList.add('active'); }
+              document.querySelectorAll('.ks-mode-btn').forEach(b => b.classList.toggle('active', (state.currentMode === 'keysig60') === (b.dataset.ksmode === 'challenge')));
+          }
+          if (isSolfege) {
+              const solCard = document.querySelector('.mode-card[data-mode="solfege_practice"]');
+              if (solCard) { dom.modeCards.forEach(c => c.classList.remove('active')); solCard.classList.add('active'); }
+              document.querySelectorAll('.sol-mode-btn').forEach(b => b.classList.toggle('active', (state.currentMode === 'solfege60') === (b.dataset.solmode === 'challenge')));
           }
         }
 
@@ -2022,7 +2683,12 @@
         if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = state.currentMode === 'practice' ? '' : 'none';
         diffBtns.forEach(b => b.classList.toggle('active', b.dataset.diff === state.practiceDiff));
         
-        dom.startBtn.addEventListener('click', startGame); 
+        dom.startBtn.addEventListener('click', () => {
+            const gt = state.modeConfig && state.modeConfig.gameType;
+            if (gt === 'keysig') startKeysigGame();
+            else if (gt === 'solfege') startSolfegeGame();
+            else startGame();
+        }); 
         dom.endBtn.addEventListener('click', endGame); 
         dom.backToSetupBtn.addEventListener('click', () => { audio.playClick();
             dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
@@ -2042,8 +2708,8 @@
             switchScreen('screen-leaderboard');
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
-        dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; setTimeout(() => nextQuestion(), 400); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！記住它！`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！記住它！`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
+        dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 跳過這題，下一題加油！'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
         
         document.getElementById('rankGameFilter')?.addEventListener('change', () => {
             const gfVal = document.getElementById('rankGameFilter').value;
@@ -2070,7 +2736,21 @@
                     dom.startBtn.click(); 
                 } 
                 return; 
-            } 
+            }
+            const gt = state.modeConfig && state.modeConfig.gameType;
+            if (gt === 'solfege') {
+                // 1-7 for Do-Si
+                const solMap = { '1':'Do','2':'Re','3':'Mi','4':'Fa','5':'Sol','6':'La','7':'Si' };
+                const sol = solMap[e.key];
+                if (sol) { e.preventDefault(); handleSolfegeAnswer(sol); }
+                else if (e.code === 'Space') { e.preventDefault(); dom.skipBtn.click(); }
+                return;
+            }
+            if (gt === 'keysig') {
+                // No keyboard shortcuts for keysig MCQ (use mouse/touch)
+                if (e.code === 'Space') { e.preventDefault(); dom.skipBtn.click(); }
+                return;
+            }
             const note = { '1':'C', '2':'D', '3':'E', '4':'F', '5':'G', '6':'A', '7':'B', 'Q':'C#','W':'D#','E':'F#','R':'G#','T':'A#', 'A':'D♭','S':'E♭','D':'G♭','F':'A♭','G':'B♭' }[e.key.toUpperCase()]; 
             if (note) { 
                 e.preventDefault(); 
@@ -2442,10 +3122,43 @@
                     startRhythmChallenge(user);
                 } else if (g2SelectedMode === '1min') {
                     _omLaunch(user);
+                } else if (g2SelectedMode === 'duration') {
+                    _durLaunch(user);
                 } else {
                     enterRCGame(user);
                 }
             };
+
+            // Sub-buttons on 時值辨別 mode card
+            const durHelpBtn = document.getElementById('durHelpBtn');
+            const durRefBtn = document.getElementById('durRefBtn');
+            if (durHelpBtn) durHelpBtn.onclick = (e) => {
+                e.stopPropagation();
+                const modal = document.getElementById('durHelpModal');
+                if (modal) modal.style.display = 'flex';
+            };
+            if (durRefBtn) durRefBtn.onclick = (e) => {
+                e.stopPropagation();
+                const modal = document.getElementById('durRefModal');
+                if (modal) modal.style.display = 'flex';
+            };
+
+            // durHelpModal close
+            const durHelpClose = document.getElementById('durHelpClose');
+            const durHelpModal = document.getElementById('durHelpModal');
+            if (durHelpClose && durHelpModal) {
+                durHelpClose.onclick = () => { durHelpModal.style.display = 'none'; };
+                durHelpModal.onclick = (e) => { if (e.target === durHelpModal) durHelpModal.style.display = 'none'; };
+            }
+
+            // durRefModal close
+            const durRefClose = document.getElementById('durRefClose');
+            const durRefModal = document.getElementById('durRefModal');
+            if (durRefClose && durRefModal) {
+                durRefClose.onclick = () => { durRefModal.style.display = 'none'; };
+                durRefModal.onclick = (e) => { if (e.target === durRefModal) durRefModal.style.display = 'none'; };
+            }
+
             document.getElementById('g2BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
             document.getElementById('g2SetupViewRanks').onclick = () => {
                 dom.leaderboardLayout.classList.add('view-only');
@@ -3842,17 +4555,24 @@
         { id: '16th', beats: 0.25, label: '十六分音符', vfDur: '16' },
     ];
 
+    // Note types that must only start on an integer beat position
+    const _OM_INTEGER_BEAT_ONLY = new Set(['whole', 'half', 'dotted-quarter']);
+
     // Generate a random measure for a given time signature
     function _omGenerateMeasure(totalBeats) {
         const pool = OM_NOTE_OPTIONS.filter(n => n.beats <= totalBeats);
         let remaining = totalBeats;
+        let pos = 0;
         const notes = [];
         let safety = 0;
         while (remaining > 0.001 && safety++ < 50) {
-            const eligible = pool.filter(n => n.beats <= remaining + 0.001);
+            const onBeat = Math.abs(pos - Math.round(pos)) < 0.01;
+            let eligible = pool.filter(n => n.beats <= remaining + 0.001);
+            if (!onBeat) eligible = eligible.filter(n => !_OM_INTEGER_BEAT_ONLY.has(n.id));
             if (!eligible.length) break;
             const pick = eligible[Math.floor(Math.random() * eligible.length)];
             notes.push({ ...pick });
+            pos = Math.round((pos + pick.beats) * 1000) / 1000;
             remaining = Math.round((remaining - pick.beats) * 1000) / 1000;
         }
         // Must have at least 2 notes to blank one
@@ -3897,6 +4617,29 @@
             }
         });
 
+        // Build beam groups: beam consecutive 8th/16th notes within the same beat
+        const { Beam } = VexFlow;
+        const beams = [];
+        if (Beam) {
+            let pos = 0;
+            let beatStart = 0;
+            let group = [];
+            const flush = () => { if (group.length >= 2) { try { beams.push(new Beam(group)); } catch(e) {} } group = []; };
+            notes.forEach((n, i) => {
+                const beatPos = Math.round(pos * 1000) / 1000;
+                const newBeat = Math.floor(beatPos);
+                if (newBeat !== Math.floor(beatStart) && group.length) flush();
+                if (n.beats < 1) { // eighth or sixteenth
+                    group.push(vfNotes[i]);
+                    beatStart = beatPos;
+                } else {
+                    flush();
+                }
+                pos = Math.round((pos + n.beats) * 1000) / 1000;
+            });
+            flush();
+        }
+
         const [num] = timeSig.split('/').map(Number);
         const voice = new Voice({ numBeats: num, beatValue: 4 });
         voice.setMode(2);
@@ -3904,6 +4647,7 @@
         const nsx = stave.getNoteStartX();
         new Formatter().joinVoices([voice]).format([voice], W - nsx - 20);
         voice.draw(context, stave);
+        beams.forEach(b => b.setContext(context).draw());
 
         // Draw blank placeholder over the hidden note
         const blankNote = vfNotes[blankIdx];
@@ -4122,6 +4866,329 @@
         if (omState.timer) { cancelAnimationFrame(omState.timer); omState.timer = null; }
         omState.score = 0; omState.correct = 0; omState.wrong = 0;
         omState.total = 0; omState.currentAnswer = null; omState.locked = false;
+    }
+
+    // ══════════════════════════════════════════
+    // 🎵 時值辨別 — Duration Recognition Game
+    // ══════════════════════════════════════════
+    const DUR_QUESTIONS = [
+        { id: 'whole',       label: '全音符',       img: 'img/cards/rhythm-p02.png', beats: 4,    isRest: false },
+        { id: 'dot-half',    label: '附點二分音符', img: 'img/cards/rhythm-p03.png', beats: 3,    isRest: false },
+        { id: 'half',        label: '二分音符',     img: 'img/cards/rhythm-p04.png', beats: 2,    isRest: false },
+        { id: 'dot-quarter', label: '附點四分音符', img: 'img/cards/rhythm-p05.png', beats: 1.5,  isRest: false },
+        { id: 'quarter',     label: '四分音符',     img: 'img/cards/rhythm-p06.png', beats: 1,    isRest: false },
+        { id: 'dot-eighth',  label: '附點八分音符', img: 'img/cards/rhythm-p07.png', beats: 0.75, isRest: false },
+        { id: 'eighth',      label: '八分音符',     img: 'img/cards/rhythm-p08.png', beats: 0.5,  isRest: false },
+        { id: '16th',        label: '十六分音符',   img: 'img/cards/rhythm-p09.png', beats: 0.25, isRest: false },
+        { id: 'whole-r',     label: '全休止符',     img: 'img/cards/rhythm-p18.png', beats: 4,    isRest: true },
+        { id: 'half-r',      label: '二分休止符',   img: 'img/cards/rhythm-p19.png', beats: 2,    isRest: true },
+        { id: 'quarter-r',   label: '四分休止符',   img: 'img/cards/rhythm-p20.png', beats: 1,    isRest: true },
+        { id: 'eighth-r',    label: '八分休止符',   img: 'img/cards/rhythm-p21.png', beats: 0.5,  isRest: true },
+        { id: 'dot-quarter-r', label: '附點四分休止符', img: 'img/cards/rhythm-p22.png', beats: 1.5, isRest: true },
+    ];
+
+    const durState = {
+        user: null, score: 0, correct: 0, wrong: 0, total: 0,
+        timer: null, startTime: 0, duration: 60000,
+        currentQuestion: null, locked: false
+    };
+
+    function _durCleanup() {
+        if (durState.timer) { cancelAnimationFrame(durState.timer); durState.timer = null; }
+        durState.score = 0; durState.correct = 0; durState.wrong = 0;
+        durState.total = 0; durState.currentQuestion = null; durState.locked = false;
+    }
+
+    function _durLaunch(user) {
+        _durCleanup();
+        durState.user = user;
+        const container = document.getElementById('screen-g2-duration');
+
+        container.innerHTML = `
+            <div class="om-header">
+                <button class="om-exit" id="durExitBtn">✕</button>
+                <div class="om-header-center">
+                    <div class="om-title">🎵 時值辨別</div>
+                    <span class="om-time-left" id="durTimeLeft">60s</span>
+                </div>
+                <div class="om-score-wrap">
+                    <div class="om-score-val" id="durScore">0</div>
+                    <div class="om-score-label">得分</div>
+                </div>
+            </div>
+            <div class="om-timer-wrap"><div class="om-timer-fill" id="durTimerFill"></div></div>
+            <div class="om-qnum" id="durQNum" style="display:none;"></div>
+            <div class="dur-img-wrap" id="durImgWrap" style="display:none;">
+                <img id="durQuestionImg" src="" alt="音符/休止符">
+            </div>
+            <div class="om-feedback" id="durFeedbackWrap" style="display:none;"><div class="om-feedback-text" id="durFeedback"></div></div>
+            <div class="om-prompt" id="durPrompt" style="display:none;">這是什麼音符/休止符？</div>
+            <div class="dur-options-wrap" id="durOptions" style="display:none;"></div>
+            <div class="dur-pregame" id="durPregame">
+                <div class="dur-ref-mini">
+                    <div class="dur-ref-mini-section">
+                        <div class="dur-ref-heading">🎶 音符</div>
+                        <div class="dur-ref-mini-list">
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p02.png" alt="全音符"><span>全音符</span><b>4拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p03.png" alt="附點二分音符"><span>附點二分</span><b>3拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p04.png" alt="二分音符"><span>二分音符</span><b>2拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p05.png" alt="附點四分音符"><span>附點四分</span><b>1.5拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p06.png" alt="四分音符"><span>四分音符</span><b>1拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p07.png" alt="附點八分音符"><span>附點八分</span><b>¾拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p08.png" alt="八分音符"><span>八分音符</span><b>½拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p09.png" alt="十六分音符"><span>十六分</span><b>¼拍</b></div>
+                        </div>
+                    </div>
+                    <div class="dur-ref-mini-section">
+                        <div class="dur-ref-heading">🤫 休止符</div>
+                        <div class="dur-ref-mini-list">
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p18.png" alt="全休止符"><span>全休止符</span><b>4拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p19.png" alt="二分休止符"><span>二分休止</span><b>2拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p20.png" alt="四分休止符"><span>四分休止</span><b>1拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p21.png" alt="八分休止符"><span>八分休止</span><b>½拍</b></div>
+                            <div class="dur-ref-mini-row"><img src="img/cards/rhythm-p22.png" alt="附點四分休止符"><span>附點四分休止</span><b>1.5拍</b></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="om-status" id="durStatus">準備好就按「開始」！</div>
+            <button class="om-start-btn" id="durStartBtn">⏱️ 開始！</button>
+        `;
+
+        switchScreen('screen-g2-duration');
+
+        document.getElementById('durExitBtn').onclick = () => {
+            _durCleanup();
+            switchScreen('screen-g2-setup');
+        };
+
+        document.getElementById('durStartBtn').onclick = () => {
+            document.getElementById('durStartBtn').style.display = 'none';
+            document.getElementById('durStatus').textContent = '';
+            _durCountdown(() => {
+                document.getElementById('durPregame').style.display = 'none';
+                document.getElementById('durQNum').style.display = '';
+                document.getElementById('durImgWrap').style.display = '';
+                document.getElementById('durFeedbackWrap').style.display = '';
+                document.getElementById('durPrompt').style.display = '';
+                document.getElementById('durOptions').style.display = '';
+                _durStartTimer();
+                _durNextQuestion();
+            });
+        };
+    }
+
+    function _durCountdown(cb) {
+        const container = document.getElementById('screen-g2-duration');
+        let count = 3;
+        const overlay = document.createElement('div');
+        overlay.className = 'om-countdown';
+        overlay.textContent = count;
+        container.appendChild(overlay);
+
+        const iv = setInterval(() => {
+            count--;
+            if (count <= 0) {
+                clearInterval(iv);
+                overlay.remove();
+                cb();
+            } else {
+                overlay.textContent = count;
+                overlay.style.animation = 'none';
+                overlay.offsetHeight;
+                overlay.style.animation = 'omPulse 0.6s ease';
+            }
+        }, 700);
+    }
+
+    function _durNextQuestion() {
+        if (durState.locked) return;
+
+        // Pick random question
+        const q = DUR_QUESTIONS[Math.floor(Math.random() * DUR_QUESTIONS.length)];
+        durState.currentQuestion = q;
+        durState.total++;
+
+        // Update question number
+        const qnEl = document.getElementById('durQNum');
+        if (qnEl) qnEl.textContent = `第 ${durState.total} 題`;
+
+        // Display image
+        const img = document.getElementById('durQuestionImg');
+        if (img) img.src = q.img;
+
+        // Generate 8 options: notes (left) + rests (right), 4 each
+        // Always include the correct answer in its category
+        const notePool = DUR_QUESTIONS.filter(d => !d.isRest);
+        const restPool = DUR_QUESTIONS.filter(d => d.isRest);
+
+        let noteOpts, restOpts;
+        if (q.isRest) {
+            // Correct is a rest — ensure it's in restOpts
+            const restDistractors = restPool.filter(d => d.id !== q.id);
+            _shuffleArr(restDistractors);
+            restOpts = [q, ...restDistractors.slice(0, 3)];
+            _shuffleArr(notePool);
+            noteOpts = notePool.slice(0, 4);
+        } else {
+            // Correct is a note — ensure it's in noteOpts
+            const noteDistractors = notePool.filter(d => d.id !== q.id);
+            _shuffleArr(noteDistractors);
+            noteOpts = [q, ...noteDistractors.slice(0, 3)];
+            _shuffleArr(restPool);
+            restOpts = restPool.slice(0, 4);
+        }
+        _shuffleArr(noteOpts);
+        _shuffleArr(restOpts);
+
+        const optContainer = document.getElementById('durOptions');
+        optContainer.innerHTML = `
+            <div class="dur-col">
+                <div class="dur-col-label">🎶 音符</div>
+                ${noteOpts.map(o => `<button class="dur-opt-btn" data-id="${o.id}">${o.label}</button>`).join('')}
+            </div>
+            <div class="dur-col">
+                <div class="dur-col-label">🤫 休止符</div>
+                ${restOpts.map(o => `<button class="dur-opt-btn" data-id="${o.id}">${o.label}</button>`).join('')}
+            </div>
+        `;
+
+        // Bind clicks
+        optContainer.querySelectorAll('.dur-opt-btn').forEach(btn => {
+            btn.onclick = () => _durHandleAnswer(btn.dataset.id);
+        });
+
+        // Clear feedback
+        const fb = document.getElementById('durFeedback');
+        if (fb) { fb.className = 'om-feedback-text'; fb.textContent = ''; }
+    }
+
+    function _shuffleArr(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function _durHandleAnswer(optId) {
+        if (durState.locked || !durState.currentQuestion) return;
+        durState.locked = true;
+
+        const correctId = durState.currentQuestion.id;
+        const isCorrect = optId === correctId;
+        const fb = document.getElementById('durFeedback');
+
+        // Highlight buttons
+        document.querySelectorAll('.dur-opt-btn').forEach(b => {
+            b.disabled = true;
+            if (b.dataset.id === correctId) {
+                b.classList.add('correct');
+            } else if (b.dataset.id === optId && !isCorrect) {
+                b.classList.add('wrong');
+            }
+        });
+
+        if (isCorrect) {
+            durState.correct++;
+            durState.score += 100;
+            if (fb) { fb.textContent = '✓ 答對了！'; fb.className = 'om-feedback-text show correct'; }
+            const scoreEl = document.getElementById('durScore');
+            if (scoreEl) scoreEl.textContent = durState.score;
+            // Float +100
+            const floater = document.createElement('div');
+            floater.className = 'om-score-float';
+            floater.textContent = '+100';
+            document.querySelector('#screen-g2-duration .om-header').appendChild(floater);
+            setTimeout(() => floater.remove(), 750);
+        } else {
+            durState.wrong++;
+            if (fb) { fb.textContent = '✗ 答錯了'; fb.className = 'om-feedback-text show wrong'; }
+        }
+
+        // Next question after brief delay
+        setTimeout(() => {
+            durState.locked = false;
+            if (durState.timer) _durNextQuestion();
+        }, 600);
+    }
+
+    function _durStartTimer() {
+        durState.startTime = performance.now();
+        const fill = document.getElementById('durTimerFill');
+        const timeText = document.getElementById('durTimeLeft');
+
+        function tick() {
+            const elapsed = performance.now() - durState.startTime;
+            const remaining = Math.max(0, durState.duration - elapsed);
+            const pct = (remaining / durState.duration) * 100;
+            if (fill) {
+                fill.style.width = pct + '%';
+                fill.classList.toggle('warn', pct < 40 && pct >= 15);
+                fill.classList.toggle('danger', pct < 15);
+            }
+            if (timeText) timeText.textContent = Math.ceil(remaining / 1000) + 's';
+
+            if (remaining <= 0) {
+                _durEndGame();
+                return;
+            }
+            durState.timer = requestAnimationFrame(tick);
+        }
+        durState.timer = requestAnimationFrame(tick);
+    }
+
+    function _durEndGame() {
+        if (durState.timer) { cancelAnimationFrame(durState.timer); durState.timer = null; }
+        durState.locked = true;
+
+        // Disable option buttons
+        document.querySelectorAll('.dur-opt-btn').forEach(b => b.disabled = true);
+
+        const container = document.getElementById('screen-g2-duration');
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'om-result';
+        const emoji = durState.score >= 800 ? '🏆' : durState.score >= 500 ? '⭐' : '💪';
+        const accuracy = durState.total > 0 ? Math.round((durState.correct / durState.total) * 100) : 0;
+
+        // Submit to leaderboard
+        if (durState.user && durState.user.name) {
+            saveLocalRank('game2', durState.user, durState.score, accuracy, durState.correct, '時值辨別');
+            submitScoreToGAS('game2', durState.user, durState.score, accuracy, durState.correct, '時值辨別');
+        }
+
+        resultDiv.innerHTML = `
+            <div class="om-result-emoji">${emoji}</div>
+            <div class="om-result-title">挑戰結束！</div>
+            <div class="om-result-score">${durState.score}</div>
+            <div class="om-result-label">最終得分</div>
+            <div class="om-result-stats">
+                <div class="om-result-stat"><div class="val">${durState.total}</div><div class="lbl">作答</div></div>
+                <div class="om-result-stat"><div class="val" style="color:var(--primary-green-dark)">${durState.correct}</div><div class="lbl">答對</div></div>
+                <div class="om-result-stat"><div class="val" style="color:var(--primary-red)">${durState.wrong}</div><div class="lbl">答錯</div></div>
+            </div>
+            <div class="om-result-btns">
+                <button class="om-btn-retry" id="durRetry">🔄 再玩一次</button>
+                <button class="om-btn-ranks" id="durViewRanks">🏆 查看排行榜</button>
+                <button class="om-btn-back" id="durBack">← 返回</button>
+            </div>
+        `;
+        container.appendChild(resultDiv);
+        document.getElementById('durRetry').onclick = () => _durLaunch(durState.user);
+        document.getElementById('durViewRanks').onclick = () => {
+            dom.leaderboardLayout.classList.add('view-only');
+            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
+            const gf = document.getElementById('rankGameFilter');
+            if (gf) { gf.value = 'game2'; gf.dispatchEvent(new Event('change')); }
+            if (dom.rankGradeFilter && durState.user) dom.rankGradeFilter.value = String(durState.user.grade || 0);
+            if (dom.rankClassFilter && durState.user) dom.rankClassFilter.value = String(durState.user.class || '0');
+            loadRanks();
+            switchScreen('screen-leaderboard');
+        };
+        document.getElementById('durBack').onclick = () => {
+            resultDiv.remove();
+            switchScreen('screen-g2-setup');
+        };
     }
 
     function _omLaunch(user) {

@@ -318,6 +318,12 @@
             <div class="mode-card challenge" data-mode="noMiss">
                 <div class="mode-icon">🔥</div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 錯一題就結束 ×1.5</div>
             </div>
+            <div class="mode-card keysig" data-mode="keysig_practice">
+                <div class="mode-icon">🎼</div><div class="mode-name">調號辨別</div><div class="mode-desc">認識不同調號</div>
+            </div>
+            <div class="mode-card solfege" data-mode="solfege_practice">
+                <div class="mode-icon">🎤</div><div class="mode-name">唱名辨別</div><div class="mode-desc">看譜說唱名（首調）</div>
+            </div>
         </div>
 
         <div class="clef-selector-row" id="clefSelectorRow" style="display:none;">
@@ -337,6 +343,46 @@
                 <button class="diff-btn active" data-diff="3">⭐⭐ 中級</button>
                 <button class="diff-btn" data-diff="4">⭐⭐⭐ 進階</button>
                 <button class="diff-btn" data-diff="5">🔥 全力</button>
+            </div>
+        </div>
+
+        <!-- 調號/唱名：模式切換（練習 vs 挑戰） -->
+        <div class="keysig-solfege-sub-row" id="keysigSubRow" style="display:none;">
+            <span class="practice-diff-label">🎯 模式</span>
+            <div class="practice-diff-btns">
+                <button class="ks-mode-btn active" data-ksmode="practice">📝 練習</button>
+                <button class="ks-mode-btn" data-ksmode="challenge">⏱️ 1分鐘挑戰</button>
+            </div>
+        </div>
+        <div class="keysig-solfege-sub-row" id="solfegeSubRow" style="display:none;">
+            <span class="practice-diff-label">🎯 模式</span>
+            <div class="practice-diff-btns">
+                <button class="sol-mode-btn active" data-solmode="practice">📝 練習</button>
+                <button class="sol-mode-btn" data-solmode="challenge">⏱️ 1分鐘挑戰</button>
+            </div>
+        </div>
+
+        <!-- 調號/唱名：年級選擇 -->
+        <div class="keysig-solfege-sub-row" id="keysigGradeRow" style="display:none;">
+            <span class="practice-diff-label">📚 年級程度</span>
+            <div class="practice-diff-btns">
+                <button class="ks-grade-btn" data-grade="1">🌱 小一</button>
+                <button class="ks-grade-btn" data-grade="2">🌿 小二</button>
+                <button class="ks-grade-btn active" data-grade="3">🌳 小三</button>
+                <button class="ks-grade-btn" data-grade="4">⭐ 小四</button>
+                <button class="ks-grade-btn" data-grade="5">⭐⭐ 小五</button>
+                <button class="ks-grade-btn" data-grade="6">🏆 小六</button>
+            </div>
+        </div>
+        <div class="keysig-solfege-sub-row" id="solfegeGradeRow" style="display:none;">
+            <span class="practice-diff-label">📚 年級程度</span>
+            <div class="practice-diff-btns">
+                <button class="sol-grade-btn" data-grade="1">🌱 小一</button>
+                <button class="sol-grade-btn" data-grade="2">🌿 小二</button>
+                <button class="sol-grade-btn active" data-grade="3">🌳 小三</button>
+                <button class="sol-grade-btn" data-grade="4">⭐ 小四</button>
+                <button class="sol-grade-btn" data-grade="5">⭐⭐ 小五</button>
+                <button class="sol-grade-btn" data-grade="6">🏆 小六</button>
             </div>
         </div>
 
@@ -367,11 +413,29 @@
             <div class="staff-canvas-wrapper" id="canvasWrapper">
                 <canvas id="staffCanvas" aria-label="五線譜題目：辨認音符位置"></canvas>
             </div>
+            <!-- 調號辨別：圖片顯示區 -->
+            <div id="keysigDisplay" class="keysig-display" style="display:none;">
+                <img id="keysigImg" src="" alt="調號圖片">
+            </div>
         </div>
 
         <div class="message-box" id="messageBox">專心看譜，準備開始！🎵</div>
 
         <div class="notes-grid" id="notesGrid"></div>
+
+        <!-- 調號辨別：選項按鈕 -->
+        <div class="keysig-options" id="keysigOptions" style="display:none;"></div>
+
+        <!-- 唱名辨別：唱名按鈕 -->
+        <div class="solfege-grid" id="solfegeGrid" style="display:none;">
+            <button class="solfege-btn" data-sol="Do" disabled>Do<span class="key-hint">1</span></button>
+            <button class="solfege-btn" data-sol="Re" disabled>Re<span class="key-hint">2</span></button>
+            <button class="solfege-btn" data-sol="Mi" disabled>Mi<span class="key-hint">3</span></button>
+            <button class="solfege-btn" data-sol="Fa" disabled>Fa<span class="key-hint">4</span></button>
+            <button class="solfege-btn" data-sol="Sol" disabled>Sol<span class="key-hint">5</span></button>
+            <button class="solfege-btn" data-sol="La" disabled>La<span class="key-hint">6</span></button>
+            <button class="solfege-btn" data-sol="Si" disabled>Si<span class="key-hint">7</span></button>
+        </div>
 
         <div class="action-row">
             <button class="btn-action" id="revealBtn" disabled>🔔 聽&amp;看答案 <small style="opacity:.65;font-size:.7em">[H]</small></button>
@@ -402,7 +466,7 @@
                     <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名辨別</option><option value="game2">二：節奏挑戰</option><option value="game3">三：音樂術語</option><option value="game4">四：樂器辨別</option></select></div>
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option><option value="E">E班</option><option value="F">F班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1">小一</option><option value="2">小二</option><option value="3">小三</option><option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option></select></div>
-                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>高音譜號</option><option value="bass60">低音譜號</option><option value="mixed60">混合譜號</option><option value="noMiss">零失誤挑戰</option></select></div>
+                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>高音譜號</option><option value="bass60">低音譜號</option><option value="mixed60">混合譜號</option><option value="noMiss">零失誤挑戰</option><option value="keysig60">調號挑戰</option><option value="solfege60">唱名挑戰</option></select></div>
                     <div class="rank-filter" id="rankDiffFilterWrap" style="display:none;"><label>難度</label><select id="rankDiffFilter"><option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
@@ -437,6 +501,13 @@
             </div>
             <div class="mode-card onemin" data-mode="1min" id="g2Mode1Min">
                 <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">看譜填空，限時搶分</div>
+            </div>
+            <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
+                <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">看圖辨音符，限時搶分</div>
+                <div class="mode-sub-btns">
+                    <button class="mode-sub-btn" id="durHelpBtn" title="遊戲玩法">📖 玩法</button>
+                    <button class="mode-sub-btn" id="durRefBtn" title="音符休止符時值">🎵 時值表</button>
+                </div>
             </div>
         </div>
         <button class="btn-start" id="g2StartBtn">🚀 準備好了，開始！</button>
@@ -708,6 +779,68 @@
     <!-- 1分鐘挑戰 (Rhythm Fill-in Game)       -->
     <!-- ===================================== -->
     <div id="screen-rc-1min" class="screen om-screen"></div>
+
+    <!-- ===================================== -->
+    <!-- 時值辨別 (Duration Recognition Game)  -->
+    <!-- ===================================== -->
+    <div id="screen-g2-duration" class="screen om-screen"></div>
+
+    <!-- ===================================== -->
+    <!-- 時值辨別：遊戲玩法 Modal              -->
+    <!-- ===================================== -->
+    <div id="durHelpModal" class="tutorial-modal" role="dialog" aria-modal="true" aria-label="時值辨別玩法" style="display:none">
+        <div class="tutorial-box">
+            <div class="tut-header">
+                <h3 style="margin:0;font-size:1.05rem;font-weight:900;">🎵 時值辨別 — 遊戲玩法</h3>
+                <button class="tut-close" id="durHelpClose" aria-label="關閉">✕</button>
+            </div>
+            <div class="tut-visual tut-steps-visual">
+                <ol class="tut-steps">
+                    <li style="background:#FFF0F8; border-left:4px solid #FF65A3;">👀 <strong>看清</strong>畫面中央的音符或休止符圖片</li>
+                    <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎯 <strong>快速選擇</strong>正確的音符/休止符名稱</li>
+                    <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">⏱️ 限時 <strong>60 秒</strong>，答對愈多分數愈高！</li>
+                    <li style="background:#F3EEFF; border-left:4px solid #8B66FF;">✅ 答對 <strong>+100 分</strong>，答錯不扣分繼續加油</li>
+                    <li style="background:#EEFAF6; border-left:4px solid #00B89F;">🏆 挑戰結束後可上傳<strong>排行榜</strong>，同班競技！</li>
+                </ol>
+            </div>
+            <p class="tut-text">💡 提示：開始前可以先按「🎵 時值表」查看音符休止符對照表！</p>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 時值辨別：音符休止符時值表 Modal       -->
+    <!-- ===================================== -->
+    <div id="durRefModal" class="tutorial-modal" role="dialog" aria-modal="true" aria-label="音符休止符時值表" style="display:none">
+        <div class="tutorial-box" style="max-width:520px;">
+            <div class="tut-header">
+                <h3 style="margin:0;font-size:1.05rem;font-weight:900;">🎵 音符休止符時值表</h3>
+                <button class="tut-close" id="durRefClose" aria-label="關閉">✕</button>
+            </div>
+            <div class="dur-ref-section">
+                <div class="dur-ref-heading">🎶 音符</div>
+                <div class="dur-ref-grid">
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p02.png" alt="全音符" loading="lazy"><span class="dur-ref-name">全音符</span><span class="dur-ref-beats">4 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p03.png" alt="附點二分音符" loading="lazy"><span class="dur-ref-name">附點二分音符</span><span class="dur-ref-beats">3 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p04.png" alt="二分音符" loading="lazy"><span class="dur-ref-name">二分音符</span><span class="dur-ref-beats">2 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p05.png" alt="附點四分音符" loading="lazy"><span class="dur-ref-name">附點四分音符</span><span class="dur-ref-beats">1.5 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p06.png" alt="四分音符" loading="lazy"><span class="dur-ref-name">四分音符</span><span class="dur-ref-beats">1 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p07.png" alt="附點八分音符" loading="lazy"><span class="dur-ref-name">附點八分音符</span><span class="dur-ref-beats">0.75 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p08.png" alt="八分音符" loading="lazy"><span class="dur-ref-name">八分音符</span><span class="dur-ref-beats">0.5 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p09.png" alt="十六分音符" loading="lazy"><span class="dur-ref-name">十六分音符</span><span class="dur-ref-beats">0.25 拍</span></div>
+                </div>
+            </div>
+            <div class="dur-ref-section">
+                <div class="dur-ref-heading">🤫 休止符</div>
+                <div class="dur-ref-grid">
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p18.png" alt="全休止符" loading="lazy"><span class="dur-ref-name">全休止符</span><span class="dur-ref-beats">4 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p19.png" alt="二分休止符" loading="lazy"><span class="dur-ref-name">二分休止符</span><span class="dur-ref-beats">2 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p20.png" alt="四分休止符" loading="lazy"><span class="dur-ref-name">四分休止符</span><span class="dur-ref-beats">1 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p21.png" alt="八分休止符" loading="lazy"><span class="dur-ref-name">八分休止符</span><span class="dur-ref-beats">0.5 拍</span></div>
+                    <div class="dur-ref-item"><img src="img/cards/rhythm-p22.png" alt="附點四分休止符" loading="lazy"><span class="dur-ref-name">附點四分休止符</span><span class="dur-ref-beats">1.5 拍</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===================================== -->
     <!-- 遊戲三：音樂術語 (Game 3)               -->
