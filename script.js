@@ -194,12 +194,12 @@
         normal: { tokenSet: 'basic',    bpm: 72,  winScale: 1.2, label: 'Normal', emoji: '⭐⭐' },
         hard:   { tokenSet: 'medium',   bpm: 84,  winScale: 1.0, label: 'Hard',   emoji: '⭐⭐⭐' },
         expert: { tokenSet: 'advanced', bpm: 96,  winScale: 0.9, label: 'Expert', emoji: '⭐⭐⭐⭐' },
-        p1: { label: '小一', emoji: '🌱' },
-        p2: { label: '小二', emoji: '🌿' },
-        p3: { label: '小三', emoji: '🌳' },
-        p4: { label: '小四', emoji: '⭐' },
-        p5: { label: '小五', emoji: '⭐⭐' },
-        p6: { label: '小六', emoji: '⭐⭐⭐' },
+        p1:     { label: '小一', emoji: '🌱' },
+        p2:     { label: '小二', emoji: '🌿' },
+        p3:     { label: '小三', emoji: '🌳' },
+        p4:     { label: '小四', emoji: '⭐' },
+        p5:     { label: '小五', emoji: '⭐⭐' },
+        p6:     { label: '小六', emoji: '🏆' },
     };
 
     // ==========================================
@@ -306,10 +306,8 @@
                 totalAccuracy: 0, accuracyCount: 0,
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
-            diffClears: { easy: 0, normal: 0, hard: 0, expert: 0, p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, p6: 0 },
+            diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
             gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
-            gameAccuracy: { game1: 0, game2: 0, game3: 0, game4: 0 },
-            gameCount:    { game1: 0, game2: 0, game3: 0, game4: 0 },
         };
     }
 
@@ -324,7 +322,6 @@
     }
 
     function recordGameResult(user, gameKey, score, accuracy, maxCombo, difficulty, hitCounts) {
-        if (user && user.isGuest) return;
         const profile = loadProfile(user);
         profile.stats.totalPlayed++;
         profile.stats.totalScore += score;
@@ -332,14 +329,6 @@
         profile.stats.accuracyCount++;
         if (maxCombo > profile.stats.maxCombo) profile.stats.maxCombo = maxCombo;
         if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
-
-        // Per-game accuracy tracking
-        if (!profile.gameAccuracy) profile.gameAccuracy = { game1:0,game2:0,game3:0,game4:0 };
-        if (!profile.gameCount)    profile.gameCount    = { game1:0,game2:0,game3:0,game4:0 };
-        if (gameKey in profile.gameAccuracy) {
-            profile.gameAccuracy[gameKey] += accuracy;
-            profile.gameCount[gameKey]++;
-        }
 
         // FC / AP detection
         if (hitCounts) {
@@ -366,57 +355,6 @@
 
         saveProfile(profile);
         return profile;
-    }
-
-    async function syncProfileBestsFromSheet(user) {
-        if (!user || !user.name) return null;
-        try {
-            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { redirect: 'follow' });
-            if (!res.ok) return null;
-            const data = await res.json();
-            if (!Array.isArray(data)) return null;
-
-            const userName = String(user.name).trim();
-            const userGrade = String(user.grade || '');
-            const userClass = String(user.class || '');
-
-            // Filter rows belonging to this user
-            const myRows = data.filter(r =>
-                String(r.name || '').trim() === userName &&
-                String(r.grade || '') === userGrade &&
-                String(r.class || '') === userClass
-            );
-
-            if (!myRows.length) return null;
-
-            // Compute max score per game
-            const bests = { game1: 0, game2: 0, game3: 0, game4: 0 };
-            myRows.forEach(r => {
-                const g = r.game;
-                if (bests.hasOwnProperty(g)) {
-                    const sc = parseInt(r.score) || 0;
-                    if (sc > bests[g]) bests[g] = sc;
-                }
-            });
-            // Zero means no record — keep as 0 for display logic
-
-            // Merge into local profile (take the higher of sheet vs local)
-            const profile = loadProfile(user);
-            let changed = false;
-            for (const g of Object.keys(bests)) {
-                if (bests[g] > (profile.gameBests[g] || 0)) {
-                    profile.gameBests[g] = bests[g];
-                    changed = true;
-                } else {
-                    // Keep local if higher; reflect local value in returned bests
-                    bests[g] = profile.gameBests[g] || 0;
-                }
-            }
-            if (changed) saveProfile(profile);
-            return bests;
-        } catch (e) {
-            return null;
-        }
     }
 
     function renderProfileScreen(user) {
@@ -454,35 +392,12 @@
         document.getElementById('pdHard').textContent = (p.diffClears.hard || 0) + ' 次通關';
         document.getElementById('pdExpert').textContent = (p.diffClears.expert || 0) + ' 次通關';
 
-        // Practice grade completions
-        ['p1','p2','p3','p4','p5','p6'].forEach(g => {
-            const el = document.getElementById('pd' + g.charAt(0).toUpperCase() + g.slice(1));
-            if (el) el.textContent = (p.diffClears[g] || 0) + ' 次完成';
-        });
-
-        // Game bests (from local profile; will be refreshed async from spreadsheet)
-        function _gameAvgAcc(g) {
-            const cnt = (p.gameCount || {})[g] || 0;
-            const total = (p.gameAccuracy || {})[g] || 0;
-            return cnt > 0 ? '均 ' + Math.round(total / cnt) + '%' : '';
-        }
-        function _updateBestUI(bests) {
-            document.getElementById('pgbGame1').textContent = bests.game1 || '---';
-            document.getElementById('pgbGame2').textContent = bests.game2 || '---';
-            document.getElementById('pgbGame3').textContent = bests.game3 || '---';
-            const pgb4 = document.getElementById('pgbGame4');
-            if (pgb4) pgb4.textContent = bests.game4 || '---';
-        }
-        ['game1','game2','game3','game4'].forEach((g, i) => {
-            const el = document.getElementById('pgbAccGame' + (i + 1));
-            if (el) el.textContent = _gameAvgAcc(g);
-        });
-        _updateBestUI(p.gameBests);
-
-        // Sync bests from spreadsheet
-        syncProfileBestsFromSheet(user).then(bests => {
-            if (bests) _updateBestUI(bests);
-        }).catch(() => {});
+        // Game bests
+        document.getElementById('pgbGame1').textContent = p.gameBests.game1 || '---';
+        document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
+        document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
+        const pgb4 = document.getElementById('pgbGame4');
+        if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
@@ -1707,7 +1622,6 @@
     // ==========================================
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
-        if (state.currentUser.isGuest) return;
         if (state.score === 0 && state.totalQuestions === 0) return;
 
         const controller = new AbortController();
@@ -1750,7 +1664,7 @@
     }
 
     async function submitScoreToGAS(game, user, score, accuracy, maxCombo, modeName) {
-        if (!user || !user.name || user.isGuest) return;
+        if (!user || !user.name) return;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         const record = {
@@ -2476,9 +2390,9 @@
         function getHubUser() {
             const displayName = _getHubDisplayName();
             if (_hubIsGuest) {
-                return { name: displayName || '訪客', grade: 0, class: '', seat: '', isGuest: true };
+                return { name: displayName || '訪客', grade: 0, class: '', seat: '' };
             }
-            return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value, isGuest: false };
+            return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
         }
 
         function requireHubLogin(nameFieldEl) {
@@ -2550,20 +2464,16 @@
             const badgeText = document.getElementById('g3PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
             let g3SelectedMode = 'practice';
-            // Default practice grade to user's grade (p1–p6), challenge defaults to easy
-            const defaultPGrade = 'p' + (user.grade || 1);
-            let g3SelectedDiff = defaultPGrade;
+            // Default practice grade to the student's own grade (clamped to p1–p6)
+            const defaultGrade = Math.min(6, Math.max(1, parseInt(user.grade) || 1));
+            let g3SelectedDiff = 'p' + defaultGrade;
             const g3DiffSel = document.getElementById('g3DiffSelector');
-            const g3PracticeGradeSel = document.getElementById('g3PracticeGradeSelector');
+            const g3GradeSel = document.getElementById('g3PracticeGradeSelector');
 
-            function updateSelectorVisibility() {
-                if (g3SelectedMode === 'challenge') {
-                    if (g3PracticeGradeSel) g3PracticeGradeSel.style.display = 'none';
-                    if (g3DiffSel) g3DiffSel.style.display = '';
-                } else {
-                    if (g3PracticeGradeSel) g3PracticeGradeSel.style.display = '';
-                    if (g3DiffSel) g3DiffSel.style.display = 'none';
-                }
+            function _updateSelectors() {
+                const isPractice = g3SelectedMode === 'practice';
+                if (g3GradeSel) g3GradeSel.style.display = isPractice ? '' : 'none';
+                if (g3DiffSel)  g3DiffSel.style.display  = isPractice ? 'none' : '';
             }
 
             document.querySelectorAll('#g3ModeCards .mode-card').forEach(c => {
@@ -2572,13 +2482,25 @@
                     g3SelectedMode = c.dataset.mode;
                     document.querySelectorAll('#g3ModeCards .mode-card').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
-                    // Switch selected diff to match mode
-                    if (g3SelectedMode === 'challenge') {
-                        g3SelectedDiff = document.querySelector('#g3DiffCards .diff-card.active')?.dataset.diff || 'easy';
+                    // Reset diff selection when switching modes
+                    if (g3SelectedMode === 'practice') {
+                        g3SelectedDiff = 'p' + defaultGrade;
+                        document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.toggle('active', x.dataset.diff === g3SelectedDiff));
                     } else {
-                        g3SelectedDiff = document.querySelector('#g3PracticeGradeCards .diff-card.active')?.dataset.pgrade || defaultPGrade;
+                        g3SelectedDiff = 'easy';
+                        document.querySelectorAll('#g3DiffCards .diff-card').forEach(x => x.classList.toggle('active', x.dataset.diff === 'easy'));
                     }
-                    updateSelectorVisibility();
+                    _updateSelectors();
+                };
+            });
+
+            // Practice grade card selection (p1–p6)
+            document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(c => {
+                c.classList.toggle('active', c.dataset.diff === g3SelectedDiff);
+                c.onclick = () => {
+                    g3SelectedDiff = c.dataset.diff;
+                    document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
                 };
             });
 
@@ -2591,18 +2513,7 @@
                     c.classList.add('active');
                 };
             });
-
-            // Practice grade card selection (小一–小六)
-            document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(c => {
-                c.classList.toggle('active', c.dataset.pgrade === defaultPGrade);
-                c.onclick = () => {
-                    g3SelectedDiff = c.dataset.pgrade;
-                    document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.remove('active'));
-                    c.classList.add('active');
-                };
-            });
-
-            updateSelectorVisibility();
+            _updateSelectors();
 
             document.getElementById('g3StartBtn').onclick = () => startGame3(user, g3SelectedMode, g3SelectedDiff);
             document.getElementById('g3StudyBtn').onclick = () => openStudyScreen();
@@ -2781,7 +2692,6 @@
     }
 
     function saveLocalRank(gameKey, user, score, accuracy, maxCombo, difficulty) {
-        if (user && user.isGuest) return;
         try {
             const all = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
             const idx = all.findIndex(r => r.name === user.name && r.class === user.class && r.grade === user.grade && (r.difficulty || '') === (difficulty || ''));
@@ -4172,7 +4082,6 @@
         if (omState.user && omState.user.name) {
             saveLocalRank('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
             submitScoreToGAS('game2', omState.user, omState.score, accuracy, omState.correct, '1分鐘挑戰');
-            recordGameResult(omState.user, 'game2', omState.score, accuracy, omState.correct, '1分鐘挑戰');
         }
 
         resultDiv.innerHTML = `
@@ -6179,7 +6088,12 @@
         normal: [1, 4],   // 小一至小四
         hard:   [3, 6],   // 小三至小六
         expert: [1, 6],   // 全部
-        p1: [1, 1], p2: [1, 2], p3: [1, 3], p4: [1, 4], p5: [1, 5], p6: [1, 6], // 練習模式按年級
+        p1:     [1, 1],   // 小一
+        p2:     [1, 2],   // 小一至小二
+        p3:     [1, 3],   // 小一至小三
+        p4:     [1, 4],   // 小一至小四
+        p5:     [1, 5],   // 小一至小五
+        p6:     [1, 6],   // 小一至小六
     };
 
     // Distractor pools grouped by category
@@ -6244,13 +6158,6 @@
         let allSpecials = specials;
         if (difficulty === 'normal') allSpecials = (G3_SPECIAL_Q.easy || []).concat(specials);
         if (difficulty === 'expert') allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || [], G3_SPECIAL_Q.hard || []);
-        // For practice grades p1–p6: include specials based on grade level
-        if (/^p[1-6]$/.test(difficulty)) {
-            const pGrade = parseInt(difficulty[1]);
-            if (pGrade <= 2) allSpecials = G3_SPECIAL_Q.easy || [];
-            else if (pGrade <= 4) allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || []);
-            else allSpecials = (G3_SPECIAL_Q.easy || []).concat(G3_SPECIAL_Q.normal || [], G3_SPECIAL_Q.hard || []);
-        }
 
         questions.push(...allSpecials);
         return questions;
@@ -6261,12 +6168,12 @@
         normal: () => g3GenerateQuestions('normal'),
         hard:   () => g3GenerateQuestions('hard'),
         expert: () => g3GenerateQuestions('expert'),
-        p1: () => g3GenerateQuestions('p1'),
-        p2: () => g3GenerateQuestions('p2'),
-        p3: () => g3GenerateQuestions('p3'),
-        p4: () => g3GenerateQuestions('p4'),
-        p5: () => g3GenerateQuestions('p5'),
-        p6: () => g3GenerateQuestions('p6'),
+        p1:     () => g3GenerateQuestions('p1'),
+        p2:     () => g3GenerateQuestions('p2'),
+        p3:     () => g3GenerateQuestions('p3'),
+        p4:     () => g3GenerateQuestions('p4'),
+        p5:     () => g3GenerateQuestions('p5'),
+        p6:     () => g3GenerateQuestions('p6'),
     };
 
     const TERMS_GRADE_BANK = { 1:'easy', 2:'easy', 3:'normal', 4:'normal', 5:'hard', 6:'hard' };
@@ -6688,8 +6595,8 @@
         if (mode !== 'practice') {
             saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
             submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '音樂術語·' + diffLabel);
+            recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
         }
-        recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
 
         const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
         document.getElementById('g3ReportGrid').innerHTML = `
@@ -6792,7 +6699,7 @@
           history:'巴松管在16世紀的意大利從柯塔爾管演變而成，管身展開長約2.6米，折疊成U型以便演奏，重量約3公斤。它使用雙簧片發聲，是木管家族中音域最低的常規成員，低音區音色溫暖渾厚，高音區則帶有鼻腔共鳴感。普羅高菲夫《彼得與狼》以巴松管代表爺爺的角色，莫扎特的《巴松管協奏曲》是該樂器最著名的獨奏曲目。更大型的倍低音巴松管音域比巴松管低一個八度。',
           video:'https://www.youtube.com/embed/oSQ0fQnGg84',
           synthParams:{ wave:'sawtooth', freq:196, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:900, filterQ:2, vibRate:4, vibDepth:2 }},
-        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'img/instruments/recorder.jpg', desc:'音樂課最常見的樂器',
+        { id:'recorder',     nameZh:'牧童笛',     nameEn:'Recorder',     family:'woodwind',   familyZh:'木管', img:'', desc:'音樂課最常見的樂器',
           history:'直笛（牧童笛）的歷史可追溯至中世紀歐洲，在文藝復興和巴洛克時期曾是宮廷最重要的管樂器，巴赫和韋瓦第均為其創作了大量作品。它以頂端的吹口直接吹入發聲，構造簡單，按孔便可改變音高，無需額外技巧即可入門。18世紀橫吹長笛興起後，直笛一度沉寂，直至20世紀古樂復興運動才重獲重視。現今直笛被廣泛用作兒童音樂教育的入門樂器，常見型號包括高音、中音和次中音。',
           video:'https://www.youtube.com/embed/dMb1vABS2aM',
           synthParams:{ wave:'sine', freq:784, dur:0.7, attack:0.02, vol:0.22, vibRate:3, vibDepth:2 }},
@@ -6928,20 +6835,24 @@
           history:'響板（Castanets）是一對用橄欖木、栗木或合成材料製成的貝殼形碰擊樂器，演奏時以手指控制兩片相擊發出清脆的卡搭聲。響板起源於地中海地區，可追溯至古埃及和古希臘，在西班牙佛朗明哥舞蹈和傳統民間音樂中尤為重要，佛朗明哥舞者常邊跳邊以手指敲擊響板，兼具節奏和視覺效果。在管弦樂中，響板常由打擊樂手持棒敲擊，比才的《卡門》和拉威爾的《西班牙狂想曲》中均有響板的出色運用。',
           video:'https://www.youtube.com/embed/f2ncikRsjTo',
           synthParams:{ wave:'sine', freq:1800, dur:0.12, attack:0.001, vol:0.25, sustain:0.05 }},
-        { id:'congas',       nameZh:'康加鼓',     nameEn:'Congas',       family:'percussion', familyZh:'敲擊', img:'img/instruments/cango.jpg', desc:'古巴傳統高筒手鼓，常成對演奏',
+        { id:'congas',       nameZh:'康加鼓',     nameEn:'Congas',       family:'percussion', familyZh:'敲擊', img:'img/instruments/conga.jpg', desc:'古巴傳統高筒手鼓，常成對演奏',
           history:'康加鼓（Congas）源自非洲，隨奴隸貿易傳入古巴，融合了非洲傳統和古巴民間音樂，在非裔古巴宗教儀式中扮演重要角色。鼓身為高筒形，通常以三個大小不同的鼓成組演奏（最小的稱Quinto，中型稱Conga，最大稱Tumbadora），演奏者站立或坐着，以雙手拍擊鼓皮，可產生開放音、悶音和邊緣音等多種音效。康加鼓是薩爾薩、曼波、倫巴和拉丁爵士的靈魂，名手艾迪·帕米里和卡洛斯·帕托·費爾南德斯均以康加演奏著稱。',
           video:'https://www.youtube.com/embed/4pRlRU-LLDE',
           synthParams:{ noise:true, dur:0.45, filterType:'bandpass', filterFreq:220, filterQ:1.2, vol:0.32 }},
+        { id:'cowbell',      nameZh:'牛鈴',       nameEn:'Cowbell',      family:'percussion', familyZh:'敲擊', img:'img/instruments/cowbell.jpg', desc:'金屬製的鈴，用木棒敲擊發聲',
+          history:'牛鈴最初用於放牧，掛在牛脖子上以追蹤牲畜位置，音色清脆響亮，穿透力強。在音樂中，牛鈴廣泛用於拉丁音樂（如薩爾薩、曼波）和搖滾樂。演奏者用木棒敲擊金屬鈴身，可透過改變敲擊位置和力度產生不同音色——敲擊頂部邊緣音色較高，敲擊鈴口音色較低沉。美國電視節目《週六夜現場》的著名喜劇小品「需要更多牛鈴」更令牛鈴在流行文化中家喻戶曉。',
+          video:'https://www.youtube.com/embed/cVsQLlk-T0s',
+          synthParams:{ wave:'square', freq:800, dur:0.4, attack:0.002, vol:0.22, filterType:'bandpass', filterFreq:900, filterQ:4 }},
+        { id:'guiro',        nameZh:'刮胡',       nameEn:'Güiro',        family:'percussion', familyZh:'敲擊', img:'img/instruments/guiro.jpg', desc:'有鋸齒紋路的葫蘆，用棒刮擦發聲',
+          history:'刮胡（Güiro）源自加勒比海地區的泰諾原住民，最初以葫蘆製成，外表刻有橫向鋸齒槽，用木棒或金屬棒來回刮擦發出沙沙的刮擦聲。現代刮胡以木材、金屬或塑膠製成，常見魚形設計（Fish Guiro）尤其受兒童歡迎。刮胡是古巴頌樂、波多黎各音樂和梅連格舞曲的重要節奏樂器，演奏者需控制刮擦速度和力度以創造不同的節奏型態，是拉丁打擊樂中不可或缺的色彩樂器。',
+          video:'https://www.youtube.com/embed/tDNkLMmGsXA',
+          synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:2500, filterQ:1.5, vol:0.2 }},
 
         // ── 鍵盤 Keyboard ──
         { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.webp', desc:'最常見的鍵盤樂器',
           history:'鋼琴於1700年由意大利人巴爾托洛梅奧·克里斯托福里發明，全名Pianoforte，意為「輕聲和強聲」，能根據鍵盤觸料力度控制音量，這是撥弦大鍵琴所缺乏的特性。現代鋼琴有88個鍵，音域長達七個多八度，是所有樂器中音域最寬廣的。著名作曲家蕭邦、貝多芬、李斯特和拉赫曼尼諾夫均是鋼琴大師，鋼琴協奏曲是古典音樂中最富盛的曲種之一。',
           video:'https://www.youtube.com/embed/vGq3-Fi_zQY',
           synthParams:{ wave:'triangle', freq:523, dur:1.2, attack:0.005, vol:0.3, sustain:0.3 }},
-        { id:'keyboard',     nameZh:'電子琴',     nameEn:'Keyboard',     family:'keyboard',   familyZh:'鍵盤', img:'', desc:'電子鍵盤樂器，可模仿多種音色',
-          history:'電子琴於1960年代開始流行，利用電子技術產生聲音，可模仿鋼琴、管風琴等多種樂器音色。它體積輕便、功能多樣，是音樂學習和表演的好幫手。現代電子琴配備內置音符庫、錄音功能和教學模式，成為家庭和教學陳列室的普遍樂器。沒有電子琴的20世紀流行樂就難以想象，約翰·萊官和喬西·波薩均將電子琴化為音樂語言。',
-          video:'https://www.youtube.com/embed/PltCtsNYfe4',
-          synthParams:{ wave:'square', freq:523, dur:0.8, attack:0.005, vol:0.2, filterType:'lowpass', filterFreq:2000, filterQ:1 }},
         { id:'organ',        nameZh:'管風琴',     nameEn:'Organ',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/organ.webp', desc:'用風管發聲的大型鍵盤樂器',
           history:'管風琴被稱為「樂器之王」，最早的水壓管風琴出現在公元前3世紀的古希臘。中世紀時管風琴在教堂中成為不可或缺的儀式樂器。大型管風琴有數千根音管、多層鍵盤和腳踏板，能發出震撼整棟建築的鼓一般低音。巴赫、韓德爾和節之堡北霍克斯女均為管風琴寫下傳世名作。現代小型電子管風琴仍在世界各地的教堂和演奏區服務。',
           video:'https://www.youtube.com/embed/JeB3JnKp8To',
@@ -7157,7 +7068,8 @@
     }
 
     function g4AdvanceNext() {
-        if (!g4State) return;
+        if (!g4State || g4State._advancing) return;
+        g4State._advancing = true;
         if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
         g4State.currentIdx++;
         if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
@@ -7173,9 +7085,7 @@
             return;
         }
         g4State.answered = false;
-        if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
-        const nb = document.getElementById('g4NextBtn');
-        if (nb) nb.style.display = 'none';
+        g4State._advancing = false;
         const q = g4State.questions[g4State.currentIdx];
         const total = g4State.mode === 'practice' ? g4State.questions.length : '∞';
         const num = g4State.currentIdx + 1;
@@ -7308,7 +7218,7 @@
             const pts = 10 + comboBonus;
             g4State.score += pts;
             document.getElementById('g4Message').textContent = `✅ 答對了！+${pts}分`;
-            try { Audio.playEffect('countdown'); } catch(e) {}
+            Audio.playEffect('countdown');
         } else {
             g4State.counts.wrong++;
             g4State.combo = 0;
@@ -7346,30 +7256,20 @@
                 explain: explainMap[q.type] || ''
             });
             document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
-            try { Audio.playEffect('wrong'); } catch(e) {}
+            Audio.playEffect('wrong');
         }
 
         document.getElementById('g4Score').textContent = g4State.score;
         document.getElementById('g4Combo').textContent = g4State.combo;
 
-        const delay = isCorrect ? 1000 : 2000;
-        if (g4State._nextTimer) clearTimeout(g4State._nextTimer);
-        g4State._nextTimer = setTimeout(g4AdvanceNext, delay);
-
-        // Also show a manual next button in case timer is unreliable
-        const nb = document.getElementById('g4NextBtn');
-        if (nb) {
-            nb.style.display = 'inline-block';
-            nb.onclick = (e) => { e.stopPropagation(); g4AdvanceNext(); };
-        }
+        g4State._advancing = false;
+        g4State._nextTimer = setTimeout(() => g4AdvanceNext(), isCorrect ? 1000 : 2000);
     }
 
     function endGame4() {
         if (!g4State) return;
         if (g4State.timerId) { clearInterval(g4State.timerId); g4State.timerId = null; }
         if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
-        const nb = document.getElementById('g4NextBtn');
-        if (nb) nb.style.display = 'none';
 
         const { user, mode, score, maxCombo, counts, familyStats, mistakes } = g4State;
         const totalAnswered = counts.correct + counts.wrong;
@@ -7429,7 +7329,6 @@
         if (mode !== 'practice') {
             submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別');
         }
-        recordGameResult(user, 'game4', score, accuracy, maxCombo, null);
 
         renderLocalRankList('game4', 'g4RankList', user);
         if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 2500);
@@ -7501,12 +7400,36 @@
 
         // ── Derived facts from existing data ──
         const playMap = { strings:'弓拉 / 撥弦', woodwind:'管口吹奏', brass:'振唇吹奏', percussion:'敲擊', keyboard:'鍵盤按壓' };
-        const waveLabel = { sawtooth:'豐富泛音', sine:'純淨圓潤', square:'空心木質', triangle:'溫暖柔和', noise:'不定音高' };
         const familyIconMap = { strings:'🎻', woodwind:'🎵', brass:'🎺', percussion:'🥁', keyboard:'🎹' };
+        const TONE_MAP = {
+            // Strings
+            'violin':'明亮圓潤', 'viola':'溫暖深沉', 'cello':'豐厚溫暖', 'double-bass':'低沉渾厚',
+            'harp':'清亮空靈', 'guitar':'溫暖木質', 'bass-guitar':'低沉有力',
+            'ukulele':'清甜輕盈', 'banjo':'清脆明亮', 'mandolin':'清脆明亮',
+            // Woodwind
+            'flute':'清澈空靈', 'clarinet':'圓潤甜美', 'oboe':'尖銳穿透', 'bassoon':'低沉溫暖',
+            'recorder':'清甜柔和', 'piccolo':'尖銳嘹亮', 'english-horn':'憂鬱溫柔',
+            'alto-sax':'溫暖圓潤', 'tenor-sax':'低沉有力', 'soprano-sax':'明亮尖銳',
+            'baritone-sax':'深沉渾厚', 'harmonica':'帶鼻音柔和', 'bagpipes':'嘹亮刺激',
+            'pan-flute':'空靈悠遠',
+            // Brass
+            'trumpet':'明亮輝煌', 'trombone':'厚重莊嚴', 'french-horn':'柔和圓潤',
+            'tuba':'低沉渾厚', 'cornet':'柔和甜美',
+            // Percussion
+            'timpani':'低沉有力', 'snare':'乾脆清晰', 'bass-drum':'低沉震撼',
+            'xylophone':'清脆明亮', 'triangle':'清亮穿透', 'cymbals':'金屬嘹亮',
+            'tambourine':'輕盈活潑', 'glockenspiel':'清脆如鐘', 'marimba':'溫暖木質',
+            'vibraphone':'空靈顫動', 'drums':'有力多變', 'cajon':'乾脆溫暖',
+            'maracas':'輕盈沙沙', 'egg-shakers':'輕柔沙沙', 'tubular-bells':'渾厚如鐘',
+            'cabasa':'金屬沙沙', 'djembe':'豐富多變', 'castanets':'清脆短促',
+            'congas':'溫暖渾厚', 'cowbell':'響亮持久', 'guiro':'沙沙刮擦',
+            // Keyboard
+            'piano':'豐富多變', 'organ':'厚重持久', 'harpsichord':'清脆明亮', 'accordion':'溫暖豐厚',
+        };
         const sp = inst.synthParams || {};
         const freqHz = sp.freq || 0;
         const rangeLabel = freqHz >= 800 ? '高音域' : freqHz >= 400 ? '中高音域' : freqHz >= 200 ? '中音域' : freqHz >= 100 ? '中低音域' : '低音域';
-        const toneLabel = waveLabel[sp.wave] || '多元音色';
+        const toneLabel = TONE_MAP[inst.id] || '多元音色';
         const playLabel = playMap[inst.family] || '—';
         const familyIcon = familyIconMap[inst.family] || '🎵';
 
