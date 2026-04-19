@@ -1,4 +1,5 @@
 /* ===== 基礎變數 & 重置 ===== */
+html { font-size: 110%; }
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
 button, select, input { touch-action: manipulation; }
 
@@ -142,7 +143,7 @@ input { user-select: auto; }
 
 /* ===== 三段式獨立介面架構 ===== */
 .screen {
-    display: none; width: 100%; max-width: 920px; flex-direction: column;
+    display: none; width: 100%; max-width: 1020px; flex-direction: column;
     gap: 12px; position: relative; z-index: 1; contain: layout style;
 }
 .screen.active { display: flex; animation: screenEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -2311,7 +2312,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 
 /* ── Notation track — 4 rows ── */
 .rchal-track {
-    position: relative; margin: 6px 8px; flex: 1; min-height: 200px; max-height: 55vh;
+    position: relative; margin: 6px 8px; flex: 1; min-height: 200px;
     background: linear-gradient(180deg, #fffdf7 0%, #f5f0ff 100%);
     border-radius: 12px; overflow-x: hidden; overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -3818,6 +3819,242 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .g4-facts-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .g4-history-quote { font-size: 0.92rem; line-height: 1.8; }
     .g4-tab-panel[data-panel="video"] { padding: 14px 14px 18px; }
+}
+
+/* ===== Structure Viewer Lightbox ===== */
+.g4-struct-lb {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(20,18,40,0.82);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 16px;
+    animation: g4ModalBgIn 0.22s ease both;
+    overflow: hidden;
+}
+.g4-struct-wrap {
+    display: flex;
+    width: 100%; max-width: 960px;
+    max-height: calc(100vh - 60px);
+    background: #fff; border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 72px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+    animation: g4StructSlideUp 0.28s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes g4StructSlideUp {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.g4-struct-panel-left {
+    flex: 1 1 0; min-width: 0;
+    background: linear-gradient(135deg, #f8f7fd 0%, #f0eef8 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px; position: relative;
+}
+.g4-struct-lb-body {
+    position: relative; display: inline-block;
+    max-width: 100%; max-height: 100%;
+}
+.g4-struct-lb-close {
+    position: absolute; top: 12px; right: 12px; z-index: 10;
+    width: 36px; height: 36px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,0.9);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    font-size: 0.95rem; cursor: pointer; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    color: #666; transition: all 0.15s;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.g4-struct-lb-close:hover { background: #ffe4e4; color: #e33; transform: scale(1.08); }
+.g4-struct-lb-close:active { transform: scale(0.95); }
+.g4-struct-lb-img {
+    display: block; max-width: 100%; max-height: calc(100vh - 140px);
+    object-fit: contain; border-radius: 14px;
+    user-select: none; -webkit-user-drag: none;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.08));
+}
+/* Annotation overlay */
+.g4-anno-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    transition: opacity 0.2s;
+}
+.g4-anno-overlay.active { pointer-events: auto; }
+.g4-anno-overlay.drag-mode .g4-anno-dot-wrap,
+.g4-anno-overlay.drag-mode .g4-anno-label-abs { cursor: grab; }
+.g4-anno-overlay.drag-mode .g4-anno-dot-wrap:active,
+.g4-anno-overlay.drag-mode .g4-anno-label-abs:active { cursor: grabbing; }
+.g4-anno-svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    overflow: visible; pointer-events: none;
+}
+.g4-anno-svg-line {
+    stroke: rgba(220,50,50,0.4); stroke-width: 1.5px;
+    stroke-dasharray: 5 4; fill: none;
+    transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
+}
+.g4-anno-svg-line.focused {
+    stroke: #e82c2c; stroke-width: 2px; stroke-dasharray: none;
+}
+/* Dim non-focused lines when any part is focused */
+.g4-anno-overlay.has-focus .g4-anno-svg-line:not(.focused) { opacity: 0.25; }
+/* Dots — larger hit area for touch */
+.g4-anno-dot-wrap {
+    position: absolute; transform: translate(-50%,-50%);
+    cursor: pointer; z-index: 2;
+}
+.g4-anno-dot-wrap::after {
+    content: ''; position: absolute; inset: -14px;
+}
+.g4-anno-dot {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #e82c2c; border: 2.5px solid #fff;
+    box-shadow: 0 1px 6px rgba(220,30,30,0.45), 0 0 0 0 rgba(232,44,44,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: g4DotPulse 2.4s ease-in-out infinite;
+}
+@keyframes g4DotPulse {
+    0%, 100% { box-shadow: 0 1px 6px rgba(220,30,30,0.45), 0 0 0 0 rgba(232,44,44,0.3); }
+    50%      { box-shadow: 0 1px 6px rgba(220,30,30,0.45), 0 0 0 6px rgba(232,44,44,0); }
+}
+.g4-anno-dot-wrap:hover .g4-anno-dot,
+.g4-anno-dot-wrap.focused .g4-anno-dot {
+    background: #d01; transform: scale(1.35);
+    animation: none; box-shadow: 0 2px 10px rgba(220,30,30,0.6);
+}
+/* Dim non-focused dots */
+.g4-anno-overlay.has-focus .g4-anno-dot-wrap:not(.focused) .g4-anno-dot { opacity: 0.35; animation: none; }
+/* Labels */
+.g4-anno-label-abs {
+    position: absolute; transform: translate(-50%,-50%);
+    cursor: pointer; z-index: 3; pointer-events: auto;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.g4-anno-tag {
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(255,255,255,0.95); border: 1.5px solid rgba(220,50,50,0.2);
+    border-radius: 9px; padding: 3px 9px 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    white-space: nowrap; transition: all 0.2s;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.g4-anno-label-abs:hover .g4-anno-tag {
+    border-color: rgba(220,50,50,0.5); box-shadow: 0 3px 14px rgba(0,0,0,0.15);
+    transform: scale(1.04);
+}
+.g4-anno-label-abs.focused .g4-anno-tag {
+    border-color: #e82c2c; background: rgba(255,255,255,1);
+    box-shadow: 0 3px 16px rgba(232,44,44,0.2), 0 0 0 3px rgba(232,44,44,0.08);
+}
+/* Dim non-focused labels */
+.g4-anno-overlay.has-focus .g4-anno-label-abs:not(.focused) { opacity: 0.3; }
+.g4-anno-zh { font-size: 0.78rem; font-weight: 800; color: #1a1630; line-height: 1.35; }
+.g4-anno-en { font-size: 0.66rem; font-weight: 600; color: #8B66FF; line-height: 1.2; }
+/* Right panel */
+.g4-struct-panel-right {
+    width: 260px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    padding: 22px 18px 16px;
+    border-left: 1.5px solid rgba(0,0,0,0.05);
+    overflow-y: auto; overflow-x: hidden;
+    background: #fefefe;
+}
+.g4-struct-panel-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px; gap: 8px;
+}
+.g4-struct-panel-title { display: flex; flex-direction: column; gap: 2px; }
+.g4-struct-panel-zh { font-size: 1.2rem; font-weight: 900; color: #1a1630; letter-spacing: 0.02em; }
+.g4-struct-panel-en { font-size: 0.78rem; font-weight: 700; color: #8B66FF; }
+.g4-struct-lb-badge {
+    font-size: 0.68rem; font-weight: 800; color: #e82c2c;
+    background: rgba(232,44,44,0.06); border: 1.5px solid rgba(232,44,44,0.15);
+    border-radius: 8px; padding: 3px 9px; white-space: nowrap;
+    flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+}
+.g4-struct-parts-list {
+    display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px;
+    max-height: 40vh; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: rgba(139,102,255,0.2) transparent;
+}
+.g4-struct-parts-list::-webkit-scrollbar { width: 4px; }
+.g4-struct-parts-list::-webkit-scrollbar-thumb { background: rgba(139,102,255,0.2); border-radius: 4px; }
+.g4-struct-part-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 11px; border-radius: 11px; border: none;
+    background: rgba(0,0,0,0.025); cursor: pointer;
+    text-align: left; transition: all 0.15s;
+    font-family: inherit;
+}
+.g4-struct-part-item:hover { background: rgba(139,102,255,0.07); transform: translateX(2px); }
+.g4-struct-part-item.active {
+    background: rgba(232,44,44,0.07);
+    box-shadow: inset 3px 0 0 #e82c2c;
+}
+.g4-struct-part-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #e82c2c; color: #fff;
+    font-size: 0.7rem; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+.g4-struct-part-item.active .g4-struct-part-num { transform: scale(1.1); }
+.g4-struct-part-names { display: flex; flex-direction: column; gap: 1px; }
+.g4-struct-part-zh { font-size: 0.82rem; font-weight: 800; color: #1a1630; }
+.g4-struct-part-en { font-size: 0.7rem; font-weight: 600; color: #8B66FF; }
+.g4-struct-desc-box {
+    flex: 1; min-height: 70px;
+    padding: 14px; border-radius: 14px;
+    background: rgba(139,102,255,0.03);
+    border: 1.5px solid rgba(139,102,255,0.08);
+    margin-bottom: 12px; overflow-y: auto;
+    transition: border-color 0.2s;
+}
+.g4-struct-desc-box:has(.g4-struct-desc-part) { border-color: rgba(232,44,44,0.15); }
+.g4-struct-desc-empty { font-size: 0.8rem; color: #bbb; text-align: center; padding: 14px 0; }
+.g4-struct-desc-part {
+    display: flex; gap: 6px; align-items: baseline; margin-bottom: 8px;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.g4-struct-desc-zh { font-size: 0.92rem; font-weight: 900; color: #1a1630; }
+.g4-struct-desc-en { font-size: 0.76rem; font-weight: 700; color: #8B66FF; }
+.g4-struct-desc-text { font-size: 0.8rem; line-height: 1.8; color: #3a3650; margin: 0; }
+.g4-struct-drag-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+.g4-struct-drag-btn, .g4-struct-cancel-btn, .g4-struct-lock-btn {
+    flex: 1; padding: 8px 10px; border-radius: 11px; border: none;
+    font-size: 0.75rem; font-weight: 800; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+}
+.g4-struct-drag-btn { background: rgba(139,102,255,0.08); color: #8B66FF; }
+.g4-struct-drag-btn:hover { background: rgba(139,102,255,0.15); }
+.g4-struct-drag-btn.active { background: #8B66FF; color: #fff; }
+.g4-struct-cancel-btn { background: rgba(200,50,50,0.08); color: #c03; }
+.g4-struct-cancel-btn:hover { background: #e82c2c; color: #fff; }
+.g4-struct-lock-btn { background: rgba(50,160,80,0.08); color: #2a8; }
+.g4-struct-lock-btn:hover { background: #2a8; color: #fff; }
+.g4-struct-lb-hint {
+    margin-top: 12px; font-size: 0.73rem; color: rgba(255,255,255,0.5);
+    text-align: center; letter-spacing: 0.02em;
+}
+/* Responsive — mobile */
+@media (max-width: 640px) {
+    .g4-struct-lb { padding: 8px; }
+    .g4-struct-wrap {
+        flex-direction: column; max-height: calc(100vh - 32px);
+        border-radius: 18px;
+    }
+    .g4-struct-panel-left { padding: 16px 12px; }
+    .g4-struct-lb-img { max-height: 40vh; }
+    .g4-struct-panel-right {
+        width: auto; border-left: none;
+        border-top: 1.5px solid rgba(0,0,0,0.05);
+        max-height: 50vh; padding: 16px 14px 14px;
+    }
+    .g4-struct-parts-list { max-height: 25vh; }
+    .g4-anno-dot { width: 11px; height: 11px; }
+    .g4-anno-tag { padding: 2px 6px 3px; }
+    .g4-anno-zh { font-size: 0.7rem; }
+    .g4-anno-en { font-size: 0.6rem; }
 }
 
 /* ===== 時值辨別 — Mode Card Sub-buttons ===== */

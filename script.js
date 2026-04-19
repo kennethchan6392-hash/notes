@@ -3934,6 +3934,7 @@
         rchalState.score = 0; rchalState.combo = 0; rchalState.maxCombo = 0; rchalState.hp = 100;
         rchalState.counts = { perfect: 0, great: 0, good: 0, miss: 0, wrong: 0 };
         rchalState.restZones = []; rchalState.restNoteMap = {};
+        _rchalLastTapMs = 0;
 
         // Generate measures
         const measures = [];
@@ -4293,19 +4294,14 @@
 
         // Pre-schedule metronome via Web Audio for drift-free timing
         const beatDots = document.querySelectorAll('#rchalBeats .rchal-beat-dot');
-        const _doSchedule = () => {
-            if (!audio.ctx) return;
-            const baseTime = audio.ctx.currentTime + 0.05;
+        audio.resume();
+        if (audio.ctx) {
+            const baseTime = audio.ctx.currentTime + 0.02;
             for (let b = 0; b < totalBeats; b++) {
                 const t = baseTime + (b * beatMs) / 1000;
-                audio.scheduleTick(t, b % 4 === 0);
+                const beatInBar = b % 4;
+                audio.scheduleTick(t, beatInBar === 0);
             }
-        };
-        if (audio.ctx && audio.ctx.state === 'suspended') {
-            audio.ctx.resume().then(_doSchedule).catch(() => {});
-        } else {
-            audio.resume();
-            _doSchedule();
         }
         // Beat dot visuals via setTimeout (visual only, ok to have slight drift)
         for (let b = 0; b < totalBeats; b++) {
@@ -4359,9 +4355,13 @@
     }
 
     /* ── Tap Handler (optimized effects & scoring) ── */
+    let _rchalLastTapMs = 0;
     function _rchalOnTap() {
         if (rchalState.phase !== 'playing') return;
-        const elapsed = performance.now() - rchalState.startTime;
+        const now = performance.now();
+        if (now - _rchalLastTapMs < 40) return; // debounce: ignore double-fire from touchstart+pointerdown
+        _rchalLastTapMs = now;
+        const elapsed = now - rchalState.startTime;
         const lvl = rchalState.level;
         const beatMs = 60000 / lvl.bpm;
         const winMs = beatMs * 0.35 * lvl.winScale;
@@ -8053,7 +8053,7 @@
         'bassoon':       [{part:'雙簧片',en:'Double Reed',x:74,y:44,lx:89,ly:54,side:'right'},{part:'翼管',en:'Wing Joint',x:53,y:46,lx:22,ly:44,side:'left'},{part:'長管',en:'Long Joint',x:40,y:62,lx:55,ly:67,side:'right'},{part:'底管',en:'Boot',x:6,y:96,lx:31,ly:93,side:'right'},{part:'喇叭口',en:'Bell',x:96,y:5,lx:70,ly:6,side:'left'}],
         'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,lx:76,ly:19,side:'right'},{part:'管身',en:'Body',x:53,y:61,lx:75,ly:61,side:'right'},{part:'指孔',en:'Finger Holes',x:49,y:50,lx:23,ly:48,side:'left'},{part:'尾端',en:'Foot',x:50,y:92,lx:62,ly:92,side:'right'}],
         'piccolo':       [{part:'吹口',en:'Mouthpiece',x:15,y:50,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'}],
-        'english-horn':  [{part:'雙簧片',en:'Double Reed',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:45,side:'left'},{part:'梨形喇叭口',en:'Pear Bell',x:50,y:92,side:'right'}],
+        'english-horn':  [{part:'雙簧片',en:'Double Reed',x:92,y:10,side:'right',lx:60,ly:10},{part:'管身',en:'Body',x:55,y:45,side:'right',lx:71,ly:47},{part:'按鍵',en:'Keys',x:44,y:53,side:'left',lx:26,ly:46},{part:'梨形喇叭口',en:'Pear Bell',x:14,y:92,side:'left',lx:43,ly:93}],
         'alto-sax':      [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
         'tenor-sax':     [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
         'soprano-sax':   [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
