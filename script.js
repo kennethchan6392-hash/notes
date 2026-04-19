@@ -22,6 +22,13 @@
         }
     };
 
+    // Named constants (extracted from magic numbers)
+    const SLOW_ANSWER_MS = 4000;
+    const STAFF_LEFT_PAD_NARROW = 30;
+    const STAFF_LEFT_PAD_WIDE = 50;
+    const MAX_CONFETTI = 25;
+    const COMBO_CONFETTI_INTERVAL = 5;
+
     const MODE_CONFIG = {
         practice: { name:'練習模式', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0 },
         classic60:{ name:'高音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'treble' },
@@ -568,11 +575,7 @@
             userGrade: document.getElementById('userGrade'), 
             userClass: document.getElementById('userClass'), 
             userId: document.getElementById('userId'),
-            startBtn: document.getElementById('startBtn'), 
-            settingsToggleBtn: document.getElementById('settingsToggleBtn'), 
-            settingsContent: document.getElementById('settingsContent'), 
-            settingsArrow: document.getElementById('settingsArrow'),
-            inputs: document.querySelectorAll('#settingsContent input, #settingsContent select'),
+            startBtn: document.getElementById('startBtn'),
             
             // Game
             canvas: document.getElementById('staffCanvas'), 
@@ -829,25 +832,28 @@
                     this._metroBus.connect(this.ctx.destination);
                 }
                 const g = this.getSfxGain();
-                const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-                osc.connect(gain); gain.connect(this._metroBus);
-                if (countdown) {
-                    // Woodblock-like sound for prep beats
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(900, audioT);
-                    osc.frequency.exponentialRampToValueAtTime(400, audioT + 0.06);
-                    gain.gain.setValueAtTime(0, audioT);
-                    gain.gain.linearRampToValueAtTime(0.38 * g, audioT + 0.004);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioT + 0.14);
-                    osc.start(audioT); osc.stop(audioT + 0.18);
-                } else {
-                    osc.type = 'sine';
-                    osc.frequency.value = strong ? 1100 : 720;
-                    gain.gain.setValueAtTime(0, audioT);
-                    gain.gain.linearRampToValueAtTime(0.22 * g, audioT + 0.005);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioT + 0.085);
-                    osc.start(audioT); osc.stop(audioT + 0.1);
+                const sr = this.ctx.sampleRate;
+
+                // Woodblock / mechanical metronome click using noise burst + pitched body
+                const clickDur = 0.06;
+                const bufLen = Math.floor(sr * clickDur);
+                const buf = this.ctx.createBuffer(1, bufLen, sr);
+                const data = buf.getChannelData(0);
+                // Shape: sharp attack transient (noise) + decaying sine body
+                const bodyFreq = strong ? 1800 : 1100; // Hz — higher pitch on beat 1
+                for (let i = 0; i < bufLen; i++) {
+                    const t = i / sr;
+                    const env = Math.exp(-t * (strong ? 55 : 70));
+                    const noise = (Math.random() * 2 - 1) * Math.exp(-t * 300); // transient click
+                    const body = Math.sin(2 * Math.PI * bodyFreq * t) * env;
+                    data[i] = (noise * 0.4 + body * 0.7) * (strong ? 0.95 : 0.72);
                 }
+                const src = this.ctx.createBufferSource();
+                src.buffer = buf;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(g, audioT);
+                src.connect(gain); gain.connect(this._metroBus);
+                src.start(audioT); src.stop(audioT + clickDur + 0.01);
             },
             stopAllTicks() {
                 // Disconnect the metronome bus to silence all scheduled ticks
@@ -978,10 +984,14 @@
         const dpr = window.devicePixelRatio || 1;
         const rect = dom.canvasWrapper.getBoundingClientRect();
         if (!rect.width || !rect.height) {
-            // Container not laid out yet — schedule retry
+            // Container not laid out yet — schedule retry (capped to prevent infinite loop)
+            const retries = (setupHDPI._retries || 0) + 1;
+            setupHDPI._retries = retries;
+            if (retries > 10) { setupHDPI._retries = 0; return; }
             requestAnimationFrame(() => {
                 const r2 = dom.canvasWrapper.getBoundingClientRect();
                 if (r2.width && r2.height) {
+                    setupHDPI._retries = 0;
                     dom.canvas.width = r2.width * dpr;
                     dom.canvas.height = r2.height * dpr;
                     dom.canvas.style.width = `${r2.width}px`;
@@ -991,10 +1001,13 @@
                     dom.canvas.logicalHeight = r2.height;
                     _staffCache = null;
                     if (state.currentNote) drawStaff();
+                } else {
+                    setupHDPI();
                 }
             });
             return;
         }
+        setupHDPI._retries = 0;
         dom.canvas.width = rect.width * dpr;
         dom.canvas.height = rect.height * dpr;
         dom.canvas.style.width = `${rect.width}px`;
@@ -1197,7 +1210,6 @@
 
     function saveSettings() {
         const s = {};
-        if (dom.inputs) dom.inputs.forEach(el => s[el.id] = el.type==='checkbox' ? el.checked : el.value);
         s.lastMode = state.currentMode;
         s.practiceDiff = state.practiceDiff;
         s.keysigGrade = state.keysigGrade;
@@ -1205,7 +1217,7 @@
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
-        localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
+        try { localStorage.setItem('musicGameSettingsV4', JSON.stringify(s)); } catch(e) { /* QuotaExceeded — skip silently */ }
     }
 
     function loadSavedSettings() {
@@ -1214,7 +1226,7 @@
         try {
             const s = JSON.parse(stored);
             if (s) {
-                if (dom.inputs) dom.inputs.forEach(el => { if (s[el.id] !== undefined) { if (el.type==='checkbox') el.checked=s[el.id]; else el.value=s[el.id]; } });
+
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
                 if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
@@ -1452,7 +1464,7 @@
             state.combo++; 
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
             // Track slow-correct: first attempt correct but took > 4 seconds
-            if (isFirstAttempt && elapsed > 4000) {
+            if (isFirstAttempt && elapsed > SLOW_ANSWER_MS) {
                 state.slowNoteStats[state.currentNote.correctName] = (state.slowNoteStats[state.currentNote.correctName] || 0) + 1;
             }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
@@ -1461,12 +1473,12 @@
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
-            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            if (state.combo > 0 && state.combo % COMBO_CONFETTI_INTERVAL === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, MAX_CONFETTI)); }
             // Practice mode milestone
             if (state.modeConfig.type === 'practice') {
                 const correctCount = state.totalQuestions - state.wrongCount;
                 if (correctCount > 0 && correctCount % 20 === 0) {
-                    showComboBurst(correctCount); spawnConfetti(30);
+                    showComboBurst(correctCount); spawnConfetti(MAX_CONFETTI + 5);
                     dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
                 }
             }
@@ -1674,7 +1686,7 @@
             state.answered = true;
             state.combo++;
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
-            if (isFirstAttempt && elapsed > 4000) {
+            if (isFirstAttempt && elapsed > SLOW_ANSWER_MS) {
                 state.slowNoteStats[q.correct.name] = (state.slowNoteStats[q.correct.name] || 0) + 1;
             }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
@@ -1683,11 +1695,11 @@
             dom.messageBox.textContent = `✅ 答對了！${q.correct.name}${_secs} ✨ 得分：${state.score}`;
             dom.messageBox.className = 'message-box correct';
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
-            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            if (state.combo > 0 && state.combo % COMBO_CONFETTI_INTERVAL === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, MAX_CONFETTI)); }
             if (state.modeConfig.type === 'practice') {
                 const correctCount = state.totalQuestions - state.wrongCount;
                 if (correctCount > 0 && correctCount % 20 === 0) {
-                    showComboBurst(correctCount); spawnConfetti(30);
+                    showComboBurst(correctCount); spawnConfetti(MAX_CONFETTI + 5);
                     dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
                 }
             }
@@ -1966,7 +1978,7 @@
             state.answered = true;
             state.combo++;
             if (state.combo > state.maxCombo) state.maxCombo = state.combo;
-            if (isFirstAttempt && elapsed > 4000) {
+            if (isFirstAttempt && elapsed > SLOW_ANSWER_MS) {
                 const statKey = state.currentNote.correctSolfege + ' (' + (state.currentNote.keySig ? state.currentNote.keySig.name : '') + ')';
                 state.slowNoteStats[statKey] = (state.slowNoteStats[statKey] || 0) + 1;
             }
@@ -1978,11 +1990,11 @@
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
-            if (state.combo > 0 && state.combo % 5 === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, 25)); }
+            if (state.combo > 0 && state.combo % COMBO_CONFETTI_INTERVAL === 0) { showComboBurst(state.combo); spawnConfetti(Math.min(state.combo, MAX_CONFETTI)); }
             if (state.modeConfig.type === 'practice') {
                 const correctCount = state.totalQuestions - state.wrongCount;
                 if (correctCount > 0 && correctCount % 20 === 0) {
-                    showComboBurst(correctCount); spawnConfetti(30);
+                    showComboBurst(correctCount); spawnConfetti(MAX_CONFETTI + 5);
                     dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！你好棒！繼續加油！`;
                 }
             }
@@ -3806,11 +3818,13 @@
         measures: [],
         taps: [],            // expected taps
         score: 0, combo: 0, maxCombo: 0, hp: 100,
-        counts: { perfect: 0, great: 0, good: 0, miss: 0 },
+        counts: { perfect: 0, great: 0, good: 0, miss: 0, wrong: 0 },
         startTime: 0,
         timers: [],
         stars: {},           // levelId → 0-3
         rowRanges: [],       // per-row y/h for highlighting
+        restZones: [],       // [{idx, startMs, endMs}] for rest tap detection
+        restNoteMap: {},     // restIdx → {el, bar, row}
     };
 
     function _rchalGetStars(lvl) { return rchalState.stars[lvl] || 0; }
@@ -3839,6 +3853,7 @@
         rchalState.missRafId && cancelAnimationFrame(rchalState.missRafId);
         rchalState.missRafId = 0;
         document.removeEventListener('keydown', _rchalKeyHandler);
+        audio.stopAllTicks();
     }
 
     /* ── Level Select View (like g3 music terms setup) ── */
@@ -3917,7 +3932,8 @@
         rchalState.level = lvl;
         rchalState.phase = 'preview';
         rchalState.score = 0; rchalState.combo = 0; rchalState.maxCombo = 0; rchalState.hp = 100;
-        rchalState.counts = { perfect: 0, great: 0, good: 0, miss: 0 };
+        rchalState.counts = { perfect: 0, great: 0, good: 0, miss: 0, wrong: 0 };
+        rchalState.restZones = []; rchalState.restNoteMap = {};
 
         // Generate measures
         const measures = [];
@@ -3992,7 +4008,7 @@
         const lvl = rchalState.level;
         const BARS_PER_ROW = (lvl && lvl.tokenSet === 'basic') ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const MIN_ROW_H = (lvl && lvl.tokenSet === 'basic') ? 80 : 105;
+        const MIN_ROW_H = (lvl && lvl.tokenSet === 'basic') ? 130 : 160;
         const totalH = Math.max(numRows * MIN_ROW_H, 320);
         const ROW_H = totalH / numRows;
 
@@ -4009,7 +4025,9 @@
         const barW = (W - PAD * 2) / BARS_PER_ROW;
 
         const allNoteMap = [];
+        const allRestMap = {};
         let tapIdx = 0;
+        let restIdx = 0;
 
         // Store row boundaries for highlighting during play
         rchalState.rowRanges = [];
@@ -4024,7 +4042,7 @@
             if (!rchalState.rowRanges[row]) rchalState.rowRanges[row] = { startBar: bi, endBar: bi, y: y, h: ROW_H };
             rchalState.rowRanges[row].endBar = bi;
 
-            const stave = new Stave(x, y + 2, barW);
+            const stave = new Stave(x, y + 30, barW);
             [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
             if (col === 0 && row === 0) stave.addTimeSignature('4/4');
             stave.setContext(context).draw();
@@ -4042,18 +4060,16 @@
                     const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
                     note.addModifier(new Annotation('休止').setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
-                    noteGameMap.push([]);
+                    noteGameMap.push({ rest: true, restIdx: restIdx });
+                    restIdx++;
                 } else if (compound) {
                     const group = [];
-                    compound.forEach((sub, si) => {
+                    compound.forEach(sub => {
                         const dur = durMap[sub.d];
                         if (!dur) return;
                         const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
                         if (dotSet.has(sub.d)) Dot.buildAndAttach([note], { all: true });
-                        // Only add compound label on first sub-note to avoid overlap
-                        if (si === 0) {
-                            note.addModifier(new Annotation(token).setVerticalJustification(3).setFont('Noto Sans TC', 9));
-                        }
+                        note.addModifier(new Annotation(sub.l).setVerticalJustification(3).setFont('Noto Sans TC', 9));
                         vfNotes.push(note);
                         group.push(note);
                         noteGameMap.push([tapIdx]);
@@ -4100,8 +4116,13 @@
 
             vfNotes.forEach((vfNote, vi) => {
                 const gameIndices = noteGameMap[vi];
-                if (!gameIndices || !gameIndices.length) return;
                 const el = vfNote.getSVGElement ? vfNote.getSVGElement() : (vfNote.attrs && vfNote.attrs.el);
+                // Map rest SVG elements
+                if (gameIndices && gameIndices.rest) {
+                    allRestMap[gameIndices.restIdx] = { el: el, bar: bi, row: row };
+                    return;
+                }
+                if (!gameIndices || !gameIndices.length) return;
                 // Find which beam group this note belongs to
                 let beamEl = null;
                 beamGroups.forEach((group, gi) => {
@@ -4117,6 +4138,7 @@
         });
 
         rchalState.noteMap = allNoteMap;
+        rchalState.restNoteMap = allRestMap;
         rchalState.trackW = W;
     }
 
@@ -4127,11 +4149,19 @@
         let beatCursor = 0;
         let tapIdx = 0;
 
+        let restIdx = 0;
         measures.forEach((label, mIdx) => {
             const tokens = label.split(' ');
             tokens.forEach(token => {
                 const dur = getRhythmTokenDuration(token);
-                if (token === '休') { beatCursor += dur; return; }
+                if (token === '休') {
+                    rchalState.restZones.push({
+                        idx: restIdx++,
+                        startMs: beatCursor * beatMs,
+                        endMs: (beatCursor + dur) * beatMs,
+                    });
+                    beatCursor += dur; return;
+                }
 
                 const compound = COMPOUND_TOKENS[token];
                 if (compound) {
@@ -4193,16 +4223,11 @@
             beatDots.forEach((d, i) => d.classList.toggle('active', i === beat));
 
             // Play metronome tick sound via Web Audio
-            if (audio.ctx) {
-                const t = audio.ctx.currentTime + 0.01;
-                const osc = audio.ctx.createOscillator();
-                const gain = audio.ctx.createGain();
-                osc.connect(gain).connect(audio.ctx.destination);
-                osc.type = 'triangle';
-                osc.frequency.value = beat === 0 ? 1200 : 800;
-                gain.gain.setValueAtTime(beat === 0 ? 0.3 : 0.2, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-                osc.start(t); osc.stop(t + 0.08);
+            if (audio.ctx && audio.ctx.state === 'suspended') {
+                audio.ctx.resume().then(() => audio.scheduleTick(audio.ctx.currentTime + 0.01, beat === 0)).catch(() => {});
+            } else {
+                audio.resume();
+                if (audio.ctx) audio.scheduleTick(audio.ctx.currentTime + 0.01, beat === 0);
             }
 
             beat++;
@@ -4268,19 +4293,13 @@
 
         // Pre-schedule metronome via Web Audio for drift-free timing
         const beatDots = document.querySelectorAll('#rchalBeats .rchal-beat-dot');
+        audio.resume();
         if (audio.ctx) {
             const baseTime = audio.ctx.currentTime + 0.02;
             for (let b = 0; b < totalBeats; b++) {
                 const t = baseTime + (b * beatMs) / 1000;
                 const beatInBar = b % 4;
-                const osc = audio.ctx.createOscillator();
-                const gain = audio.ctx.createGain();
-                osc.connect(gain).connect(audio.ctx.destination);
-                osc.type = 'triangle';
-                osc.frequency.value = beatInBar === 0 ? 1200 : 800;
-                gain.gain.setValueAtTime(beatInBar === 0 ? 0.25 : 0.15, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-                osc.start(t); osc.stop(t + 0.06);
+                audio.scheduleTick(t, beatInBar === 0);
             }
         }
         // Beat dot visuals via setTimeout (visual only, ok to have slight drift)
@@ -4364,8 +4383,37 @@
         });
 
         if (!best) {
-            // Miss tap — shake effect
+            // Wrong tap: detect rest zone or generic wrong
+            let isRestTap = false;
+            let restZoneIdx = -1;
+            const restTolerance = winMs * 0.6;
+            for (let i = 0; i < rchalState.restZones.length; i++) {
+                const rz = rchalState.restZones[i];
+                if (elapsed >= rz.startMs - restTolerance && elapsed <= rz.endMs + restTolerance) {
+                    isRestTap = true; restZoneIdx = rz.idx; break;
+                }
+            }
+            rchalState.counts.wrong++;
+            rchalState.combo = 0;
+            document.getElementById('rchalCombo').textContent = '';
+            const penalty = Math.ceil(lvl.hpLoss / 2);
+            rchalState.hp = Math.max(0, rchalState.hp - penalty);
+            _rchalDrawHP();
+            if (isRestTap) {
+                _rchalShowJudgment('休止符！✗', 'wrong');
+                const rm = rchalState.restNoteMap && rchalState.restNoteMap[restZoneIdx];
+                if (rm && rm.el) _vfColorNote(rm.el, '#EF4444', 0.7);
+            } else {
+                _rchalShowJudgment('禁錯！✗', 'wrong');
+            }
+            const track = document.getElementById('rchalTrack');
+            const float = document.createElement('div');
+            float.className = 'rchal-score-float wrong';
+            float.textContent = `\u2212${penalty} HP`;
+            track.appendChild(float);
+            setTimeout(() => float.remove(), 700);
             _rchalScreenShake();
+            if (rchalState.hp <= 0) { _rchalFinish(); }
             return;
         }
 
@@ -4530,8 +4578,9 @@
                         <div class="rchal-stat great"><div class="rchal-stat-val">${rchalState.counts.great}</div><div class="rchal-stat-label">GREAT</div></div>
                         <div class="rchal-stat good"><div class="rchal-stat-val">${rchalState.counts.good}</div><div class="rchal-stat-label">GOOD</div></div>
                         <div class="rchal-stat miss"><div class="rchal-stat-val">${rchalState.counts.miss}</div><div class="rchal-stat-label">MISS</div></div>
+                        <div class="rchal-stat wrong"><div class="rchal-stat-val">${rchalState.counts.wrong}</div><div class="rchal-stat-label">WRONG</div></div>
                     </div>
-                    <div class="rchal-result-detail">準確度 ${accuracy}%　·　最高連擊 ${rchalState.maxCombo}</div>
+                    <div class="rchal-result-detail">準確度 ${accuracy}%　·　最高連擊 ${rchalState.maxCombo}　·　禁錯 ${rchalState.counts.wrong}</div>
                     <div class="rchal-result-detail">${hpMsg}</div>
                     <div class="rchal-result-msg">${msg}</div>
                     <div class="rchal-result-btns">
@@ -4618,6 +4667,7 @@
                 const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
                 if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
                 note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                note.setStemStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 vfNotes.push(note);
             } else {
@@ -4640,8 +4690,12 @@
                 const newBeat = Math.floor(beatPos);
                 if (newBeat !== Math.floor(beatStart) && group.length) flush();
                 if (n.beats < 1) { // eighth or sixteenth
-                    group.push(vfNotes[i]);
-                    beatStart = beatPos;
+                    if (i === blankIdx) {
+                        flush(); // break beam at the blank note so it's not beamed
+                    } else {
+                        group.push(vfNotes[i]);
+                        beatStart = beatPos;
+                    }
                 } else {
                     flush();
                 }
@@ -7924,6 +7978,34 @@
           history:'刮胡（Güiro）源自加勒比海地區的泰諾原住民，最初以葫蘆製成，外表刻有橫向鋸齒槽，用木棒或金屬棒來回刮擦發出沙沙的刮擦聲。現代刮胡以木材、金屬或塑膠製成，常見魚形設計（Fish Guiro）尤其受兒童歡迎。刮胡是古巴頌樂、波多黎各音樂和梅連格舞曲的重要節奏樂器，演奏者需控制刮擦速度和力度以創造不同的節奏型態，是拉丁打擊樂中不可或缺的色彩樂器。',
           video:'https://www.youtube.com/embed/tDNkLMmGsXA',
           synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:2500, filterQ:1.5, vol:0.2 }},
+        { id:'agogo-bell',   nameZh:'阿哥哥鈴',   nameEn:'Agogo Bell',   family:'percussion', familyZh:'敲擊', img:'img/instruments/agogo-bell.jpg', desc:'雙鈴的非洲傳統金屬樂器',
+          history:'阿哥哥鈴源自西非約魯巴族的傳統音樂，由兩個大小不同的金屬鈴連接在一個U形握柄上，用金屬棒敲擊兩鈴可奏出高低兩個固定音高。它是非裔巴西宗教音樂坎東布雷（Candomblé）和卡波耶拉中不可缺少的樂器，後被薩爾薩、阿弗羅古巴爵士和流行音樂廣泛採用。阿哥哥鈴的節奏型通常作為整個樂隊的「鐘聲」基準，引領其他樂手的節奏，音色明亮穿透，即使在嘈雜的演奏環境中仍清晰可辨。',
+          video:'https://www.youtube.com/embed/0Nj1WDLAghE',
+          synthParams:{ wave:'square', freq:900, dur:0.3, attack:0.002, vol:0.22, filterType:'bandpass', filterFreq:1000, filterQ:5 }},
+        { id:'bar-chimes',   nameZh:'管鈴',       nameEn:'Bar Chimes',   family:'percussion', familyZh:'敲擊', img:'img/instruments/bar-chimes.jpg', desc:'多根金屬管懸掛成排，輕撥發出金屬聲',
+          history:'管鈴（Bar Chimes，又稱Mark Tree）由數十根長短不等的細金屬管懸掛成排製成，演奏者以手指或鼓棒從一端掃過，管子相互碰撞發出輕柔的滑音效果。管鈴在1960至70年代的流行音樂錄音室中廣泛使用，常用於製造夢幻、神秘或過渡性的音效。在管弦樂和打擊樂合奏中，管鈴為音樂增添空靈飄逸的色彩，是音效設計師和打擊樂手工具箱中重要的色彩樂器。',
+          video:'https://www.youtube.com/embed/4K2xeVAq45M',
+          synthParams:{ wave:'sine', freq:1400, dur:1.5, attack:0.01, vol:0.18, sustain:0.3, vibRate:3, vibDepth:2 }},
+        { id:'bongos',       nameZh:'邦哥鼓',     nameEn:'Bongos',       family:'percussion', familyZh:'敲擊', img:'img/instruments/bongos.jpg', desc:'一大一小兩個相連的小型手鼓',
+          history:'邦哥鼓（Bongos）源自古巴東部省份，由一大一小兩個皮鼓固定在一起組成，大鼓稱為Hembra（母），小鼓稱為Macho（公）。演奏者通常將鼓夾於兩膝之間，以指尖和手掌拍擊鼓皮，技法豐富細膩。邦哥鼓在古巴頌樂、拉丁爵士和流行音樂中廣泛使用，音色明亮清脆，節奏感強。傳奇演奏家卡洛斯·帕托·費爾南德斯和艾迪·帕米里將邦哥鼓技藝帶至精湛境界，進一步拓展了其在拉丁音樂中的表現空間。',
+          video:'https://www.youtube.com/embed/4wPEIWET0fY',
+          synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:400, filterQ:1.5, vol:0.28 }},
+        { id:'kalimba',      nameZh:'卡林巴琴',   nameEn:'Kalimba',      family:'percussion', familyZh:'敲擊', img:'img/instruments/kalimba.jpg', desc:'非洲拇指鋼琴，用拇指撥片發聲',
+          history:'卡林巴琴（Kalimba）又稱拇指鋼琴，是非洲傳統姆比拉琴（Mbira）的現代版本。演奏者雙手握住木製音箱，用拇指撥動固定於音板上的金屬舌片，不同長度的舌片產生不同音高，音色空靈悅耳。卡林巴在非洲各文化中均有變體，辛巴威的姆比拉是其中最著名的，在修納族的宗教儀式中有神聖地位。1960年代，民族音樂學家休·崔西將其商業化改良並命名為Kalimba，從此傳播全球，成為世界音樂和冥想音樂的熱門樂器。',
+          video:'https://www.youtube.com/embed/DAHqLGzbmyM',
+          synthParams:{ wave:'sine', freq:659, dur:1.2, attack:0.003, vol:0.25, sustain:0.2, vibRate:5, vibDepth:2 }},
+        { id:'sleigh-bells', nameZh:'雪橇鈴',     nameEn:'Sleigh Bells', family:'percussion', familyZh:'敲擊', img:'img/instruments/sleigh-bells.jpg', desc:'多個小鈴串在一起，搖動發聲',
+          history:'雪橇鈴最初綁於馬拉雪橇的挽具上，在積雪道路上提醒行人注意雪橇接近，後被作曲家引入管弦樂以模擬冬日雪橇行進的意象。它由多個小型金屬鈴串連或釘在皮帶上製成，搖動時發出清脆的叮噹聲。在古典音樂中，莫札特和柴可夫斯基均曾使用雪橇鈴製造節日氣氛，而《Jingle Bells》一曲更令全球聽眾對這清脆鈴聲留下深刻印象，使雪橇鈴成為聖誕音樂中不可缺少的音色。',
+          video:'https://www.youtube.com/embed/3xAg65Az6D0',
+          synthParams:{ noise:true, dur:0.4, filterType:'bandpass', filterFreq:7000, filterQ:0.8, vol:0.2 }},
+        { id:'vibra-slap',   nameZh:'顫音板',     nameEn:'Vibraslap',    family:'percussion', familyZh:'敲擊', img:'img/instruments/vibra-slap.jpg', desc:'敲擊後產生顫動嗡嗡聲',
+          history:'顫音板（Vibraslap）是驢顎骨（Quijada）的現代替代品，由LP公司於1960年代發明。其結構為一根鋼條連接一個木球和一個有金屬鉚釘的木質共鳴箱：用手掌擊打木球，衝擊振動使共鳴箱內的金屬鉚釘顫動，發出獨特的嗡嗡顫響聲。顫音板常用於拉丁音樂、流行樂和打擊樂合奏中作為特殊音效，聲音極具辨識度，一聲顫響便能為音樂增添生動的律動色彩。',
+          video:'https://www.youtube.com/embed/GGK1NIY-Q18',
+          synthParams:{ noise:true, dur:0.6, filterType:'bandpass', filterFreq:1500, filterQ:3, vol:0.25 }},
+        { id:'woodblock',    nameZh:'木塊',       nameEn:'Wood Block',   family:'percussion', familyZh:'敲擊', img:'img/instruments/woodblock.jpg', desc:'中空硬木塊，敲擊發出清脆短促聲',
+          history:'木塊（Wood Block）是一種中空的硬木方塊，用鼓錘敲擊上方開縫發出清脆的「答答」聲，音色短促而穿透。與東方的木魚（佛教法器）同屬木製體鳴樂器，但形制和用途有所不同。木塊在爵士樂、行進樂和管弦樂中作為節奏色彩樂器，能模擬蹄聲、時鐘聲等音效。蕭士塔高維奇、普羅科菲耶夫和馬勒等作曲家均在作品中採用木塊，其清脆的音色在強調特定節奏重音時效果出色。',
+          video:'https://www.youtube.com/embed/1soGwaPwyCo',
+          synthParams:{ wave:'sine', freq:1200, dur:0.15, attack:0.001, vol:0.28, sustain:0.05, filterType:'bandpass', filterFreq:1300, filterQ:5 }},
 
         // ── 鍵盤 Keyboard ──
         { id:'piano',        nameZh:'鋼琴',       nameEn:'Piano',        family:'keyboard',   familyZh:'鍵盤', img:'img/instruments/piano.webp', desc:'最常見的鍵盤樂器',
@@ -7943,6 +8025,68 @@
           video:'https://www.youtube.com/embed/aKxOpsUiFzU',
           synthParams:{ wave:'square', freq:440, dur:1.0, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:5, vibDepth:3 }},
     ];
+
+    // ── Instrument structure annotation data (x,y % on image, side = label direction) ──
+    const INSTRUMENT_STRUCTURE = {
+        'violin':        [{part:'琴頭',en:'Scroll',x:74,y:14,side:'right',desc:'小提琴頂端的螺旋形裝飾，由工匠手工雕刻而成，是識別樂器的標誌性特徵。'},{part:'調音栓',en:'Tuning Peg',x:77,y:22,side:'right',desc:'用於調整弦線張力以改變音高的木製旋鈕，四根分別對應 G、D、A、E 弦。'},{part:'琴頸',en:'Neck',x:69,y:25,side:'right',desc:'演奏者左手握持的部分，由木材製成，連接琴頭與琴身。'},{part:'指板',en:'Fingerboard',x:66,y:30,side:'left',desc:'左手手指按壓弦線以改變音高的黑色木板，通常由烏木製成，覆蓋於琴頸之上。'},{part:'弦線',en:'Strings',x:57,y:48,side:'left',desc:'四條弦線由低至高為 G、D、A、E 弦，現代多為鋼芯或合成纖維製成。'},{part:'琴橋',en:'Bridge',x:50,y:65,side:'left',desc:'支撐弦線並將振動傳送至琴身共鳴箱的精密薄木片，對音色有重要影響。'},{part:'F孔',en:'F-hole',x:48,y:59,side:'left',desc:'琴身兩側的 F 形音孔，讓琴身內的空氣振動得以傳出，豐富音色。'},{part:'琴身',en:'Body',x:63,y:52,side:'right',desc:'小提琴的共鳴箱，由面板、背板和側板組成，是放大聲音的關鍵部件。'},{part:'腮托',en:'Chin Rest',x:38,y:82,side:'left',desc:'演奏時供演奏者夾在下巴與肩膀之間的支撐部件，有助穩定樂器。'},{part:'拉弦板',en:'Tailpiece',x:49,y:76,side:'right',desc:'固定弦線末端的部件，通常由黑木或金屬製成，位於琴身底部。'}],
+        'viola':         [{part:'琴頭',en:'Scroll',x:55,y:2,side:'right',desc:'中提琴頂端的螺旋形裝飾，造型與小提琴相似，但琴頭整體比小提琴更寬厚。'},{part:'調音栓',en:'Tuning Peg',x:57,y:15,side:'right',desc:'用於調整弦線張力的木製旋鈕，四根分別對應 C、G、D、A 弦，音域比小提琴低五度。'},{part:'琴頸',en:'Neck',x:48,y:27,side:'left',desc:'演奏者左手握持的部分，比小提琴略長，連接琴頭與較寬大的琴身。'},{part:'弦線',en:'Strings',x:45,y:47,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，最低的 C 弦賦予中提琴獨特的渾厚音色。'},{part:'琴橋',en:'Bridge',x:45,y:71,side:'right',desc:'精密薄木片，支撐弦線並將振動傳至共鳴箱，中提琴琴橋比小提琴更寬。'},{part:'琴身',en:'Body',x:60,y:52,side:'right',desc:'中提琴的共鳴箱，體積介於小提琴與大提琴之間，賦予其溫暖而略帶鼻音的音色。'},{part:'腮托',en:'Chin Rest',x:31,y:92,side:'left',desc:'夾在演奏者下巴與肩膀之間的支撐部件，因中提琴較重，腮托設計尤為重要。'}],
+
+        'cello':         [{part:'琴頭',en:'Scroll',x:50,y:2,side:'right',desc:'大提琴頂端的螺旋裝飾，體積比小提琴和中提琴更大，雕工同樣精細。'},{part:'調音栓',en:'Tuning Peg',x:54,y:8,side:'right',desc:'用於調整弦線音高的木製旋鈕，四根對應 C、G、D、A 弦，旋轉時需要較大的力道。'},{part:'琴頸',en:'Neck',x:50,y:17,side:'left',desc:'演奏時左手拇指繞抱琴頸以輔助換把，大提琴夾於雙腿之間演奏，琴頸角度因此較直。'},{part:'弦線',en:'Strings',x:50,y:42,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，用弓弦拉奏，音域低沉寬廣，接近人聲男低音。'},{part:'琴橋',en:'Bridge',x:50,y:69,side:'right',desc:'大型精密薄木片，支撐四條弦並將振動傳至琴身，對音量與音色均有顯著影響。'},{part:'琴身',en:'Body',x:58,y:49,side:'right',desc:'大型共鳴箱，由雲杉面板與楓木背板側板組成，共鳴空間大，音色低沉豐富。'},{part:'F孔',en:'F-hole',x:44,y:67,side:'left',desc:'琴身兩側的 F 形音孔，讓腔體內空氣振動傳出，增加音量並豐富泛音。'},{part:'腳針',en:'Endpin',x:50,y:99,side:'right',desc:'從琴身底部伸出的金屬棒，演奏時頂住地面以支撐樂器，可調節長度適合不同身高的演奏者。'}],
+
+        'double-bass':   [{part:'琴頭',en:'Scroll',x:50,y:4,side:'right',desc:'低音大提琴頂端的裝飾部分，部分琴款採用渦卷形，部分採用獸頭雕刻，整體比其他弓弦樂器更大。'},{part:'調音栓',en:'Tuning Peg',x:50,y:9,side:'right',desc:'低音大提琴常配備機械齒輪調音器，因弦線張力極大，純木製旋鈕難以精確調音。'},{part:'琴頸',en:'Neck',x:50,y:18,side:'left',desc:'粗壯的琴頸供演奏者左手握持，站立或坐於高凳演奏，需要更大的手指延展。'},{part:'弦線',en:'Strings',x:50,y:42,side:'left',desc:'四條弦（E、A、D、G）是管弦樂團中音域最低的弓弦樂器，提供整個樂隊的低音基礎。'},{part:'琴橋',en:'Bridge',x:50,y:60,side:'right',desc:'厚實的木製琴橋，承受四條粗弦的巨大張力，同時高效地傳遞振動至琴身。'},{part:'琴身',en:'Body',x:56,y:50,side:'right',desc:'管弦樂團中最大的弓弦樂器琴身，肩部通常呈斜肩設計，方便演奏者的弓臂操作。'},{part:'腳針',en:'Endpin',x:50,y:96,side:'right',desc:'從琴底伸出的粗大金屬支撐棒，站立演奏時頂住地面，可調節高度適合不同的演奏者。'}],
+
+        'harp':          [{part:'頸',en:'Neck',x:40,y:14,side:'right',desc:'豎琴頂部弧形的部件，內藏調音機構，連接前柱與共鳴箱，是整個框架的關鍵結構。'},{part:'前柱',en:'Fore-pillar',x:25,y:50,side:'left',desc:'豎琴最粗壯的直立支柱，承受所有弦線的巨大張力，通常由硬木製成，是整個樂器的骨架。'},{part:'弦線',en:'Strings',x:45,y:42,side:'right',desc:'音樂會豎琴共有 47 條弦，由金屬線和羊腸線製成，跨越六個半八度的音域，演奏時用雙手手指撥弦。'},{part:'共鳴箱',en:'Resonator',x:60,y:67,side:'right',desc:'三角形的中空腔體，將弦線振動放大並投射出去，通常由雲杉面板與楓木背板製成。'},{part:'琴聲板',en:'Sound Board',x:58,y:55,side:'right',desc:'弦線固定於其上的面板，振動時將能量傳入共鳴箱，是音色形成的核心部件。'},{part:'腳踏',en:'Pedal',x:45,y:88,side:'left',desc:'音樂會豎琴有七個踏板，分別控制七個音名，每個踏板有三段位置，可升降半音，實現不同調性的演奏。'}],
+
+        'guitar':        [{part:'琴頭',en:'Headstock',x:51,y:11,side:'right',desc:'吉他頂端固定調音器的部件，造型因品牌而異，是辨識吉他款式的特徵之一。'},{part:'調音器',en:'Tuner',x:46,y:14,side:'left',desc:'機械式調音旋鈕，轉動可調整弦線張力以改變音高，現代吉他多採用封閉式機械調音器。'},{part:'琴頸',en:'Neck',x:51,y:26,side:'left',desc:'演奏者左手握持及按弦的部分，通常由楓木或桃花心木製成，內有鋼筋調整弧度。'},{part:'品柱',en:'Frets',x:54,y:36,side:'right',desc:'嵌入指板的金屬條，將音階分割為半音，手指按在品柱之間可發出準確音高。'},{part:'音孔',en:'Sound Hole',x:51,y:58,side:'right',desc:'琴身中央的圓形開口，讓琴腔內的空氣振動傳出，擴大音量並豐富音色。'},{part:'弦線',en:'Strings',x:51,y:45,side:'left',desc:'六條弦由低至高為 E、A、D、G、B、E 弦，可用手指撥奏或撥片彈奏。'},{part:'琴橋',en:'Bridge',x:51,y:72,side:'right',desc:'固定弦線末端並將振動傳至琴身的部件，對音色和音準均有影響。'},{part:'琴身',en:'Body',x:51,y:65,side:'right',desc:'吉他的共鳴箱，由面板、背板和側板組成，形狀影響音色特性。'}],
+        'bass-guitar':   [{part:'琴頭',en:'Headstock',x:67,y:4,side:'right',desc:'低音吉他頂端固定調音器的部件，通常比一般吉他更寬以容納粗重的低音弦。'},{part:'琴頸',en:'Neck',x:63,y:18,side:'right',desc:'較長且寬闊的指板，通常為四弦或五弦，需要手指有較大的延展能力。'},{part:'品柱',en:'Frets',x:59,y:32,side:'right',desc:'金屬分音條，也有無品設計，無品貝斯音色更圓滑，接近雙低音提琴。'},{part:'弦線',en:'Strings',x:55,y:45,side:'left',desc:'通常四條弦（E、A、D、G），音域比吉他低八度，為樂隊提供低音節奏基礎。'},{part:'拾音器',en:'Pickup',x:51,y:62,side:'right',desc:'將弦線振動轉換為電信號的磁性裝置，不同類型拾音器產生不同音色。'},{part:'琴身',en:'Body',x:51,y:72,side:'right',desc:'多為實心木材，不需共鳴腔，通過拾音器和擴音器輸出聲音。'},{part:'旋鈕',en:'Knobs',x:51,y:80,side:'left',desc:'控制音量和音色（高低頻）的旋鈕，調整輸出到擴音器的聲音特性。'}],
+        'ukulele':       [{part:'琴頭',en:'Headstock',x:50,y:7,side:'right',desc:'烏克麗麗頂端固定調音器的小型琴頭，造型多樣，常見鳳梨形或標準形。'},{part:'調音栓',en:'Tuning Peg',x:46,y:11,side:'left',desc:'調整四條弦音高的旋鈕，標準調音為 G、C、E、A，音域明亮輕快。'},{part:'琴頸',en:'Neck',x:50,y:24,side:'left',desc:'短小的琴頸，適合小手演奏，是烏克麗麗易於上手的原因之一。'},{part:'品柱',en:'Frets',x:53,y:33,side:'right',desc:'指板上的金屬分音條，數量通常少於吉他，演奏範圍相對較小。'},{part:'音孔',en:'Sound Hole',x:50,y:60,side:'right',desc:'琴身中央的音孔，讓共鳴箱內的聲音傳出，增加音量與音色層次。'},{part:'弦線',en:'Strings',x:50,y:46,side:'left',desc:'四條尼龍弦，音色清亮輕快，與夏威夷音樂和民謠風格相得益彰。'},{part:'琴橋',en:'Bridge',x:50,y:73,side:'right',desc:'固定弦線末端並傳遞振動至琴面的部件，通常由烏木或玫瑰木製成。'}],
+        'banjo':         [{part:'調音栓',en:'Tuning Peg',x:47,y:9,side:'left',desc:'調整弦線音高的旋鈕，五弦班卓有五根調音栓，第五根位於琴頸中段。'},{part:'琴頸',en:'Neck',x:51,y:22,side:'left',desc:'細長的指板供手指按弦，五弦班卓常見於藍草音樂，四弦則用於傳統爵士。'},{part:'品柱',en:'Frets',x:54,y:30,side:'right',desc:'嵌入指板的金屬條，使演奏者能按出準確音高。'},{part:'鼓面',en:'Drum Head',x:52,y:62,side:'right',desc:'班卓琴圓形共鳴體上的鼓皮面板，演奏時用手指或撥片撥弦，振動通過鼓面放大。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'通常五條弦，撥奏時產生清脆明亮的音色，是美國民間音樂的特色樂器。'},{part:'共鳴器',en:'Resonator',x:52,y:74,side:'right',desc:'背面的圓形碗狀共鳴器，將聲音向前投射，增加音量，常見於演奏用班卓琴。'}],
+        'mandolin':      [{part:'琴頭',en:'Headstock',x:51,y:2,side:'right',desc:'曼陀鈴頂端固定八個調音旋鈕的部件，因為共有四組雙弦，旋鈕比一般吉他多。'},{part:'調音栓',en:'Tuning Peg',x:48,y:8,side:'left',desc:'調整八條弦（四組雙弦）音高的旋鈕，成對調成同音以增強音量與共鳴。'},{part:'琴頸',en:'Neck',x:51,y:20,side:'left',desc:'短小的指板，音域與小提琴相同（G、D、A、E），可演奏小提琴曲目。'},{part:'品柱',en:'Frets',x:53,y:28,side:'right',desc:'指板上的金屬分音條，使曼陀鈴比小提琴更易於初學者按出準確音高。'},{part:'音孔',en:'Sound Hole',x:53,y:55,side:'right',desc:'傳統曼陀鈴有圓形音孔，F型曼陀鈴則有兩個F形音孔，影響音色特性。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'四組共八條鋼弦，每組兩條調成同音，演奏時同時撥響，音色洪亮穿透。'},{part:'琴橋',en:'Bridge',x:51,y:68,side:'right',desc:'支撐弦線的可移動木橋，調整音準時可前後移動，通常由烏木製成。'}],
+        'flute':         [{part:'接頭',en:'Head Joint',x:12,y:50,side:'left'},{part:'吹口',en:'Mouthpiece',x:18,y:30,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'},{part:'尾管',en:'Foot Joint',x:88,y:50,side:'right'}],
+        'clarinet':      [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'簧片',en:'Reed',x:35,y:8,side:'left'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right'},{part:'按鍵',en:'Keys',x:35,y:40,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
+        'oboe':          [{part:'雙簧片',en:'Double Reed',x:50,y:3,side:'right'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right'},{part:'按鍵',en:'Keys',x:35,y:40,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
+        'bassoon':       [{part:'雙簧片',en:'Double Reed',x:30,y:3,side:'left'},{part:'翼管',en:'Wing Joint',x:35,y:20,side:'left'},{part:'長管',en:'Long Joint',x:65,y:30,side:'right'},{part:'底管',en:'Boot',x:50,y:85,side:'right'},{part:'喇叭口',en:'Bell',x:65,y:5,side:'right'}],
+        'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'指孔',en:'Finger Holes',x:35,y:45,side:'left'},{part:'尾端',en:'Foot',x:50,y:92,side:'right'}],
+        'piccolo':       [{part:'吹口',en:'Mouthpiece',x:15,y:50,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'}],
+        'english-horn':  [{part:'雙簧片',en:'Double Reed',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:45,side:'left'},{part:'梨形喇叭口',en:'Pear Bell',x:50,y:92,side:'right'}],
+        'alto-sax':      [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
+        'tenor-sax':     [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
+        'soprano-sax':   [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
+        'baritone-sax':  [{part:'吹嘴',en:'Mouthpiece',x:35,y:3,side:'left'},{part:'頸管',en:'Neck',x:40,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:60,y:88,side:'right'}],
+        'harmonica':     [{part:'蓋板',en:'Cover Plate',x:50,y:20,side:'right'},{part:'吹孔',en:'Blow Holes',x:50,y:50,side:'right'},{part:'簧片',en:'Reeds',x:50,y:75,side:'right'},{part:'琴身',en:'Body',x:20,y:50,side:'left'}],
+        'bagpipes':      [{part:'吹管',en:'Blowpipe',x:25,y:25,side:'left'},{part:'風袋',en:'Bag',x:45,y:50,side:'right'},{part:'旋律管',en:'Chanter',x:55,y:85,side:'right'},{part:'低音管',en:'Drone Pipes',x:50,y:10,side:'right'}],
+        'pan-flute':     [{part:'管子',en:'Pipes',x:50,y:40,side:'right'},{part:'框架',en:'Frame',x:20,y:70,side:'left'}],
+        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:55,side:'right'},{part:'調音管',en:'Tuning Slide',x:30,y:70,side:'left'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right'}],
+        'trombone':      [{part:'號嘴',en:'Mouthpiece',x:8,y:30,side:'left'},{part:'滑管',en:'Slide',x:40,y:65,side:'left'},{part:'管身',en:'Body',x:60,y:30,side:'right'},{part:'喇叭口',en:'Bell',x:88,y:30,side:'right'}],
+        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:15,y:45,side:'left'},{part:'管身',en:'Body',x:50,y:45,side:'right'},{part:'轉閥',en:'Rotary Valves',x:45,y:55,side:'left'},{part:'喇叭口',en:'Bell',x:75,y:60,side:'right'}],
+        'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'活塞',en:'Valves',x:40,y:35,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right'}],
+        'cornet':        [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:58,side:'right'},{part:'喇叭口',en:'Bell',x:85,y:45,side:'right'}],
+        'timpani':       [{part:'鼓面',en:'Drum Head',x:50,y:20,side:'right'},{part:'銅鍋',en:'Kettle',x:50,y:55,side:'right'},{part:'調音器',en:'Tuning Gauge',x:20,y:40,side:'left'},{part:'腳踏板',en:'Foot Pedal',x:50,y:92,side:'right'}],
+        'snare':         [{part:'鼓面',en:'Drum Head',x:50,y:18,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'響弦',en:'Snare Wires',x:50,y:80,side:'right'},{part:'調音環',en:'Tuning Lug',x:20,y:50,side:'left'}],
+        'bass-drum':     [{part:'鼓面',en:'Drum Head',x:50,y:30,side:'right'},{part:'鼓身',en:'Shell',x:50,y:55,side:'right'},{part:'鼓棒',en:'Mallet',x:20,y:30,side:'left'}],
+        'xylophone':     [{part:'音板',en:'Bars',x:50,y:25,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right'}],
+        'triangle':      [{part:'金屬棒',en:'Metal Bar',x:50,y:30,side:'right'},{part:'敲棒',en:'Beater',x:70,y:60,side:'right'},{part:'懸掛繩',en:'Suspension',x:50,y:5,side:'right'}],
+        'cymbals':       [{part:'銅片',en:'Cymbal Plate',x:50,y:40,side:'right'},{part:'鐘頂',en:'Bell',x:50,y:25,side:'left'},{part:'把手',en:'Handle',x:50,y:55,side:'right'}],
+        'tambourine':    [{part:'鼓面',en:'Drum Head',x:50,y:35,side:'right'},{part:'框架',en:'Frame',x:20,y:55,side:'left'},{part:'鈴片',en:'Jingles',x:75,y:55,side:'right'}],
+        'glockenspiel':  [{part:'金屬音板',en:'Metal Bars',x:50,y:30,side:'right'},{part:'框架',en:'Frame',x:15,y:60,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right'}],
+        'marimba':       [{part:'木音板',en:'Wooden Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:10,side:'right'}],
+        'vibraphone':    [{part:'金屬音板',en:'Metal Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:55,side:'right'},{part:'踏板',en:'Pedal',x:50,y:92,side:'right'},{part:'馬達',en:'Motor',x:20,y:55,side:'left'}],
+        'drums':         [{part:'大鼓',en:'Bass Drum',x:50,y:75,side:'right'},{part:'小鼓',en:'Snare',x:35,y:55,side:'left'},{part:'嗵鼓',en:'Toms',x:50,y:30,side:'right'},{part:'踩鈸',en:'Hi-hat',x:15,y:40,side:'left'},{part:'碎音鈸',en:'Crash',x:25,y:15,side:'left'},{part:'騎鈸',en:'Ride',x:80,y:25,side:'right'}],
+        'cajon':         [{part:'打擊面',en:'Tapa',x:50,y:40,side:'right',desc:'前方的薄木面板，拍打不同位置產生不同音色——中央低沉如大鼓，邊緣清脆如小鼓。'},{part:'箱身',en:'Body',x:20,y:50,side:'left',desc:'中空的木製箱體，通常用樺木或桐木製成，箱內空間提供共鳴。'},{part:'音孔',en:'Sound Hole',x:50,y:85,side:'right',desc:'背面的圓形開口，讓聲音從箱體內傳出，也影響低音的投射效果。'}],
+        'maracas':       [{part:'球體',en:'Gourd',x:50,y:25,side:'right',desc:'圓球形的中空殼體，傳統用葡蘆乾果，現代常用塑膠或木製，內裝珠粒。'},{part:'手柄',en:'Handle',x:50,y:75,side:'right',desc:'木製或塑膠手柄，搖動時帶動球體內的珠粒撞擊殼壁產生聲音。'},{part:'珠粒',en:'Beads',x:30,y:25,side:'left',desc:'球體內的小珠粒或種子，搖動時撞擊內壁產生沙沙的響聲，數量影響音量。'}],
+        'egg-shakers':   [{part:'蛋形殼',en:'Egg Shell',x:50,y:40,side:'right',desc:'蛋形的塑膠殼體，小巧輕便易握，內裝小珠粒搖動即可產生柔和的沙沙聲。'},{part:'珠粒',en:'Beads',x:30,y:40,side:'left',desc:'殼內的細小珠粒，搖動時撞擊內壁產生聲音，音量比沙錘更柔和細臻。'}],
+        'tubular-bells': [{part:'金屬管',en:'Metal Tubes',x:50,y:35,side:'right',desc:'不同長度的黃銅管按音高排列，敲擊產生清亮渾亮的教堂鐘聲效果。'},{part:'框架',en:'Frame',x:15,y:50,side:'left',desc:'金屬支撐架，將金屬管懸掛在空中使其自由振動，頂部有掛勾固定。'},{part:'踏板',en:'Damper Pedal',x:50,y:92,side:'right',desc:'釋放踏板時消音器接觸金屬管止音，踩下踏板則讓聲音自由延續。'},{part:'鼓棒',en:'Mallet',x:80,y:15,side:'right',desc:'專用的硬質圓頭槌，敲擊金屬管頂端產生清亮的鐘聲。'}],
+        'cabasa':        [{part:'金屬珠鏈',en:'Bead Chain',x:50,y:30,side:'right',desc:'繞在圓筒外的金屬珠鏈，旋轉時與圓筒表面摩擦產生獨特的沙沙金屬聲。'},{part:'圓筒',en:'Cylinder',x:50,y:45,side:'left',desc:'中央的圓柱形結構，表面有紋路，與珠鏈摩擦產生聲音。'},{part:'手柄',en:'Handle',x:50,y:80,side:'right',desc:'木製手柄，一手握住手柄，另一手旋轉珠鏈產生聲音。'}],
+        'djembe':        [{part:'鼓面',en:'Goat Skin',x:50,y:15,side:'right',desc:'山羊皮製成的鼓面，用雙手拍打不同位置產生三種基本音色：低音、中音和高音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'杯形的整塊木雕鼓身，底部收窄形成開口，木材和形狀影響音色。'},{part:'繩索',en:'Rope Tuning',x:25,y:55,side:'left',desc:'繞在鼓身外側的繩索，將鼓面拉緊固定在鼓身上，拉緊可提高音高。'}],
+        'castanets':     [{part:'貝殼片',en:'Shell Pair',x:50,y:35,side:'right',desc:'一對貝殼形的硬木片，互相撞擊產生清脆急促的「啦啦」聲，是西班牙舞蹈的經典伴奏。'},{part:'連接繩',en:'String',x:50,y:10,side:'right',desc:'將兩片貝殼片連接的繩子，套在拇指上，用手指控制兩片的開合和撞擊。'}],
+        'congas':        [{part:'鼓面',en:'Drum Head',x:50,y:12,side:'right',desc:'水牛皮或合成皮製成，用手掌和手指拍打產生多種音色，包括低音、開放音和清脆的拍打音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'圖桶形的木製或玻璃纖維鼓身，底部有開口，形狀和大小影響音色和音域。'},{part:'調音環',en:'Tuning Lugs',x:25,y:30,side:'left',desc:'環繞鼓身頂部的金屬螺絲，旋轉可調整鼓面張力以改變音高。'}],
+        'cowbell':       [{part:'鐘身',en:'Bell Body',x:50,y:45,side:'right',desc:'梯形的金屬鐘體，敲擊不同位置產生不同音色——開口處聲音明亮，封閉處聲音沉悶。'},{part:'敲棒',en:'Beater',x:20,y:30,side:'left',desc:'木棒或鼓棒敲擊鐘體產生響亮的金屬聲，在拉丁音樂和搖滾樂中常見。'}],
+        'guiro':         [{part:'刮紋面',en:'Ridged Surface',x:50,y:35,side:'right',desc:'表面刮出的平行凹槽，用刮棒刺過時產生獨特的「刮刮」摩擦聲，速度影響音色。'},{part:'共鳴腔',en:'Chamber',x:50,y:65,side:'right',desc:'中空的葡蘆形腔體，放大刮擦的聲音，腔體大小影響音量和音色。'},{part:'刮棒',en:'Scraper',x:20,y:30,side:'left',desc:'木棒或金屬棒，沿著刮紋面來回刺過產生聲音，也可敲擊腔體產生不同音色。'}],
+        'piano':         [{part:'琴鍵',en:'Keys',x:50,y:55,side:'right',desc:'88個黑白琴鍵，按下時觸發槌子敲擊琴弦，白鍵為自然音，黑鍵為升降音。'},{part:'琴弦',en:'Strings',x:50,y:25,side:'right',desc:'內部超過200條鋼弦，低音弦粗而長，高音弦細而短，被槌子敲擊後振動產生聲音。'},{part:'琴槌',en:'Hammers',x:50,y:35,side:'left',desc:'毛氈包覆的小槌子，按鍵時彈起敲擊琴弦，敲擊後立即彈開以免消音。'},{part:'踏板',en:'Pedals',x:50,y:92,side:'right',desc:'三個踏板：右踏板延音、左踏板消音、中踏板選擇性延音，豐富了音樂表現力。'},{part:'共鳴板',en:'Soundboard',x:25,y:30,side:'left',desc:'大片的雲杉木板，將琴弦的振動放大傳過整個琴體，是鉓琴音量的關鍵。'}],
+        'organ':         [{part:'琴鍵',en:'Keys',x:50,y:60,side:'right',desc:'多層琴鍵盤（手鍵盤），按下時打開氣門讓空氣通過風管產生聲音，釋放即停。'},{part:'風管',en:'Pipes',x:50,y:15,side:'right',desc:'數百至數千支金屬或木製風管，不同長度和材質產生不同音高和音色。'},{part:'音栓',en:'Stops',x:20,y:45,side:'left',desc:'拉出或推入的音栓旋鈕，控制不同組風管的開關，改變音色和音量。'},{part:'踏板鍵',en:'Pedal Board',x:50,y:92,side:'right',desc:'用腳彈奏的低音琴鍵，提供深沉的低音部分，是管風琴獨有的設計。'}],
+        'harpsichord':   [{part:'琴鍵',en:'Keys',x:50,y:65,side:'right',desc:'外觀似鉓琴的琴鍵，但按下時是用撥子撥弦而非槌子敲擊，因此無法控制音量大小。'},{part:'琴弦',en:'Strings',x:50,y:35,side:'right',desc:'金屬弦被撥子撥動產生聲音，音色清脆明亮，與鉓琴的渾厚音色截然不同。'},{part:'撥子',en:'Plectra',x:30,y:45,side:'left',desc:'小型的羽毛筆或塑膠撥片，按鍵時向上撥動琴弦，釋放時又巧妙地避開琴弦。'},{part:'共鳴板',en:'Soundboard',x:65,y:50,side:'right',desc:'木製共鳴板將琴弦的振動放大，是大鍵琴音量和音色的關鍵部件。'}],
+        'accordion':     [{part:'琴鍵',en:'Keys',x:20,y:40,side:'left',desc:'右手側的鉓式琴鍵，按下時打開氣門讓空氣通過簧片產生聲音。'},{part:'風箱',en:'Bellows',x:50,y:50,side:'right',desc:'可折疊的風箱，拉開和壓合推動空氣通過簧片，控制音量和表情。'},{part:'簧片',en:'Reeds',x:50,y:30,side:'right',desc:'金屬簧片在氣流通過時振動產生聲音，不同大小的簧片產生不同音高。'},{part:'按鈕',en:'Buttons',x:80,y:40,side:'right',desc:'左手側的圓形按鈕，用於演奏和弦和低音，通常朋120個按鈕。'},{part:'背帶',en:'Straps',x:15,y:15,side:'left',desc:'將手風琴固定在演奏者身上的肩帶，支撐樂器重量並保持穩定。'}],
+    };
 
     const INSTRUMENT_MAP = new Map(INSTRUMENT_BANK.map(i => [i.id, i]));  // O(1) lookup
     // Pre-index: instruments that have card/photo images (not SVG/emoji-only)
@@ -8525,6 +8669,12 @@
             ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-modal-img${isCard ? ' card-img' : ''}">`
             : `<div class="g4-modal-img-placeholder">🎵</div>`;
 
+        const structData = INSTRUMENT_STRUCTURE[inst.id] || [];
+        const wrappedImg = `<div class="g4-modal-img-wrap">${imgHtml}</div>`;
+        const structToggle = structData.length
+            ? `<button class="g4-modal-struct-toggle">🔍 顯示構造</button>`
+            : '';
+
         const modal = document.createElement('div');
         modal.className = 'g4-instrument-modal';
         modal.id = 'g4InstrumentModal';
@@ -8533,7 +8683,8 @@
                 <button class="g4-modal-close" id="g4ModalClose">✕</button>
 
                 <div class="g4-modal-left">
-                    ${imgHtml}
+                    ${wrappedImg}
+                    ${structToggle}
                     <span class="g4-family-badge g4-family-${inst.family}">${inst.familyZh}</span>
                     <div class="g4-modal-name">${inst.nameZh}</div>
                     <div class="g4-modal-en">${inst.nameEn}</div>
@@ -8585,6 +8736,11 @@
         modal.onclick = (e) => {
             if (e.target === modal) { closeInstrumentDetail(); return; }
             if (e.target.closest('.g4-modal-close')) { closeInstrumentDetail(); return; }
+            // Structure viewer (fullscreen lightbox)
+            if (e.target.closest('.g4-modal-struct-toggle')) {
+                openStructureViewer(inst, structData);
+                return;
+            }
             if (e.target.closest('.g4-modal-listen')) {
                 const lb = e.target.closest('.g4-modal-listen');
                 const utt = new SpeechSynthesisUtterance(inst.nameZh);
@@ -8619,6 +8775,278 @@
         };
         modal._escHandler = (e) => { if (e.key === 'Escape') closeInstrumentDetail(); };
         document.addEventListener('keydown', modal._escHandler);
+    }
+
+    function openStructureViewer(inst, structData) {
+        const existing = document.getElementById('g4StructLb');
+        if (existing) existing.remove();
+
+        // Default label offset from dot (in % units) based on side
+        const LABEL_OFFSET = 12;
+        function defaultLx(s) { return s.side === 'left' ? s.x - LABEL_OFFSET : s.x + LABEL_OFFSET; }
+        function defaultLy(s) { return s.y; }
+
+        // Working copy: dot at x,y; label at lx,ly (all in %)
+        const positions = structData.map(s => ({
+            x: s.x, y: s.y,
+            lx: s.lx != null ? s.lx : defaultLx(s),
+            ly: s.ly != null ? s.ly : defaultLy(s),
+            side: s.side || 'right'
+        }));
+        // Snapshot for cancel
+        const origPositions = positions.map(p => ({ ...p }));
+
+        const partsListHtml = structData.map((s, i) =>
+            `<button class="g4-struct-part-item" data-idx="${i}">` +
+                `<span class="g4-struct-part-num">${i + 1}</span>` +
+                `<span class="g4-struct-part-names">` +
+                    `<span class="g4-struct-part-zh">${s.part}</span>` +
+                    `<span class="g4-struct-part-en">${s.en}</span>` +
+                `</span>` +
+            `</button>`
+        ).join('');
+
+        const lb = document.createElement('div');
+        lb.className = 'g4-struct-lb';
+        lb.id = 'g4StructLb';
+        lb.innerHTML = `
+            <div class="g4-struct-wrap">
+                <div class="g4-struct-panel-left">
+                    <div class="g4-struct-lb-body">
+                        <button class="g4-struct-lb-close" aria-label="關閉">✕</button>
+                        <img src="${inst.img}" alt="${inst.nameEn}" class="g4-struct-lb-img" id="g4StructImg">
+                        <div class="g4-anno-overlay" id="g4StructOverlay"></div>
+                    </div>
+                </div>
+                <div class="g4-struct-panel-right">
+                    <div class="g4-struct-panel-header">
+                        <div class="g4-struct-panel-title">
+                            <span class="g4-struct-panel-zh">${inst.nameZh}</span>
+                            <span class="g4-struct-panel-en">${inst.nameEn}</span>
+                        </div>
+                        <span class="g4-struct-lb-badge">構造圖</span>
+                    </div>
+                    <div class="g4-struct-parts-list" id="g4StructPartsList">${partsListHtml}</div>
+                    <div class="g4-struct-desc-box" id="g4StructDescBox">
+                        <div class="g4-struct-desc-empty">👆 點擊紅點或部件名稱查看說明</div>
+                    </div>
+                    <div class="g4-struct-drag-bar" id="g4StructDragBar">
+                        <button class="g4-struct-drag-btn" id="g4DragModeBtn">✥ 拖曳模式</button>
+                        <button class="g4-struct-cancel-btn" id="g4CancelBtn" style="display:none">↩ 取消</button>
+                        <button class="g4-struct-lock-btn" id="g4LockBtn" style="display:none">📋 複製座標</button>
+                    </div>
+                </div>
+            </div>
+            <div class="g4-struct-lb-hint" id="g4StructHint">點擊紅點或部件名稱可查看詳情 · 按 ESC 關閉</div>
+        `;
+        document.body.appendChild(lb);
+
+        const img = lb.querySelector('#g4StructImg');
+        const overlay = lb.querySelector('#g4StructOverlay');
+        const descBox = lb.querySelector('#g4StructDescBox');
+        const partsList = lb.querySelector('#g4StructPartsList');
+        const dragModeBtn = lb.querySelector('#g4DragModeBtn');
+        const cancelBtn = lb.querySelector('#g4CancelBtn');
+        const lockBtn = lb.querySelector('#g4LockBtn');
+        const hint = lb.querySelector('#g4StructHint');
+        let activeIdx = -1;
+        let dragMode = false;
+
+        function focusPart(idx) {
+            if (dragMode) return;
+            if (activeIdx === idx) { clearFocus(); return; }
+            activeIdx = idx;
+            // Highlight dot
+            overlay.querySelectorAll('.g4-anno-dot-wrap').forEach((el, i) => el.classList.toggle('focused', i === idx));
+            // Highlight label
+            overlay.querySelectorAll('.g4-anno-label-abs').forEach((el, i) => el.classList.toggle('focused', i === idx));
+            // Highlight SVG line
+            overlay.querySelectorAll('.g4-anno-svg-line').forEach((el, i) => el.classList.toggle('focused', i === idx));
+            // Highlight parts list
+            partsList.querySelectorAll('.g4-struct-part-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+            const s = structData[idx];
+            if (s) {
+                descBox.innerHTML =
+                    `<div class="g4-struct-desc-part">` +
+                        `<span class="g4-struct-desc-zh">${s.part}</span>` +
+                        `<span class="g4-struct-desc-en">${s.en}</span>` +
+                    `</div>` +
+                    `<p class="g4-struct-desc-text">${s.desc || '—'}</p>`;
+            }
+        }
+
+        function clearFocus() {
+            activeIdx = -1;
+            overlay.querySelectorAll('.g4-anno-dot-wrap').forEach(el => el.classList.remove('focused'));
+            overlay.querySelectorAll('.g4-anno-label-abs').forEach(el => el.classList.remove('focused'));
+            overlay.querySelectorAll('.g4-anno-svg-line').forEach(el => el.classList.remove('focused'));
+            partsList.querySelectorAll('.g4-struct-part-item').forEach(el => el.classList.remove('active'));
+            descBox.innerHTML = `<div class="g4-struct-desc-empty">👆 點擊紅點或部件名稱查看說明</div>`;
+        }
+
+        function buildOverlay() {
+            // Dots
+            const dotsHtml = positions.map((p, i) =>
+                `<div class="g4-anno-dot-wrap" data-idx="${i}" style="left:${p.x}%;top:${p.y}%;">` +
+                    `<div class="g4-anno-dot"></div>` +
+                `</div>`
+            ).join('');
+            // Labels (absolutely positioned in overlay)
+            const labelsHtml = positions.map((p, i) =>
+                `<div class="g4-anno-label-abs" data-idx="${i}" style="left:${p.lx}%;top:${p.ly}%;">` +
+                    `<div class="g4-anno-tag"><span class="g4-anno-zh">${structData[i].part}</span><span class="g4-anno-en">${structData[i].en}</span></div>` +
+                `</div>`
+            ).join('');
+            // SVG lines connecting dots to labels
+            const svgLines = positions.map((p, i) =>
+                `<line class="g4-anno-svg-line" data-idx="${i}" x1="${p.x}%" y1="${p.y}%" x2="${p.lx}%" y2="${p.ly}%"/>`
+            ).join('');
+
+            overlay.innerHTML =
+                `<svg class="g4-anno-svg">${svgLines}</svg>` +
+                dotsHtml + labelsHtml;
+            overlay.classList.add('active');
+            attachDragListeners();
+        }
+
+        function updatePositionDOM(idx) {
+            const p = positions[idx];
+            const dotEl = overlay.querySelector(`.g4-anno-dot-wrap[data-idx="${idx}"]`);
+            const lblEl = overlay.querySelector(`.g4-anno-label-abs[data-idx="${idx}"]`);
+            const lineEl = overlay.querySelector(`.g4-anno-svg-line[data-idx="${idx}"]`);
+            if (dotEl) { dotEl.style.left = p.x + '%'; dotEl.style.top = p.y + '%'; }
+            if (lblEl) { lblEl.style.left = p.lx + '%'; lblEl.style.top = p.ly + '%'; }
+            if (lineEl) {
+                lineEl.setAttribute('x1', p.x + '%');
+                lineEl.setAttribute('y1', p.y + '%');
+                lineEl.setAttribute('x2', p.lx + '%');
+                lineEl.setAttribute('y2', p.ly + '%');
+            }
+        }
+
+        function attachDragListeners() {
+            overlay.querySelectorAll('.g4-anno-dot-wrap').forEach(el => {
+                el.addEventListener('pointerdown', onDotPointerDown, { passive: false });
+            });
+            overlay.querySelectorAll('.g4-anno-label-abs').forEach(el => {
+                el.addEventListener('pointerdown', onLabelPointerDown, { passive: false });
+            });
+        }
+
+        function onDotPointerDown(e) {
+            if (!dragMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const el = e.currentTarget;
+            const idx = parseInt(el.dataset.idx);
+            const rect = overlay.getBoundingClientRect();
+            // Remember label offset from dot so it follows
+            const offsetLx = positions[idx].lx - positions[idx].x;
+            const offsetLy = positions[idx].ly - positions[idx].y;
+
+            function onMove(ev) {
+                const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+                const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+                positions[idx].x = Math.round(Math.max(0, Math.min(100, (cx - rect.left) / rect.width * 100)) * 10) / 10;
+                positions[idx].y = Math.round(Math.max(0, Math.min(100, (cy - rect.top) / rect.height * 100)) * 10) / 10;
+                positions[idx].lx = Math.round((positions[idx].x + offsetLx) * 10) / 10;
+                positions[idx].ly = Math.round((positions[idx].y + offsetLy) * 10) / 10;
+                updatePositionDOM(idx);
+            }
+            function onUp() {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+            }
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+        }
+
+        function onLabelPointerDown(e) {
+            if (!dragMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const el = e.currentTarget;
+            const idx = parseInt(el.dataset.idx);
+            const rect = overlay.getBoundingClientRect();
+
+            function onMove(ev) {
+                const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+                const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+                positions[idx].lx = Math.round(Math.max(0, Math.min(100, (cx - rect.left) / rect.width * 100)) * 10) / 10;
+                positions[idx].ly = Math.round(Math.max(0, Math.min(100, (cy - rect.top) / rect.height * 100)) * 10) / 10;
+                updatePositionDOM(idx);
+            }
+            function onUp() {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+            }
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+        }
+
+        function enableDragMode() {
+            dragMode = true;
+            clearFocus();
+            overlay.classList.add('drag-mode');
+            dragModeBtn.textContent = '✓ 拖曳中…';
+            dragModeBtn.classList.add('active');
+            cancelBtn.style.display = '';
+            lockBtn.style.display = '';
+            hint.textContent = '拖曳紅點移動標記 · 拖曳文字方塊調整位置 · 完成後按「複製座標」';
+            descBox.innerHTML = `<div class="g4-struct-desc-empty">🖱 拖曳紅點或文字方塊調整位置</div>`;
+        }
+
+        function cancelDrag() {
+            // Restore all positions
+            origPositions.forEach((o, i) => Object.assign(positions[i], o));
+            positions.forEach((_, i) => updatePositionDOM(i));
+            // Exit drag mode
+            dragMode = false;
+            overlay.classList.remove('drag-mode');
+            dragModeBtn.textContent = '✥ 拖曳模式';
+            dragModeBtn.classList.remove('active');
+            cancelBtn.style.display = 'none';
+            lockBtn.style.display = 'none';
+            hint.textContent = '點擊紅點或部件名稱可查看詳情 · 按 ESC 關閉';
+            descBox.innerHTML = `<div class="g4-struct-desc-empty">👆 點擊紅點或部件名稱查看說明</div>`;
+        }
+
+        function copyCoords() {
+            const lines = positions.map((p, i) =>
+                `{x:${Math.round(p.x)},y:${Math.round(p.y)},lx:${Math.round(p.lx)},ly:${Math.round(p.ly)}}  // ${structData[i].part}`
+            ).join('\n');
+            navigator.clipboard.writeText(lines).then(() => {
+                lockBtn.textContent = '✅ 已複製！';
+                setTimeout(() => { lockBtn.textContent = '📋 複製座標'; }, 2000);
+            });
+        }
+
+        if (img.complete && img.naturalWidth) buildOverlay();
+        else img.addEventListener('load', buildOverlay);
+
+        function closeLb() {
+            lb.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
+            setTimeout(() => lb.remove(), 180);
+            document.removeEventListener('keydown', escH);
+        }
+
+        dragModeBtn.addEventListener('click', (e) => { e.stopPropagation(); enableDragMode(); });
+        cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); cancelDrag(); });
+        lockBtn.addEventListener('click', (e) => { e.stopPropagation(); copyCoords(); });
+
+        lb.onclick = (e) => {
+            if (e.target === lb || e.target.closest('.g4-struct-lb-close')) { closeLb(); return; }
+            if (dragMode) return;
+            const dotWrap = e.target.closest('.g4-anno-dot-wrap');
+            if (dotWrap) { focusPart(parseInt(dotWrap.dataset.idx)); return; }
+            const labelEl = e.target.closest('.g4-anno-label-abs');
+            if (labelEl) { focusPart(parseInt(labelEl.dataset.idx)); return; }
+            const partItem = e.target.closest('.g4-struct-part-item');
+            if (partItem) { focusPart(parseInt(partItem.dataset.idx)); return; }
+        };
+
+        const escH = (e) => { if (e.key === 'Escape') closeLb(); };
+        document.addEventListener('keydown', escH);
     }
 
     function closeInstrumentDetail() {
