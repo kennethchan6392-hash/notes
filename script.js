@@ -4008,7 +4008,7 @@
         const lvl = rchalState.level;
         const BARS_PER_ROW = (lvl && lvl.tokenSet === 'basic') ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const MIN_ROW_H = (lvl && lvl.tokenSet === 'basic') ? 130 : 160;
+        const MIN_ROW_H = (lvl && lvl.tokenSet === 'basic') ? 150 : 180;
         const totalH = Math.max(numRows * MIN_ROW_H, 320);
         const ROW_H = totalH / numRows;
 
@@ -4042,7 +4042,7 @@
             if (!rchalState.rowRanges[row]) rchalState.rowRanges[row] = { startBar: bi, endBar: bi, y: y, h: ROW_H };
             rchalState.rowRanges[row].endBar = bi;
 
-            const stave = new Stave(x, y + 30, barW);
+            const stave = new Stave(x, y + 40, barW);
             [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
             if (col === 0 && row === 0) stave.addTimeSignature('4/4');
             stave.setContext(context).draw();
@@ -4293,14 +4293,19 @@
 
         // Pre-schedule metronome via Web Audio for drift-free timing
         const beatDots = document.querySelectorAll('#rchalBeats .rchal-beat-dot');
-        audio.resume();
-        if (audio.ctx) {
-            const baseTime = audio.ctx.currentTime + 0.02;
+        const _doSchedule = () => {
+            if (!audio.ctx) return;
+            const baseTime = audio.ctx.currentTime + 0.05;
             for (let b = 0; b < totalBeats; b++) {
                 const t = baseTime + (b * beatMs) / 1000;
-                const beatInBar = b % 4;
-                audio.scheduleTick(t, beatInBar === 0);
+                audio.scheduleTick(t, b % 4 === 0);
             }
+        };
+        if (audio.ctx && audio.ctx.state === 'suspended') {
+            audio.ctx.resume().then(_doSchedule).catch(() => {});
+        } else {
+            audio.resume();
+            _doSchedule();
         }
         // Beat dot visuals via setTimeout (visual only, ok to have slight drift)
         for (let b = 0; b < totalBeats; b++) {
@@ -7838,7 +7843,7 @@
           history:'短笛是長笛家族中最小的成員，長度約為標準長笛的一半，但音域比長笛高整整一個八度，是管弦樂團中音域最高的常規樂器。它在記譜時比實際音高低一個八度，以避免大量加線。短笛聲音尖銳穿透力極強，貝多芬在《第五交響曲》終樂章首次將其引入交響樂，此後成為管弦樂團的標準配置。在軍樂隊中，短笛是帶領隊伍行進的核心聲部。',
           video:'https://www.youtube.com/embed/111yvjBvDyU',
           synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
-        { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english-horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
+        { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english%20horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
           history:'英國管其實既不是「英國的」也不是「號角」，其法文名稱cor anglais可能源自「彎角」（cor anglé）的諧音。它是雙簧管的次中音版本，管身比雙簧管長，末端有獨特的梨形喇叭口，音域比雙簧管低五度。英國管音色溫暖憂鬱，常被用來表達思鄉、哀愁和遼闊的大自然。德沃夏克《新世界交響曲》第二樂章中英國管奏出的緩板主題，是音樂史上最令人動容的旋律之一。白遼士和西貝流士亦為其寫下精彩的獨奏段落。',
           video:'https://www.youtube.com/embed/ycgzqC92DbQ',
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.03, vol:0.18, filterType:'bandpass', filterFreq:1000, filterQ:2.5, vibRate:4.5, vibDepth:2.5 }},
@@ -8042,11 +8047,11 @@
         'ukulele':       [{part:'琴頭',en:'Headstock',x:50,y:7,side:'right',desc:'烏克麗麗頂端固定調音器的小型琴頭，造型多樣，常見鳳梨形或標準形。'},{part:'調音栓',en:'Tuning Peg',x:46,y:11,side:'left',desc:'調整四條弦音高的旋鈕，標準調音為 G、C、E、A，音域明亮輕快。'},{part:'琴頸',en:'Neck',x:50,y:24,side:'left',desc:'短小的琴頸，適合小手演奏，是烏克麗麗易於上手的原因之一。'},{part:'品柱',en:'Frets',x:53,y:33,side:'right',desc:'指板上的金屬分音條，數量通常少於吉他，演奏範圍相對較小。'},{part:'音孔',en:'Sound Hole',x:50,y:60,side:'right',desc:'琴身中央的音孔，讓共鳴箱內的聲音傳出，增加音量與音色層次。'},{part:'弦線',en:'Strings',x:50,y:46,side:'left',desc:'四條尼龍弦，音色清亮輕快，與夏威夷音樂和民謠風格相得益彰。'},{part:'琴橋',en:'Bridge',x:50,y:73,side:'right',desc:'固定弦線末端並傳遞振動至琴面的部件，通常由烏木或玫瑰木製成。'}],
         'banjo':         [{part:'調音栓',en:'Tuning Peg',x:47,y:9,side:'left',desc:'調整弦線音高的旋鈕，五弦班卓有五根調音栓，第五根位於琴頸中段。'},{part:'琴頸',en:'Neck',x:51,y:22,side:'left',desc:'細長的指板供手指按弦，五弦班卓常見於藍草音樂，四弦則用於傳統爵士。'},{part:'品柱',en:'Frets',x:54,y:30,side:'right',desc:'嵌入指板的金屬條，使演奏者能按出準確音高。'},{part:'鼓面',en:'Drum Head',x:52,y:62,side:'right',desc:'班卓琴圓形共鳴體上的鼓皮面板，演奏時用手指或撥片撥弦，振動通過鼓面放大。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'通常五條弦，撥奏時產生清脆明亮的音色，是美國民間音樂的特色樂器。'},{part:'共鳴器',en:'Resonator',x:52,y:74,side:'right',desc:'背面的圓形碗狀共鳴器，將聲音向前投射，增加音量，常見於演奏用班卓琴。'}],
         'mandolin':      [{part:'琴頭',en:'Headstock',x:51,y:2,side:'right',desc:'曼陀鈴頂端固定八個調音旋鈕的部件，因為共有四組雙弦，旋鈕比一般吉他多。'},{part:'調音栓',en:'Tuning Peg',x:48,y:8,side:'left',desc:'調整八條弦（四組雙弦）音高的旋鈕，成對調成同音以增強音量與共鳴。'},{part:'琴頸',en:'Neck',x:51,y:20,side:'left',desc:'短小的指板，音域與小提琴相同（G、D、A、E），可演奏小提琴曲目。'},{part:'品柱',en:'Frets',x:53,y:28,side:'right',desc:'指板上的金屬分音條，使曼陀鈴比小提琴更易於初學者按出準確音高。'},{part:'音孔',en:'Sound Hole',x:53,y:55,side:'right',desc:'傳統曼陀鈴有圓形音孔，F型曼陀鈴則有兩個F形音孔，影響音色特性。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'四組共八條鋼弦，每組兩條調成同音，演奏時同時撥響，音色洪亮穿透。'},{part:'琴橋',en:'Bridge',x:51,y:68,side:'right',desc:'支撐弦線的可移動木橋，調整音準時可前後移動，通常由烏木製成。'}],
-        'flute':         [{part:'接頭',en:'Head Joint',x:12,y:50,side:'left'},{part:'吹口',en:'Mouthpiece',x:18,y:30,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'},{part:'尾管',en:'Foot Joint',x:88,y:50,side:'right'}],
+        'flute':         [{part:'吹嘴',en:'Mouthpiece',x:50,y:20,lx:72,ly:16,side:'right'},{part:'簧片',en:'Reed',x:49,y:14,lx:30,ly:12,side:'left'},{part:'上管',en:'Upper Joint',x:50,y:25,lx:70,ly:27,side:'right'},{part:'按鍵',en:'Keys',x:48,y:51,lx:28,ly:49,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:68,lx:71,ly:63,side:'right'},{part:'喇叭口',en:'Bell',x:49,y:86,lx:66,ly:86,side:'right'}],
         'clarinet':      [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'簧片',en:'Reed',x:35,y:8,side:'left'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right'},{part:'按鍵',en:'Keys',x:35,y:40,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
-        'oboe':          [{part:'雙簧片',en:'Double Reed',x:50,y:3,side:'right'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right'},{part:'按鍵',en:'Keys',x:35,y:40,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
-        'bassoon':       [{part:'雙簧片',en:'Double Reed',x:30,y:3,side:'left'},{part:'翼管',en:'Wing Joint',x:35,y:20,side:'left'},{part:'長管',en:'Long Joint',x:65,y:30,side:'right'},{part:'底管',en:'Boot',x:50,y:85,side:'right'},{part:'喇叭口',en:'Bell',x:65,y:5,side:'right'}],
-        'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'指孔',en:'Finger Holes',x:35,y:45,side:'left'},{part:'尾端',en:'Foot',x:50,y:92,side:'right'}],
+        'oboe':          [{part:'雙簧片',en:'Double Reed',x:84,y:10,lx:63,ly:6,side:'left'},{part:'上管',en:'Upper Joint',x:70,y:26,lx:90,ly:31,side:'right'},{part:'按鍵',en:'Keys',x:46,y:54,lx:33,ly:46,side:'left'},{part:'下管',en:'Lower Joint',x:36,y:64,lx:53,ly:70,side:'right'},{part:'喇叭口',en:'Bell',x:11,y:92,lx:36,ly:93,side:'right'}],
+        'bassoon':       [{part:'雙簧片',en:'Double Reed',x:74,y:44,lx:89,ly:54,side:'right'},{part:'翼管',en:'Wing Joint',x:53,y:46,lx:22,ly:44,side:'left'},{part:'長管',en:'Long Joint',x:40,y:62,lx:55,ly:67,side:'right'},{part:'底管',en:'Boot',x:6,y:96,lx:31,ly:93,side:'right'},{part:'喇叭口',en:'Bell',x:96,y:5,lx:70,ly:6,side:'left'}],
+        'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,lx:76,ly:19,side:'right'},{part:'管身',en:'Body',x:53,y:61,lx:75,ly:61,side:'right'},{part:'指孔',en:'Finger Holes',x:49,y:50,lx:23,ly:48,side:'left'},{part:'尾端',en:'Foot',x:50,y:92,lx:62,ly:92,side:'right'}],
         'piccolo':       [{part:'吹口',en:'Mouthpiece',x:15,y:50,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'}],
         'english-horn':  [{part:'雙簧片',en:'Double Reed',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:45,side:'left'},{part:'梨形喇叭口',en:'Pear Bell',x:50,y:92,side:'right'}],
         'alto-sax':      [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
@@ -8056,11 +8061,11 @@
         'harmonica':     [{part:'蓋板',en:'Cover Plate',x:50,y:20,side:'right'},{part:'吹孔',en:'Blow Holes',x:50,y:50,side:'right'},{part:'簧片',en:'Reeds',x:50,y:75,side:'right'},{part:'琴身',en:'Body',x:20,y:50,side:'left'}],
         'bagpipes':      [{part:'吹管',en:'Blowpipe',x:25,y:25,side:'left'},{part:'風袋',en:'Bag',x:45,y:50,side:'right'},{part:'旋律管',en:'Chanter',x:55,y:85,side:'right'},{part:'低音管',en:'Drone Pipes',x:50,y:10,side:'right'}],
         'pan-flute':     [{part:'管子',en:'Pipes',x:50,y:40,side:'right'},{part:'框架',en:'Frame',x:20,y:70,side:'left'}],
-        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:45,side:'left'},{part:'活塞',en:'Valves',x:48,y:35,side:'right'},{part:'調音管',en:'Tuning Slide',x:28,y:62,side:'left'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right'}],
+        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:55,side:'right'},{part:'調音管',en:'Tuning Slide',x:30,y:70,side:'left'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right'}],
         'trombone':      [{part:'號嘴',en:'Mouthpiece',x:8,y:30,side:'left'},{part:'滑管',en:'Slide',x:40,y:65,side:'left'},{part:'管身',en:'Body',x:60,y:30,side:'right'},{part:'喇叭口',en:'Bell',x:88,y:30,side:'right'}],
-        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:8,y:42,side:'left'},{part:'管身',en:'Body',x:45,y:50,side:'right'},{part:'轉閥',en:'Rotary Valves',x:42,y:22,side:'left'},{part:'喇叭口',en:'Bell',x:82,y:42,side:'right'}],
+        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:15,y:45,side:'left'},{part:'管身',en:'Body',x:50,y:45,side:'right'},{part:'轉閥',en:'Rotary Valves',x:45,y:55,side:'left'},{part:'喇叭口',en:'Bell',x:75,y:60,side:'right'}],
         'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'活塞',en:'Valves',x:40,y:35,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right'}],
-        'cornet':        [{part:'號嘴',en:'Mouthpiece',x:22,y:8,side:'left'},{part:'管身',en:'Body',x:40,y:45,side:'left'},{part:'活塞',en:'Valves',x:50,y:28,side:'right'},{part:'喇叭口',en:'Bell',x:72,y:72,side:'right'}],
+        'cornet':        [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:58,side:'right'},{part:'喇叭口',en:'Bell',x:85,y:45,side:'right'}],
         'timpani':       [{part:'鼓面',en:'Drum Head',x:50,y:20,side:'right'},{part:'銅鍋',en:'Kettle',x:50,y:55,side:'right'},{part:'調音器',en:'Tuning Gauge',x:20,y:40,side:'left'},{part:'腳踏板',en:'Foot Pedal',x:50,y:92,side:'right'}],
         'snare':         [{part:'鼓面',en:'Drum Head',x:50,y:18,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'響弦',en:'Snare Wires',x:50,y:80,side:'right'},{part:'調音環',en:'Tuning Lug',x:20,y:50,side:'left'}],
         'bass-drum':     [{part:'鼓面',en:'Drum Head',x:50,y:30,side:'right'},{part:'鼓身',en:'Shell',x:50,y:55,side:'right'},{part:'鼓棒',en:'Mallet',x:20,y:30,side:'left'}],
@@ -8072,20 +8077,20 @@
         'marimba':       [{part:'木音板',en:'Wooden Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:10,side:'right'}],
         'vibraphone':    [{part:'金屬音板',en:'Metal Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:55,side:'right'},{part:'踏板',en:'Pedal',x:50,y:92,side:'right'},{part:'馬達',en:'Motor',x:20,y:55,side:'left'}],
         'drums':         [{part:'大鼓',en:'Bass Drum',x:50,y:75,side:'right'},{part:'小鼓',en:'Snare',x:35,y:55,side:'left'},{part:'嗵鼓',en:'Toms',x:50,y:30,side:'right'},{part:'踩鈸',en:'Hi-hat',x:15,y:40,side:'left'},{part:'碎音鈸',en:'Crash',x:25,y:15,side:'left'},{part:'騎鈸',en:'Ride',x:80,y:25,side:'right'}],
-        'cajon':         [{part:'打擊面',en:'Tapa',x:50,y:40,side:'right',desc:'前方的薄木面板，拍打不同位置產生不同音色——中央低沉如大鼓，邊緣清脆如小鼓。'},{part:'箱身',en:'Body',x:20,y:50,side:'left',desc:'中空的木製箱體，通常用樺木或桐木製成，箱內空間提供共鳴。'},{part:'音孔',en:'Sound Hole',x:50,y:85,side:'right',desc:'背面的圓形開口，讓聲音從箱體內傳出，也影響低音的投射效果。'}],
-        'maracas':       [{part:'球體',en:'Gourd',x:50,y:25,side:'right',desc:'圓球形的中空殼體，傳統用葡蘆乾果，現代常用塑膠或木製，內裝珠粒。'},{part:'手柄',en:'Handle',x:50,y:75,side:'right',desc:'木製或塑膠手柄，搖動時帶動球體內的珠粒撞擊殼壁產生聲音。'},{part:'珠粒',en:'Beads',x:30,y:25,side:'left',desc:'球體內的小珠粒或種子，搖動時撞擊內壁產生沙沙的響聲，數量影響音量。'}],
-        'egg-shakers':   [{part:'蛋形殼',en:'Egg Shell',x:50,y:40,side:'right',desc:'蛋形的塑膠殼體，小巧輕便易握，內裝小珠粒搖動即可產生柔和的沙沙聲。'},{part:'珠粒',en:'Beads',x:30,y:40,side:'left',desc:'殼內的細小珠粒，搖動時撞擊內壁產生聲音，音量比沙錘更柔和細臻。'}],
-        'tubular-bells': [{part:'金屬管',en:'Metal Tubes',x:50,y:35,side:'right',desc:'不同長度的黃銅管按音高排列，敲擊產生清亮渾亮的教堂鐘聲效果。'},{part:'框架',en:'Frame',x:15,y:50,side:'left',desc:'金屬支撐架，將金屬管懸掛在空中使其自由振動，頂部有掛勾固定。'},{part:'踏板',en:'Damper Pedal',x:50,y:92,side:'right',desc:'釋放踏板時消音器接觸金屬管止音，踩下踏板則讓聲音自由延續。'},{part:'鼓棒',en:'Mallet',x:80,y:15,side:'right',desc:'專用的硬質圓頭槌，敲擊金屬管頂端產生清亮的鐘聲。'}],
-        'cabasa':        [{part:'金屬珠鏈',en:'Bead Chain',x:50,y:30,side:'right',desc:'繞在圓筒外的金屬珠鏈，旋轉時與圓筒表面摩擦產生獨特的沙沙金屬聲。'},{part:'圓筒',en:'Cylinder',x:50,y:45,side:'left',desc:'中央的圓柱形結構，表面有紋路，與珠鏈摩擦產生聲音。'},{part:'手柄',en:'Handle',x:50,y:80,side:'right',desc:'木製手柄，一手握住手柄，另一手旋轉珠鏈產生聲音。'}],
-        'djembe':        [{part:'鼓面',en:'Goat Skin',x:50,y:15,side:'right',desc:'山羊皮製成的鼓面，用雙手拍打不同位置產生三種基本音色：低音、中音和高音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'杯形的整塊木雕鼓身，底部收窄形成開口，木材和形狀影響音色。'},{part:'繩索',en:'Rope Tuning',x:25,y:55,side:'left',desc:'繞在鼓身外側的繩索，將鼓面拉緊固定在鼓身上，拉緊可提高音高。'}],
-        'castanets':     [{part:'貝殼片',en:'Shell Pair',x:50,y:35,side:'right',desc:'一對貝殼形的硬木片，互相撞擊產生清脆急促的「啦啦」聲，是西班牙舞蹈的經典伴奏。'},{part:'連接繩',en:'String',x:50,y:10,side:'right',desc:'將兩片貝殼片連接的繩子，套在拇指上，用手指控制兩片的開合和撞擊。'}],
-        'congas':        [{part:'鼓面',en:'Drum Head',x:50,y:12,side:'right',desc:'水牛皮或合成皮製成，用手掌和手指拍打產生多種音色，包括低音、開放音和清脆的拍打音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'圖桶形的木製或玻璃纖維鼓身，底部有開口，形狀和大小影響音色和音域。'},{part:'調音環',en:'Tuning Lugs',x:25,y:30,side:'left',desc:'環繞鼓身頂部的金屬螺絲，旋轉可調整鼓面張力以改變音高。'}],
-        'cowbell':       [{part:'鐘身',en:'Bell Body',x:50,y:45,side:'right',desc:'梯形的金屬鐘體，敲擊不同位置產生不同音色——開口處聲音明亮，封閉處聲音沉悶。'},{part:'敲棒',en:'Beater',x:20,y:30,side:'left',desc:'木棒或鼓棒敲擊鐘體產生響亮的金屬聲，在拉丁音樂和搖滾樂中常見。'}],
-        'guiro':         [{part:'刮紋面',en:'Ridged Surface',x:50,y:35,side:'right',desc:'表面刮出的平行凹槽，用刮棒刺過時產生獨特的「刮刮」摩擦聲，速度影響音色。'},{part:'共鳴腔',en:'Chamber',x:50,y:65,side:'right',desc:'中空的葡蘆形腔體，放大刮擦的聲音，腔體大小影響音量和音色。'},{part:'刮棒',en:'Scraper',x:20,y:30,side:'left',desc:'木棒或金屬棒，沿著刮紋面來回刺過產生聲音，也可敲擊腔體產生不同音色。'}],
-        'piano':         [{part:'琴鍵',en:'Keys',x:50,y:55,side:'right',desc:'88個黑白琴鍵，按下時觸發槌子敲擊琴弦，白鍵為自然音，黑鍵為升降音。'},{part:'琴弦',en:'Strings',x:50,y:25,side:'right',desc:'內部超過200條鋼弦，低音弦粗而長，高音弦細而短，被槌子敲擊後振動產生聲音。'},{part:'琴槌',en:'Hammers',x:50,y:35,side:'left',desc:'毛氈包覆的小槌子，按鍵時彈起敲擊琴弦，敲擊後立即彈開以免消音。'},{part:'踏板',en:'Pedals',x:50,y:92,side:'right',desc:'三個踏板：右踏板延音、左踏板消音、中踏板選擇性延音，豐富了音樂表現力。'},{part:'共鳴板',en:'Soundboard',x:25,y:30,side:'left',desc:'大片的雲杉木板，將琴弦的振動放大傳過整個琴體，是鉓琴音量的關鍵。'}],
-        'organ':         [{part:'琴鍵',en:'Keys',x:50,y:60,side:'right',desc:'多層琴鍵盤（手鍵盤），按下時打開氣門讓空氣通過風管產生聲音，釋放即停。'},{part:'風管',en:'Pipes',x:50,y:15,side:'right',desc:'數百至數千支金屬或木製風管，不同長度和材質產生不同音高和音色。'},{part:'音栓',en:'Stops',x:20,y:45,side:'left',desc:'拉出或推入的音栓旋鈕，控制不同組風管的開關，改變音色和音量。'},{part:'踏板鍵',en:'Pedal Board',x:50,y:92,side:'right',desc:'用腳彈奏的低音琴鍵，提供深沉的低音部分，是管風琴獨有的設計。'}],
-        'harpsichord':   [{part:'琴鍵',en:'Keys',x:50,y:65,side:'right',desc:'外觀似鉓琴的琴鍵，但按下時是用撥子撥弦而非槌子敲擊，因此無法控制音量大小。'},{part:'琴弦',en:'Strings',x:50,y:35,side:'right',desc:'金屬弦被撥子撥動產生聲音，音色清脆明亮，與鉓琴的渾厚音色截然不同。'},{part:'撥子',en:'Plectra',x:30,y:45,side:'left',desc:'小型的羽毛筆或塑膠撥片，按鍵時向上撥動琴弦，釋放時又巧妙地避開琴弦。'},{part:'共鳴板',en:'Soundboard',x:65,y:50,side:'right',desc:'木製共鳴板將琴弦的振動放大，是大鍵琴音量和音色的關鍵部件。'}],
-        'accordion':     [{part:'琴鍵',en:'Keys',x:20,y:40,side:'left',desc:'右手側的鉓式琴鍵，按下時打開氣門讓空氣通過簧片產生聲音。'},{part:'風箱',en:'Bellows',x:50,y:50,side:'right',desc:'可折疊的風箱，拉開和壓合推動空氣通過簧片，控制音量和表情。'},{part:'簧片',en:'Reeds',x:50,y:30,side:'right',desc:'金屬簧片在氣流通過時振動產生聲音，不同大小的簧片產生不同音高。'},{part:'按鈕',en:'Buttons',x:80,y:40,side:'right',desc:'左手側的圓形按鈕，用於演奏和弦和低音，通常朋120個按鈕。'},{part:'背帶',en:'Straps',x:15,y:15,side:'left',desc:'將手風琴固定在演奏者身上的肩帶，支撐樂器重量並保持穩定。'}],
+        'cajon':         [{part:'打擊面',en:'Tapa',x:50,y:40,side:'right'},{part:'箱身',en:'Body',x:20,y:50,side:'left'},{part:'音孔',en:'Sound Hole',x:50,y:85,side:'right'}],
+        'maracas':       [{part:'球體',en:'Gourd',x:50,y:25,side:'right'},{part:'手柄',en:'Handle',x:50,y:75,side:'right'},{part:'珠粒',en:'Beads',x:30,y:25,side:'left'}],
+        'egg-shakers':   [{part:'蛋形殼',en:'Egg Shell',x:50,y:40,side:'right'},{part:'珠粒',en:'Beads',x:30,y:40,side:'left'}],
+        'tubular-bells': [{part:'金屬管',en:'Metal Tubes',x:50,y:35,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'踏板',en:'Damper Pedal',x:50,y:92,side:'right'},{part:'鼓棒',en:'Mallet',x:80,y:15,side:'right'}],
+        'cabasa':        [{part:'金屬珠鏈',en:'Bead Chain',x:50,y:30,side:'right'},{part:'圓筒',en:'Cylinder',x:50,y:45,side:'left'},{part:'手柄',en:'Handle',x:50,y:80,side:'right'}],
+        'djembe':        [{part:'鼓面',en:'Goat Skin',x:50,y:15,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'繩索',en:'Rope Tuning',x:25,y:55,side:'left'}],
+        'castanets':     [{part:'貝殼片',en:'Shell Pair',x:50,y:35,side:'right'},{part:'連接繩',en:'String',x:50,y:10,side:'right'}],
+        'congas':        [{part:'鼓面',en:'Drum Head',x:50,y:12,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'調音環',en:'Tuning Lugs',x:25,y:30,side:'left'}],
+        'cowbell':       [{part:'鐘身',en:'Bell Body',x:50,y:45,side:'right'},{part:'敲棒',en:'Beater',x:20,y:30,side:'left'}],
+        'guiro':         [{part:'刮紋面',en:'Ridged Surface',x:50,y:35,side:'right'},{part:'共鳴腔',en:'Chamber',x:50,y:65,side:'right'},{part:'刮棒',en:'Scraper',x:20,y:30,side:'left'}],
+        'piano':         [{part:'琴鍵',en:'Keys',x:50,y:55,side:'right'},{part:'琴弦',en:'Strings',x:50,y:25,side:'right'},{part:'琴槌',en:'Hammers',x:50,y:35,side:'left'},{part:'踏板',en:'Pedals',x:50,y:92,side:'right'},{part:'共鳴板',en:'Soundboard',x:25,y:30,side:'left'}],
+        'organ':         [{part:'琴鍵',en:'Keys',x:50,y:60,side:'right'},{part:'風管',en:'Pipes',x:50,y:15,side:'right'},{part:'音栓',en:'Stops',x:20,y:45,side:'left'},{part:'踏板鍵',en:'Pedal Board',x:50,y:92,side:'right'}],
+        'harpsichord':   [{part:'琴鍵',en:'Keys',x:50,y:65,side:'right'},{part:'琴弦',en:'Strings',x:50,y:35,side:'right'},{part:'撥子',en:'Plectra',x:30,y:45,side:'left'},{part:'共鳴板',en:'Soundboard',x:65,y:50,side:'right'}],
+        'accordion':     [{part:'琴鍵',en:'Keys',x:20,y:40,side:'left'},{part:'風箱',en:'Bellows',x:50,y:50,side:'right'},{part:'簧片',en:'Reeds',x:50,y:30,side:'right'},{part:'按鈕',en:'Buttons',x:80,y:40,side:'right'},{part:'背帶',en:'Straps',x:15,y:15,side:'left'}],
     };
 
     const INSTRUMENT_MAP = new Map(INSTRUMENT_BANK.map(i => [i.id, i]));  // O(1) lookup
@@ -8840,6 +8845,7 @@
             <div class="g4-struct-lb-hint" id="g4StructHint">點擊紅點或部件名稱可查看詳情 · 按 ESC 關閉</div>
         `;
         document.body.appendChild(lb);
+        document.body.style.overflow = 'hidden';
 
         const img = lb.querySelector('#g4StructImg');
         const overlay = lb.querySelector('#g4StructOverlay');
@@ -8856,6 +8862,7 @@
             if (dragMode) return;
             if (activeIdx === idx) { clearFocus(); return; }
             activeIdx = idx;
+            overlay.classList.add('has-focus');
             // Highlight dot
             overlay.querySelectorAll('.g4-anno-dot-wrap').forEach((el, i) => el.classList.toggle('focused', i === idx));
             // Highlight label
@@ -8864,6 +8871,9 @@
             overlay.querySelectorAll('.g4-anno-svg-line').forEach((el, i) => el.classList.toggle('focused', i === idx));
             // Highlight parts list
             partsList.querySelectorAll('.g4-struct-part-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+            // Scroll active part into view
+            const activeItem = partsList.querySelector('.g4-struct-part-item.active');
+            if (activeItem) activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             const s = structData[idx];
             if (s) {
                 descBox.innerHTML =
@@ -8877,6 +8887,8 @@
 
         function clearFocus() {
             activeIdx = -1;
+            overlay.classList.remove('has-focus');
+            overlay.classList.remove('has-focus');
             overlay.querySelectorAll('.g4-anno-dot-wrap').forEach(el => el.classList.remove('focused'));
             overlay.querySelectorAll('.g4-anno-label-abs').forEach(el => el.classList.remove('focused'));
             overlay.querySelectorAll('.g4-anno-svg-line').forEach(el => el.classList.remove('focused'));
@@ -9026,7 +9038,7 @@
 
         function closeLb() {
             lb.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
-            setTimeout(() => lb.remove(), 180);
+            setTimeout(() => { lb.remove(); document.body.style.overflow = ''; }, 180);
             document.removeEventListener('keydown', escH);
         }
 
