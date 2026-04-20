@@ -11,6 +11,18 @@ const GAME_SHEETS = {
   game4: '樂器辨別'
 };
 
+// 個人檔案結果工作表
+const PROFILE_SHEET = '個人檔案';
+
+// 個人檔案欄位順序
+const PROFILE_COLUMNS = [
+  'name','grade','class','id','game',
+  'score','accuracy','max_combo',
+  'level','exp',
+  'total_played','cleared','fc_count','ap_count',
+  'timestamp'
+];
+
 // 欄位順序（與現有工作表一致）
 // name | grade | class | id | mode | mode_name | score | max_combo | total_questions | accuracy | timestamp
 const COLUMNS = ['name','grade','class','id','mode','mode_name','score','max_combo','total_questions','accuracy','timestamp'];
@@ -32,11 +44,71 @@ function getSheet(sheetName) {
   return sheet;
 }
 
+// ── 工具：取得或建立個人檔案工作表 ─────────────────────────────
+function getProfileSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(PROFILE_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(PROFILE_SHEET);
+    sheet.appendRow(PROFILE_COLUMNS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, PROFILE_COLUMNS.length)
+      .setFontWeight('bold')
+      .setBackground('#34A853')
+      .setFontColor('#FFFFFF');
+    sheet.setColumnWidths(1, PROFILE_COLUMNS.length, 130);
+  }
+  return sheet;
+}
+
 // ── 接收分數（POST） ─────────────────────────────────────────
 function doPost(e) {
   try {
     const raw = e.postData && e.postData.contents ? e.postData.contents : '{}';
     const rec = JSON.parse(raw);
+
+    // 個人檔案結果寫入（與排行榜分流）
+    if (rec.action === 'saveProfileResult') {
+      const grade = parseInt(rec.grade);
+      if (isNaN(grade) || grade < 1 || grade > 6) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ ok: false, error: 'invalid grade' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const name = String(rec.name || '').trim().slice(0, 20);
+      if (!name) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ ok: false, error: 'invalid name' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const score = parseInt(rec.score) || 0;
+      const accuracy = Math.max(0, Math.min(100, parseInt(rec.accuracy) || 0));
+
+      const sheet = getProfileSheet();
+      sheet.appendRow([
+        name,
+        String(grade),
+        String(rec.class || '').trim(),
+        String(rec.id || '').trim(),
+        String(rec.game || '').trim(),
+        score,
+        accuracy,
+        parseInt(rec.max_combo) || 0,
+        parseInt(rec.level) || 1,
+        parseInt(rec.exp) || 0,
+        parseInt(rec.total_played) || 0,
+        parseInt(rec.cleared) || 0,
+        parseInt(rec.fc_count) || 0,
+        parseInt(rec.ap_count) || 0,
+        new Date().toLocaleString('zh-TW')
+      ]);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
 
     if (!rec.name || !rec.game) {
       return ContentService
@@ -166,4 +238,275 @@ function testPost() {
 function testGet() {
   const result = doGet({});
   Logger.log(result.getContent().slice(0, 500));
+}
+
+function testProfilePost() {
+  const fakeEvent = {
+    postData: {
+      contents: JSON.stringify({
+        action: 'saveProfileResult',
+        game: 'game1',
+        name: '測試學生',
+        grade: '4',
+        class: 'A',
+        id: '1',
+        score: 120,
+        max_combo: 15,
+        accuracy: 90,
+        level: 3,
+        exp: 45,
+        total_played: 10,
+        cleared: 8,
+        fc_count: 2,
+        ap_count: 1,
+        timestamp: new Date().toLocaleString('zh-TW')
+      })
+    }
+  };
+  const result = doPost(fakeEvent);
+  Logger.log(result.getContent());
+}
+
+// ── 一次性工具：把舊排行榜紀錄回填到 PROFILE ───────────────────
+function _normText(v) {
+  return String(v == null ? '' : v).trim();
+}
+
+function _toInt(v, fallback) {
+  const n = parseInt(v, 10);
+  return isNaN(n) ? fallback : n;
+}
+
+function _profileDedupKey(obj) {
+  return [
+    _normText(obj.game),
+    _normText(obj.name),
+    _normText(obj.grade),
+    _normText(obj.class),
+    _normText(obj.id),
+    _normText(obj.score),
+    _normText(obj.accuracy),
+    _normText(obj.max_combo),
+    _normText(obj.timestamp)
+  ].join('|');
+}
+
+function backfillProfileFromGameSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const profileSheet = getProfileSheet();
+  const nowTs = new Date().toLocaleString('zh-TW');
+
+  // 1) 先讀取 PROFILE 既有資料，建立去重索引
+  const existingSet = new Set();
+  const pData = profileSheet.getDataRange().getValues();
+  if (pData.length > 1) {
+    for (let i = 1; i < pData.length; i++) {
+      const r = pData[i];
+      const key = _profileDedupKey({
+        name: r[0], grade: r[1], class: r[2], id: r[3], game: r[4],
+        score: r[5], accuracy: r[6], max_combo: r[7], timestamp: r[14]
+      });
+      existingSet.add(key);
+    }
+  }
+
+  // 2) 掃描 game1~game4 舊表，轉成 PROFILE 欄位格式
+  const toAppend = [];
+  let scanned = 0;
+  let skippedDuplicate = 0;
+  let skippedEmptyName = 0;
+  let sheetsFound = 0;
+
+  Object.entries(GAME_SHEETS).forEach(([gameKey, sheetName]) => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+    sheetsFound++;
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return;
+
+    const headers = data[0];
+    const idx = {};
+    headers.forEach((h, i) => { idx[String(h)] = i; });
+
+    // Fallback: if header names are not standard, use known column positions
+    // name | grade | class | id | mode | mode_name | score | max_combo | total_questions | accuracy | timestamp
+    const iName = (idx.name != null) ? idx.name : 0;
+    const iGrade = (idx.grade != null) ? idx.grade : 1;
+    const iClass = (idx.class != null) ? idx.class : 2;
+    const iId = (idx.id != null) ? idx.id : 3;
+    const iScore = (idx.score != null) ? idx.score : 6;
+    const iMaxCombo = (idx.max_combo != null) ? idx.max_combo : 7;
+    const iAccuracy = (idx.accuracy != null) ? idx.accuracy : 9;
+    const iTimestamp = (idx.timestamp != null) ? idx.timestamp : 10;
+
+    for (let r = 1; r < data.length; r++) {
+      const row = data[r];
+      scanned++;
+
+      const name = _normText(row[iName]);
+      if (!name) {
+        skippedEmptyName++;
+        continue;
+      }
+
+      const grade = _toInt(row[iGrade], 0);
+      const klass = _normText(row[iClass]);
+      const sid = _normText(row[iId]);
+      const score = _toInt(row[iScore], 0);
+      const accuracy = Math.max(0, Math.min(100, _toInt(row[iAccuracy], 0)));
+      const maxCombo = _toInt(row[iMaxCombo], 0);
+      const ts = _normText(row[iTimestamp]) || nowTs;
+
+      const dedupKey = _profileDedupKey({
+        game: gameKey,
+        name,
+        grade,
+        class: klass,
+        id: sid,
+        score,
+        accuracy,
+        max_combo: maxCombo,
+        timestamp: ts
+      });
+
+      if (existingSet.has(dedupKey)) {
+        skippedDuplicate++;
+        continue;
+      }
+
+      existingSet.add(dedupKey);
+      toAppend.push([
+        name,
+        String(grade),
+        klass,
+        sid,
+        gameKey,
+        score,
+        accuracy,
+        maxCombo,
+        1,    // level: 舊資料無法推算，先給預設值
+        0,    // exp
+        0,    // total_played
+        0,    // cleared
+        0,    // fc_count
+        0,    // ap_count
+        ts
+      ]);
+    }
+  });
+
+  // 3) 批次寫入 PROFILE
+  if (toAppend.length > 0) {
+    profileSheet.getRange(profileSheet.getLastRow() + 1, 1, toAppend.length, PROFILE_COLUMNS.length)
+      .setValues(toAppend);
+  }
+
+  const summary = {
+    ok: true,
+    sheets_found: sheetsFound,
+    scanned,
+    imported: toAppend.length,
+    skipped_duplicate: skippedDuplicate,
+    skipped_empty_name: skippedEmptyName,
+    profile_total_rows: profileSheet.getLastRow() - 1
+  };
+  Logger.log(JSON.stringify(summary));
+  return summary;
+}
+
+// ── 第二個函式：由 PROFILE 歷史列重建累積統計 ───────────────────
+// 說明：此函式會依 PROFILE 目前列順序，為每位學生重算：
+// level / exp / total_played / cleared / fc_count / ap_count。
+// 建議在 backfillProfileFromGameSheets() 之後執行一次。
+
+function _expForLevelGAS(lvl) {
+  return lvl * 100;
+}
+
+function _expGainFromRow(score, accuracy) {
+  return Math.floor(50 + (score / 10) + (accuracy >= 90 ? 30 : (accuracy >= 70 ? 15 : 0)));
+}
+
+function _addExpGAS(state, gain) {
+  state.exp += gain;
+  while (state.exp >= _expForLevelGAS(state.level)) {
+    state.exp -= _expForLevelGAS(state.level);
+    state.level++;
+  }
+}
+
+function rebuildProfileStatsFromHistory() {
+  const sheet = getProfileSheet();
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    const emptySummary = { ok: true, rows: 0, updated: 0 };
+    Logger.log(JSON.stringify(emptySummary));
+    return emptySummary;
+  }
+
+  const perStudent = {};
+  const updates = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    const name = _normText(r[0]);
+    const grade = _normText(r[1]);
+    const klass = _normText(r[2]);
+    const sid = _normText(r[3]);
+    const key = [name, grade, klass, sid].join('|');
+
+    if (!name) {
+      // 空名稱不更新統計，保持原值
+      updates.push([r[8], r[9], r[10], r[11], r[12], r[13]]);
+      continue;
+    }
+
+    if (!perStudent[key]) {
+      perStudent[key] = {
+        level: 1,
+        exp: 0,
+        totalPlayed: 0,
+        cleared: 0,
+        fcCount: 0,
+        apCount: 0
+      };
+    }
+
+    const s = perStudent[key];
+    const score = _toInt(r[5], 0);
+    const accuracy = Math.max(0, Math.min(100, _toInt(r[6], 0)));
+
+    s.totalPlayed++;
+    if (accuracy >= 60) s.cleared++;
+
+    // 舊資料缺少 hitCounts，這裡以 100% 準確率近似視為 FC/AP
+    if (accuracy === 100) {
+      s.fcCount++;
+      s.apCount++;
+    }
+
+    _addExpGAS(s, _expGainFromRow(score, accuracy));
+
+    updates.push([
+      s.level,
+      s.exp,
+      s.totalPlayed,
+      s.cleared,
+      s.fcCount,
+      s.apCount
+    ]);
+  }
+
+  // 覆寫 PROFILE 的 level/exp/total_played/cleared/fc/ap 六個欄位
+  sheet.getRange(2, 9, updates.length, 6).setValues(updates);
+
+  const summary = {
+    ok: true,
+    rows: data.length - 1,
+    updated: updates.length,
+    students: Object.keys(perStudent).length
+  };
+  Logger.log(JSON.stringify(summary));
+  return summary;
 }

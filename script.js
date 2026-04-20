@@ -4,7 +4,7 @@
     // ==========================================
     const CONFIG = {
         // GAS API (needs to be accessible to all)
-        API_URL: "https://script.google.com/macros/s/AKfycbxZ-O2ZFQ03Yy_1HtqgWrYv8qPdBg4oG_CndS8cuPXxPIVEo4uMQzVmMQt2ebBkLN6f/exec",
+        API_URL: "https://script.google.com/macros/s/AKfycbzdU2v4AZAxhAidmJdh3IFCPA5IzdivwKFq782i9MryUTWQrm6p3RduK_DiyCVRwP2R/exec",
         
         NOTE_FREQUENCIES: {
             'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
@@ -240,6 +240,19 @@
             dom.userName.parentNode.appendChild(inp);
             inp.addEventListener('focus', () => state.inputFocused = true);
             inp.addEventListener('blur', () => state.inputFocused = false);
+            inp.addEventListener('input', () => {
+                if (dom.userName.value !== '__other__') return;
+                state.currentUser = {
+                    name: inp.value.trim(),
+                    grade: parseInt(dom.userGrade.value) || 0,
+                    class: dom.userClass.value || '',
+                    id: dom.userId.value || ''
+                };
+                const profileScreen = document.getElementById('screen-profile');
+                if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
+                    renderProfileScreen(state.currentUser);
+                }
+            });
             _customNameInput = inp;
         }
         _customNameInput.style.display = ''; _customNameInput.focus();
@@ -444,6 +457,7 @@
         addProfileExp(profile, expGain);
 
         saveProfile(profile);
+        submitProfileResultToGAS(gameKey, user, score, accuracy, maxCombo, profile);
         return profile;
     }
 
@@ -2278,6 +2292,45 @@
         }
     }
 
+    async function submitProfileResultToGAS(game, user, score, accuracy, maxCombo, profile) {
+        if (!user || !user.name || !profile) return;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const record = {
+            action: 'saveProfileResult',
+            game,
+            name: user.name,
+            grade: user.grade,
+            class: user.class,
+            id: user.seat || user.id || '',
+            score,
+            max_combo: maxCombo,
+            accuracy,
+            level: profile.level,
+            exp: profile.exp,
+            total_played: profile.stats?.totalPlayed || 0,
+            cleared: profile.stats?.cleared || 0,
+            fc_count: profile.stats?.fcCount || 0,
+            ap_count: profile.stats?.apCount || 0,
+            timestamp: new Date().toLocaleString('zh-TW')
+        };
+
+        try {
+            await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(record),
+                mode: 'no-cors',
+                redirect: 'follow',
+                signal: controller.signal
+            });
+        } catch (e) {
+            console.error('Profile 上傳失敗：', e);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
     function endGame() { 
         if (!state.gameActive) return;
         state.gameActive = false; 
@@ -2490,6 +2543,20 @@
     }
 
     function initEvents() {
+        function syncCurrentUserFromSetup() {
+            const name = getPlayerName();
+            state.currentUser = {
+                name: name || '',
+                grade: parseInt(dom.userGrade.value) || 0,
+                class: dom.userClass.value || '',
+                id: dom.userId.value || ''
+            };
+            const profileScreen = document.getElementById('screen-profile');
+            if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
+                renderProfileScreen(state.currentUser);
+            }
+        }
+
         // Pre-warm audio on first user interaction (unlocks AudioContext on iOS/Safari)
         const warmOnce = () => { audio.init(); audio.warmUp(); audio.bgPlay(); document.removeEventListener('pointerdown', warmOnce); };
         document.addEventListener('pointerdown', warmOnce);
@@ -2528,10 +2595,12 @@
             audio.init(); audio.playClick();
             if (dom.textbookMode) { dom.textbookMode.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
             populateNameDropdown();
+            syncCurrentUserFromSetup();
         });
         dom.userClass.addEventListener('change', () => {
             audio.init(); audio.playClick();
             populateNameDropdown();
+            syncCurrentUserFromSetup();
         });
         dom.userName.addEventListener('change', () => {
             audio.init(); audio.playClick();
@@ -2545,6 +2614,7 @@
                 const sel = dom.userName.selectedOptions[0];
                 dom.userId.value = (sel && sel.dataset.seat) ? sel.dataset.seat : '';
             }
+            syncCurrentUserFromSetup();
         });
         dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
 
@@ -3045,8 +3115,8 @@
             if (dom.userId) dom.userId.value = _hubIsGuest ? '' : hubSeat.value;
         }
 
-        hubGrade.addEventListener('change', () => { populateHub(); });
-        hubClass.addEventListener('change', () => { populateHub(); });
+        hubGrade.addEventListener('change', () => { populateHub(); syncCurrentUserFromHub(); });
+        hubClass.addEventListener('change', () => { populateHub(); syncCurrentUserFromHub(); });
         // Defensive: repopulate if user opens the name dropdown and it's still empty
         hubName.addEventListener('mousedown', () => { if (hubName.options.length <= 1) populateHub(); });
         hubName.addEventListener('focus',     () => { if (hubName.options.length <= 1) populateHub(); });
@@ -3073,6 +3143,7 @@
                 badge.classList.remove('show');
                 if (loginCard) loginCard.classList.remove('player-selected');
             }
+            syncCurrentUserFromHub();
         });
 
         populateHub();
@@ -3096,6 +3167,35 @@
             }
             return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
         }
+
+        function syncCurrentUserFromHub() {
+            const val = hubName.value;
+            const displayName = _getHubDisplayName();
+            if (!val || (val === '__other__' && !displayName)) {
+                state.currentUser = {
+                    name: '',
+                    grade: parseInt(hubGrade.value) || 0,
+                    class: hubClass.value || '',
+                    id: ''
+                };
+                return;
+            }
+
+            const user = getHubUser();
+            state.currentUser = {
+                name: user.name || '',
+                grade: parseInt(user.grade) || 0,
+                class: user.class || '',
+                id: user.seat || ''
+            };
+
+            const profileScreen = document.getElementById('screen-profile');
+            if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
+                renderProfileScreen(state.currentUser);
+            }
+        }
+
+        syncCurrentUserFromHub();
 
         function requireHubLogin(nameFieldEl) {
             const val = hubName.value;
@@ -7993,16 +8093,33 @@
         { id:'pan-flute',    nameZh:'排笛',       nameEn:'Pan Flute',    family:'woodwind',   familyZh:'木管', img:'img/instruments/pan-flute.jpg', desc:'由長短不同的管子排成一排',
           history:'排笛（排蕭）以希臘神話中的牧神潘命名，傳說他用蘆葦管排列製成此笛。它由多根長短不同的管子並排組合，演奏者通過向各管頂端吹氣使氣柱振動發聲，音高由管子長度決定。排笛在南美洲安第斯山區的民間音樂傳統中尤其重要，是當地原住民文化的象徵。此外，古代埃及、羅馬和中國均有排笛的使用記錄。現代安第斯排笛音色空靈悠遠，在世界音樂中廣受歡迎。',
           video:'https://www.youtube.com/embed/RW9dzwtWzp8',
-          synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
+                    parts:[
+                        {nameZh:'管子',nameEn:'Pipes',x:43,y:74,lx:59,ly:86},
+                        {nameZh:'框架',nameEn:'Frame',x:35,y:32,lx:22,ly:34}
+                    ],
+                    synthParams:{ wave:'sine', freq:698, dur:0.8, attack:0.04, vol:0.22, vibRate:4, vibDepth:3 }},
 
         // ── 銅管 Brass ──
         { id:'trumpet',      nameZh:'小號',       nameEn:'Trumpet',      family:'brass',      familyZh:'銅管', img:'img/instruments/trumpet.jpg', desc:'音色明亮響亮的銅管樂器',
           history:'小號的歷史可追溯至3000年前的古埃及，最初用於軍事信號和宗教儀式。現代活塞小號於1820年代在法國發明，三個活塞系統讓演奏者能吹奏所有半音，取代了以往需換管演奏的天然號角。小號是銅管家族中音域最高的樂器，聲音明亮輝煌。爵士大師邁爾斯·戴維斯以柔和細膩的弱音小號開創了冷爵士風格，而海頓的《降E大調小號協奏曲》是古典獨奏曲目中最著名的一首。',
           video:'https://www.youtube.com/embed/0JSNU1H5mQA',
+                    parts:[
+                        {nameZh:'號嘴',nameEn:'Mouthpiece',x:8,y:45,lx:8,ly:26},
+                        {nameZh:'管身',nameEn:'Body',x:32,y:43,lx:24,ly:17},
+                        {nameZh:'活塞',nameEn:'Valves',x:48,y:35,lx:52,ly:16},
+                        {nameZh:'調音管',nameEn:'Tuning Slide',x:35,y:63,lx:40,ly:86},
+                        {nameZh:'喇叭口',nameEn:'Bell',x:88,y:45,lx:91,ly:80}
+                    ],
           synthParams:{ wave:'sawtooth', freq:523, dur:0.8, attack:0.01, vol:0.22, filterType:'lowpass', filterFreq:3000, filterQ:3 }},
         { id:'trombone',     nameZh:'長號',       nameEn:'Trombone',     family:'brass',      familyZh:'銅管', img:'img/instruments/trombone.jpg', desc:'用滑管改變音高',
           history:'長號於1450年代在引入多層滑管機構後形式確立，是銅管家族中唯一不使用活塞而是用滑管改變音高的樂器。滑管有七個把位，配合口型可帶入更多音高，也能演奏流暢的滑音效果。巴赫大量使用長號，其宗教合唱曲中長號聲部至今仍是專業演奏者的挑戰。長號音色厚重莊嚴，在交響樂的高潮段落中尤具震撼力，演奏者需多年苦練才能將滑管控制得精準。',
           video:'https://www.youtube.com/embed/b84jzHw653c',
+                    parts:[
+                        {nameZh:'號嘴',nameEn:'Mouthpiece',x:16,y:75,lx:27,ly:90},
+                        {nameZh:'滑管',nameEn:'Slide',x:48,y:69,lx:59,ly:86},
+                        {nameZh:'管身',nameEn:'Body',x:29,y:37,lx:41,ly:37},
+                        {nameZh:'喇叭口',nameEn:'Bell',x:59,y:40,lx:71,ly:40}
+                    ],
           synthParams:{ wave:'sawtooth', freq:233, dur:1.0, attack:0.02, vol:0.25, filterType:'lowpass', filterFreq:2000, filterQ:2 }},
         { id:'french-horn',  nameZh:'圓號',       nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.jpg', desc:'圓形的銅管樂器，音色柔和',
           history:'圓號由狩獵號角演變而來，管身展開全長約3.7米。現代圓號有四個調音管，可降低不同度數的半音以擴展音域。它被認為是最難演奏的銅管樂器，演奏者需精確控制口型和氣息才能達到正確音準。圓號音色柔和溫暖，常用於表現大自然、英雄主義和浩瀚情感，貝多芬、布拉姆斯、理查·施特勞斯和馬勒均為圓號寫下了傳世名作。',
@@ -8179,9 +8296,9 @@
         'baritone-sax':  [{part:'吹嘴',en:'Mouthpiece',x:30,y:13,lx:12,ly:18,side:'left',desc:'四種薩克斯中最大的吹嘴，配合寬大簧片振動，產生深沉厚重的低音音色。'},{part:'頸管',en:'Neck',x:43,y:16,lx:30,ly:25,side:'left',desc:'較長彎曲的頸管，連接吹嘴與龐大的管身，頸部彎曲幅度比其他薩克斯更大。'},{part:'管身',en:'Body',x:65,y:47,lx:77,ly:47,side:'right',desc:'四種薩克斯中最大最重的管身，音域最低，管身頂部有額外的低音延伸管。'},{part:'按鍵',en:'Keys',x:53,y:54,lx:36,ly:57,side:'left',desc:'大型按鍵系統，間距寬廣需較大手掌操控，包含專屬的低音延伸按鍵。'},{part:'喇叭口',en:'Bell',x:65,y:27,lx:87,ly:17,side:'right',desc:'巨大的喇叭形開口，投射出低沉渾厚的低音，是薩克斯四重奏的重要低音基礎。'}],
         'harmonica':     [{part:'蓋板',en:'Cover Plate',x:50,y:20,side:'right',desc:'覆蓋在簧片板上方的金屬蓋，保護簧片並將聲音反射向前投射，通常由不鏽鋼製成。'},{part:'吹孔',en:'Blow Holes',x:50,y:50,side:'right',desc:'沿琴身排列的小孔，吹氣和吸氣分別產生不同音高，10孔口琴可演奏約三個八度的音域。'},{part:'簧片',en:'Reeds',x:50,y:75,side:'right',desc:'固定在金屬板上的薄片，氣流通過吹孔使其振動發聲，每個孔有吹簧和吸簧各一片。'},{part:'琴身',en:'Body',x:20,y:50,side:'left',desc:'中央的木製或塑膠框架，將蓋板和簧片板固定在一起，形狀讓演奏者能舒適地握持演奏。'}],
         'bagpipes':      [{part:'吹管',en:'Blowpipe',x:25,y:25,side:'left',desc:'演奏者用嘴吹氣充填風袋的管道，內有止回閥防止空氣回流，保持風袋持續充氣。'},{part:'風袋',en:'Bag',x:45,y:50,side:'right',desc:'皮革製的氣囊，儲存空氣並持續供氣給各管，使旋律不因演奏者呼吸而中斷。'},{part:'旋律管',en:'Chanter',x:55,y:85,side:'right',desc:'雙簧片管，演奏者手指控制音孔演奏旋律，是風笛的主要樂器聲部。'},{part:'低音管',en:'Drone Pipes',x:50,y:10,side:'right',desc:'持續發出固定低音的管道，通常有2至3支，為旋律提供不間斷的和聲背景。'}],
-        'pan-flute':     [{part:'管子',en:'Pipes',x:50,y:40,side:'right',desc:'長短不一的竹管或木管排列而成，長管發低音，短管發高音，演奏者對管口吹氣以發聲。'},{part:'框架',en:'Frame',x:20,y:70,side:'left',desc:'將所有管子固定排列的支撐框架，保持管子正確間距和角度，便於演奏者持奏。'}],
-        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left',desc:'杯形號嘴緊貼嘴唇，演奏者嘴唇振動產生音波，號嘴大小影響音色的明亮度與演奏舒適性。'},{part:'管身',en:'Body',x:45,y:45,side:'left',desc:'數段U形彎管連接而成的管身，總長約134公分，音域由低音升B到高音G，音色明亮響亮。'},{part:'活塞',en:'Valves',x:48,y:35,side:'right',desc:'三個圓柱形活塞按下時改變氣流路徑，延長有效管長以降低音高，組合出不同音符。'},{part:'調音管',en:'Tuning Slide',x:28,y:62,side:'left',desc:'U形滑管可拉出或推入調整整體音高，確保樂器在正確的音準範圍內演奏。'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right',desc:'管身末端擴張的喇叭形開口，將聲音向前投射並決定音量與音色的寬廣度。'}],
-        'trombone':      [{part:'號嘴',en:'Mouthpiece',x:8,y:30,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生較低的音波，長號號嘴比小號更大更淺。'},{part:'滑管',en:'Slide',x:40,y:65,side:'left',desc:'長號獨特的U形伸縮滑管，向外拉出延長管道降低音高，共有七個把位，取代活塞機構。'},{part:'管身',en:'Body',x:60,y:30,side:'right',desc:'固定管身部分，包含號嘴接頭與連接滑管的管道，決定長號的基本音域和音色特質。'},{part:'喇叭口',en:'Bell',x:88,y:30,side:'right',desc:'向右延伸的大型喇叭形開口，投射出長號特有的渾厚低沉音色，直徑通常約20-25公分。'}],
+        'pan-flute':     [{part:'管子',en:'Pipes',x:43,y:74,lx:59,ly:86,side:'right',desc:'長短不一的竹管或木管排列而成，長管發低音，短管發高音，演奏者對管口吹氣以發聲。'},{part:'框架',en:'Frame',x:35,y:32,lx:22,ly:34,side:'left',desc:'將所有管子固定排列的支撐框架，保持管子正確間距和角度，便於演奏者持奏。'}],
+        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,lx:8,ly:26,side:'left',desc:'杯形號嘴緊貼嘴唇，演奏者嘴唇振動產生音波，號嘴大小影響音色的明亮度與演奏舒適性。'},{part:'管身',en:'Body',x:32,y:43,lx:24,ly:17,side:'left',desc:'數段U形彎管連接而成的管身，總長約134公分，音域由低音升B到高音G，音色明亮響亮。'},{part:'活塞',en:'Valves',x:48,y:35,lx:52,ly:16,side:'right',desc:'三個圓柱形活塞按下時改變氣流路徑，延長有效管長以降低音高，組合出不同音符。'},{part:'調音管',en:'Tuning Slide',x:35,y:63,lx:40,ly:86,side:'left',desc:'U形滑管可拉出或推入調整整體音高，確保樂器在正確的音準範圍內演奏。'},{part:'喇叭口',en:'Bell',x:88,y:45,lx:91,ly:80,side:'right',desc:'管身末端擴張的喇叭形開口，將聲音向前投射並決定音量與音色的寬廣度。'}],
+        'trombone':      [{part:'號嘴',en:'Mouthpiece',x:16,y:75,lx:27,ly:90,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生較低的音波，長號號嘴比小號更大更淺。'},{part:'滑管',en:'Slide',x:48,y:69,lx:59,ly:86,side:'left',desc:'長號獨特的U形伸縮滑管，向外拉出延長管道降低音高，共有七個把位，取代活塞機構。'},{part:'管身',en:'Body',x:29,y:37,lx:41,ly:37,side:'right',desc:'固定管身部分，包含號嘴接頭與連接滑管的管道，決定長號的基本音域和音色特質。'},{part:'喇叭口',en:'Bell',x:59,y:40,lx:71,ly:40,side:'right',desc:'向右延伸的大型喇叭形開口，投射出長號特有的渾厚低沉音色，直徑通常約20-25公分。'}],
         'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:8,y:42,side:'left',desc:'漏斗形號嘴，比其他銅管更深更窄，演奏者需要精確控制嘴唇張力，技術難度較高。'},{part:'管身',en:'Body',x:45,y:50,side:'right',desc:'盤繞成圓形的長管（展開約3.7公尺），圓形設計使樂器易於攜帶，音色圓潤柔和。'},{part:'轉閥',en:'Rotary Valves',x:42,y:22,side:'left',desc:'圓號使用旋轉閥而非活塞，左手操作四個轉閥改變管長，現代雙調圓號可在F調和降B調之間切換。'},{part:'喇叭口',en:'Bell',x:82,y:42,side:'right',desc:'朝向後方的大型喇叭口，演奏時右手伸入喇叭口微調音準和音色，是圓號獨特的演奏技巧。'}],
         'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生極低的音波，是銅管樂器中最大的號嘴。'},{part:'管身',en:'Body',x:50,y:50,side:'right',desc:'龐大盤繞的管身（展開約5.5公尺），是銅管樂器中最大最重的，提供管弦樂團最低音域的基礎。'},{part:'活塞',en:'Valves',x:40,y:35,side:'left',desc:'三至五個活塞或轉閥，按下時改變氣流路徑延長管長降低音高，通常由右手操作。'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right',desc:'朝上或朝前的巨大喇叭口，投射出深沉渾厚的低音，賦予管弦樂團堅實的低音基礎。'}],
         'cornet':        [{part:'號嘴',en:'Mouthpiece',x:22,y:8,side:'left',desc:'比小號號嘴略深的杯形號嘴，賦予短號較柔和圓潤的音色，技術上比小號稍易上手。'},{part:'管身',en:'Body',x:40,y:45,side:'left',desc:'比小號更緊湊的圓錐形管身，錐形設計（而非圓柱形）使音色更加柔和溫暖，常見於銅管樂隊。'},{part:'活塞',en:'Valves',x:50,y:28,side:'right',desc:'三個活塞按鍵，功能與小號相同，改變管長調整音高，短號的活塞間距較小，適合手小的演奏者。'},{part:'喇叭口',en:'Bell',x:72,y:72,side:'right',desc:'比小號更寬的喇叭口，投射出短號特有的柔和飽滿音色，在薩爾瓦多軍樂隊和爵士樂中常見。'}],
@@ -8672,6 +8789,9 @@
 
         // Save scores
         saveLocalRank('game4', user, score, accuracy, maxCombo);
+        if (user) {
+            recordGameResult(user, 'game4', score, accuracy, maxCombo, null);
+        }
         if (mode !== 'practice') {
             submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別·挑戰');
         }
