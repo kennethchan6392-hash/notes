@@ -13,30 +13,50 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
 <body>
     <!-- 背景裝飾 -->
     <div class="bg-dots"></div>
     <!-- 背景飄動音符 -->
-    <div class="bg-note note-1" aria-hidden="true">🎵</div><div class="bg-note note-2" aria-hidden="true">🎼</div><div class="bg-note note-3" aria-hidden="true">♪</div><div class="bg-note note-4" aria-hidden="true">♫</div><div class="bg-note note-5" aria-hidden="true">🎶</div><div class="bg-note note-6" aria-hidden="true">🎹</div>
-    <button class="sound-toggle" id="soundToggle" title="音效開關">🔊</button>
+    <div class="bg-note note-1" aria-hidden="true">♩</div><div class="bg-note note-2" aria-hidden="true">𝄞</div><div class="bg-note note-3" aria-hidden="true">♪</div><div class="bg-note note-4" aria-hidden="true">♫</div><div class="bg-note note-5" aria-hidden="true">♬</div><div class="bg-note note-6" aria-hidden="true">♭</div>
+    <div class="bg-note note-7" aria-hidden="true">🎹</div><div class="bg-note note-8" aria-hidden="true">🎵</div>
+    <button class="sound-toggle" id="soundToggle" title="音樂設定" aria-label="音樂設定" aria-expanded="false">🎵</button>
+    <div class="music-panel" id="musicPanel" aria-hidden="true">
+        <div class="music-panel-header">
+            <div class="music-panel-title">音樂設定</div>
+            <button class="music-panel-mute" id="musicMuteToggle" type="button"><i data-lucide="volume-2"></i> 已開啟</button>
+        </div>
+        <div class="music-panel-body">
+            <div class="volume-control">
+                <span class="vol-label"><i data-lucide="music"></i> 背景音樂</span>
+                <input type="range" id="bgVolume" min="0" max="100" value="18" class="vol-slider">
+                <span class="vol-value" id="bgVolumeVal">18%</span>
+            </div>
+            <div class="volume-control">
+                <span class="vol-label"><i data-lucide="bell"></i> 音效</span>
+                <input type="range" id="sfxVolume" min="0" max="100" value="80" class="vol-slider">
+                <span class="vol-value" id="sfxVolumeVal">80%</span>
+            </div>
+        </div>
+    </div>
 
     <!-- ===================================== -->
     <!-- 介面零：遊戲大廳 (Hub Screen)         -->
     <!-- ===================================== -->
     <div id="screen-hub" class="screen active">
         <div class="hub-corner-actions">
-            <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案 & 音量設定">👤</button>
-            <span class="hub-corner-hint">檔案&設定</span>
+            <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案">👤</button>
+            <span class="hub-corner-hint">個人檔案</span>
         </div>
         <div class="hub-corner-actions hub-corner-left">
             <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊">👥</button>
         </div>
-        <h1 class="game-title"><span class="title-icon">🎵</span> 音符小精靈</h1>
+        <h1 class="game-title"><span class="title-icon">♩</span> 音符小精靈</h1>
         <div class="game-subtitle">互動音樂學習站 · 小一至小六</div>
 
         <div class="card hub-login-card">
-            <div class="hub-login-title">� 請選擇你的身份</div>
+            <div class="hub-login-title"><i data-lucide="user"></i> 請選擇你的身份</div>
             <div class="hub-login-row">
                 <div class="hub-field">
                     <label>① 年級</label>
@@ -61,7 +81,7 @@
                     <input id="hubSeat" type="text" readonly placeholder="--">
                 </div>
             </div>
-            <div class="hub-player-badge" id="hubPlayerBadge">✅ <span id="hubPlayerBadgeText">已選擇玩家</span></div>
+            <div class="hub-player-badge" id="hubPlayerBadge"><i data-lucide="check-circle-2"></i> <span id="hubPlayerBadgeText">已選擇玩家</span></div>
         </div>
 
         <div class="hub-games-grid">
@@ -69,13 +89,29 @@
                 <div class="hub-game-tag">遊戲一</div>
                 <div class="hub-game-illust illust-1">
                     <div class="illust-bg"></div>
-                    <div class="illust-icon">🎵</div>
-                    <div class="illust-deco d1">♪</div>
-                    <div class="illust-deco d2">♯</div>
-                    <div class="illust-deco d3">♭</div>
-                    <div class="illust-staff">
-                        <span></span><span></span><span></span><span></span><span></span>
-                    </div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Staff lines -->
+                        <g opacity="0.25" stroke="#6C4FCC" stroke-width="1.2">
+                            <line x1="20" y1="38" x2="180" y2="38"/><line x1="20" y1="50" x2="180" y2="50"/>
+                            <line x1="20" y1="62" x2="180" y2="62"/><line x1="20" y1="74" x2="180" y2="74"/>
+                            <line x1="20" y1="86" x2="180" y2="86"/>
+                        </g>
+                        <!-- Treble clef -->
+                        <text x="30" y="76" font-size="52" fill="#7B5EE0" opacity="0.7" font-family="serif">𝄞</text>
+                        <!-- Notes -->
+                        <g fill="#8B66FF">
+                            <ellipse cx="90" cy="74" rx="7" ry="5.5" transform="rotate(-12 90 74)"/>
+                            <rect x="96" y="42" width="2.2" height="32" rx="1"/>
+                            <ellipse cx="120" cy="62" rx="7" ry="5.5" transform="rotate(-12 120 62)"/>
+                            <rect x="126" y="30" width="2.2" height="32" rx="1"/>
+                            <ellipse cx="150" cy="50" rx="7" ry="5.5" transform="rotate(-12 150 50)"/>
+                            <rect x="156" y="18" width="2.2" height="32" rx="1"/>
+                        </g>
+                        <!-- Sharp -->
+                        <text x="108" y="48" font-size="16" fill="#9B7FFF" opacity="0.5" font-weight="bold">#</text>
+                        <!-- Flat -->
+                        <text x="140" y="88" font-size="16" fill="#9B7FFF" opacity="0.4" font-weight="bold">♭</text>
+                    </svg>
                 </div>
                 <div class="hub-game-name">音名辨別</div>
                 <div class="hub-game-desc">辨認五線譜音名<br>快速反應取高分</div>
@@ -85,13 +121,36 @@
                 <div class="hub-game-tag">遊戲二</div>
                 <div class="hub-game-illust illust-2">
                     <div class="illust-bg"></div>
-                    <div class="illust-icon">🥁</div>
-                    <div class="illust-deco d1">🎶</div>
-                    <div class="illust-deco d2">♩</div>
-                    <div class="illust-deco d3">♬</div>
-                    <div class="illust-beats">
-                        <span></span><span></span><span></span><span></span>
-                    </div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Beamed eighth notes group 1 -->
+                        <g fill="#D4782A">
+                            <ellipse cx="50" cy="72" rx="7" ry="5.5" transform="rotate(-12 50 72)"/>
+                            <rect x="56" y="36" width="2.4" height="36" rx="1"/>
+                            <ellipse cx="76" cy="72" rx="7" ry="5.5" transform="rotate(-12 76 72)"/>
+                            <rect x="82" y="36" width="2.4" height="36" rx="1"/>
+                            <rect x="56" y="36" width="28.4" height="3.5" rx="1.5"/>
+                        </g>
+                        <!-- Beamed sixteenth notes group 2 -->
+                        <g fill="#E8944A">
+                            <ellipse cx="110" cy="66" rx="6.5" ry="5" transform="rotate(-12 110 66)"/>
+                            <rect x="116" y="30" width="2.2" height="36" rx="1"/>
+                            <ellipse cx="132" cy="66" rx="6.5" ry="5" transform="rotate(-12 132 66)"/>
+                            <rect x="138" y="30" width="2.2" height="36" rx="1"/>
+                            <rect x="116" y="30" width="24.2" height="3" rx="1.2"/>
+                            <rect x="116" y="37" width="24.2" height="3" rx="1.2"/>
+                        </g>
+                        <!-- Metronome pendulum -->
+                        <g opacity="0.3">
+                            <polygon points="160,90 170,90 165,30" fill="#D4782A" opacity="0.25"/>
+                            <line x1="165" y1="86" x2="158" y2="42" stroke="#D4782A" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="158" cy="42" r="4" fill="#E8944A"/>
+                        </g>
+                        <!-- Beat dots -->
+                        <g opacity="0.3">
+                            <circle cx="40" cy="100" r="3.5" fill="#D4782A"/><circle cx="56" cy="100" r="3.5" fill="#E8944A"/>
+                            <circle cx="72" cy="100" r="3.5" fill="#D4782A"/><circle cx="88" cy="100" r="3.5" fill="#E8944A"/>
+                        </g>
+                    </svg>
                 </div>
                 <div class="hub-game-name">節奏打擊</div>
                 <div class="hub-game-desc">看清節奏卡<br>跟着節拍器打拍子</div>
@@ -101,13 +160,30 @@
                 <div class="hub-game-tag">遊戲三</div>
                 <div class="hub-game-illust illust-3">
                     <div class="illust-bg"></div>
-                    <div class="illust-icon">📖</div>
-                    <div class="illust-deco d1">𝄞</div>
-                    <div class="illust-deco d2">𝆑</div>
-                    <div class="illust-deco d3">𝆏</div>
-                    <div class="illust-sparkle">
-                        <span></span><span></span><span></span>
-                    </div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Big f (forte) -->
+                        <text x="36" y="82" font-size="56" fill="#0088CC" opacity="0.6" font-family="'Times New Roman',serif" font-style="italic" font-weight="bold">f</text>
+                        <!-- p (piano) -->
+                        <text x="88" y="80" font-size="44" fill="#4DC4E8" opacity="0.5" font-family="'Times New Roman',serif" font-style="italic" font-weight="bold">p</text>
+                        <!-- Crescendo hairpin -->
+                        <g stroke="#0088CC" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+                            <line x1="120" y1="56" x2="178" y2="42"/>
+                            <line x1="120" y1="56" x2="178" y2="70"/>
+                        </g>
+                        <!-- ff small -->
+                        <text x="148" y="100" font-size="22" fill="#4DC4E8" opacity="0.35" font-family="'Times New Roman',serif" font-style="italic" font-weight="bold">ff</text>
+                        <!-- mp small -->
+                        <text x="24" y="36" font-size="18" fill="#0088CC" opacity="0.25" font-family="'Times New Roman',serif" font-style="italic">mp</text>
+                        <!-- Accent mark -->
+                        <g stroke="#4DC4E8" stroke-width="2" stroke-linecap="round" opacity="0.3">
+                            <line x1="140" y1="88" x2="147" y2="82"/>
+                            <line x1="147" y1="82" x2="140" y2="76"/>
+                        </g>
+                        <!-- Sparkle dots -->
+                        <circle cx="170" cy="24" r="2.5" fill="#4DC4E8" opacity="0.3"/>
+                        <circle cx="108" cy="20" r="2" fill="#0088CC" opacity="0.25"/>
+                        <circle cx="82" cy="100" r="2" fill="#4DC4E8" opacity="0.2"/>
+                    </svg>
                 </div>
                 <div class="hub-game-name">音樂術語</div>
                 <div class="hub-game-desc">認識音樂術語記號<br>搶快作答得獎勵分</div>
@@ -117,13 +193,44 @@
                 <div class="hub-game-tag">遊戲四</div>
                 <div class="hub-game-illust illust-4">
                     <div class="illust-bg"></div>
-                    <div class="illust-icon">🎻</div>
-                    <div class="illust-deco d1">🎺</div>
-                    <div class="illust-deco d2">🥁</div>
-                    <div class="illust-deco d3">🎹</div>
-                    <div class="illust-sparkle">
-                        <span></span><span></span><span></span>
-                    </div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Violin body -->
+                        <g transform="translate(30,16) scale(0.85)" fill="#00B87A" opacity="0.5">
+                            <ellipse cx="32" cy="28" rx="18" ry="22"/>
+                            <ellipse cx="32" cy="72" rx="20" ry="24"/>
+                            <rect x="24" y="28" width="16" height="44" rx="6"/>
+                            <!-- f-holes -->
+                            <ellipse cx="26" cy="48" rx="2.5" ry="8" fill="#EEFAF5" opacity="0.8"/>
+                            <ellipse cx="38" cy="48" rx="2.5" ry="8" fill="#EEFAF5" opacity="0.8"/>
+                            <!-- Neck -->
+                            <rect x="29" y="-2" width="6" height="32" rx="2"/>
+                        </g>
+                        <!-- Trumpet -->
+                        <g transform="translate(90,28)" fill="#00D28E" opacity="0.45">
+                            <rect x="0" y="20" width="55" height="8" rx="4"/>
+                            <rect x="0" y="14" width="8" height="20" rx="3"/>
+                            <!-- Bell -->
+                            <path d="M55,12 Q68,12 68,24 Q68,36 55,36 Z"/>
+                            <!-- Valves -->
+                            <rect x="18" y="14" width="5" height="6" rx="2" fill="#00B87A" opacity="0.7"/>
+                            <rect x="28" y="12" width="5" height="8" rx="2" fill="#00B87A" opacity="0.7"/>
+                            <rect x="38" y="14" width="5" height="6" rx="2" fill="#00B87A" opacity="0.7"/>
+                        </g>
+                        <!-- Piano keys -->
+                        <g transform="translate(100,70)" opacity="0.35">
+                            <rect x="0" y="0" width="14" height="36" rx="2" fill="#00D28E" stroke="#00B87A" stroke-width="1"/>
+                            <rect x="16" y="0" width="14" height="36" rx="2" fill="#00D28E" stroke="#00B87A" stroke-width="1"/>
+                            <rect x="32" y="0" width="14" height="36" rx="2" fill="#00D28E" stroke="#00B87A" stroke-width="1"/>
+                            <rect x="48" y="0" width="14" height="36" rx="2" fill="#00D28E" stroke="#00B87A" stroke-width="1"/>
+                            <!-- Black keys -->
+                            <rect x="10" y="0" width="9" height="22" rx="1.5" fill="#008F5C"/>
+                            <rect x="26" y="0" width="9" height="22" rx="1.5" fill="#008F5C"/>
+                            <rect x="42" y="0" width="9" height="22" rx="1.5" fill="#008F5C"/>
+                        </g>
+                        <!-- Music notes floating -->
+                        <text x="72" cy="18" y="18" font-size="16" fill="#00B87A" opacity="0.3">♪</text>
+                        <text x="168" y="40" font-size="14" fill="#00D28E" opacity="0.25">♫</text>
+                    </svg>
                 </div>
                 <div class="hub-game-name">樂器辨別</div>
                 <div class="hub-game-desc">聽聲辨樂器<br>認識管弦家族</div>
@@ -131,7 +238,7 @@
             </div>
         </div>
 
-        <button class="btn-view-ranks" id="hubViewRanksBtn">🏆 查看排行榜</button>
+        <button class="btn-view-ranks" id="hubViewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
     </div>
 
     <!-- ===================================== -->
@@ -140,7 +247,7 @@
     <div id="screen-profile" class="screen">
         <button class="btn-back-hub" id="profileBackBtn">← 返回大廳</button>
         <div class="profile-header">
-            <div class="profile-avatar" id="profileAvatar">🎵</div>
+            <div class="profile-avatar" id="profileAvatar">♩</div>
             <div class="profile-info">
                 <div class="profile-name" id="profileName">玩家名稱</div>
                 <div class="profile-sig" id="profileSig">點擊編輯個人簽名...</div>
@@ -159,58 +266,48 @@
         </div>
         <div class="profile-playtime" id="profilePlaytime">🕐 累計遊戲時長：0 分鐘</div>
 
-        <div class="profile-section-title">� 音樂設定</div>
-        <div class="card profile-sound-card" style="padding:14px 20px;">
-            <div class="settings-group">
-                <div class="volume-control">
-                    <span class="vol-label">🎵 背景音樂</span>
-                    <input type="range" id="bgVolume" min="0" max="100" value="18" class="vol-slider">
-                    <span class="vol-value" id="bgVolumeVal">18%</span>
-                </div>
-                <div class="volume-control">
-                    <span class="vol-label">🔔 音效</span>
-                    <input type="range" id="sfxVolume" min="0" max="100" value="80" class="vol-slider">
-                    <span class="vol-value" id="sfxVolumeVal">80%</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="profile-section-title">�📊 綜合數據</div>
+        <div class="profile-card">
+        <div class="profile-section-title"><i data-lucide="bar-chart-2"></i> 綜合數據</div>
         <div class="profile-stats-grid" id="profileStatsGrid">
-            <div class="profile-stat"><div class="profile-stat-val" id="psTotalPlayed">0</div><div class="profile-stat-label">總遊戲次數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psCleared">0</div><div class="profile-stat-label">通關次數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psTotalScore">0</div><div class="profile-stat-label">總獲得分數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psMaxCombo">0</div><div class="profile-stat-label">最高連擊數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="psAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
+            <div class="profile-stat stat-accent-1"><div class="profile-stat-icon">🎮</div><div class="profile-stat-val" id="psTotalPlayed">0</div><div class="profile-stat-label">總遊戲次數</div></div>
+            <div class="profile-stat stat-accent-2"><div class="profile-stat-icon">✅</div><div class="profile-stat-val" id="psCleared">0</div><div class="profile-stat-label">通關次數</div></div>
+            <div class="profile-stat stat-accent-3"><div class="profile-stat-icon">⭐</div><div class="profile-stat-val" id="psTotalScore">0</div><div class="profile-stat-label">總獲得分數</div></div>
+            <div class="profile-stat stat-accent-4"><div class="profile-stat-icon">🎯</div><div class="profile-stat-val" id="psAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
+            <div class="profile-stat stat-accent-5"><div class="profile-stat-icon">🔥</div><div class="profile-stat-val" id="psMaxCombo">0</div><div class="profile-stat-label">最高連擊數</div></div>
+            <div class="profile-stat stat-accent-6"><div class="profile-stat-icon">💎</div><div class="profile-stat-val" id="psFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
+            <div class="profile-stat stat-accent-7"><div class="profile-stat-icon">👑</div><div class="profile-stat-val" id="psAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
+        </div>
         </div>
 
-        <div class="profile-section-title">🏆 難度成就</div>
+        <div class="profile-card">
+        <div class="profile-section-title"><i data-lucide="trophy"></i> 難度成就</div>
         <div class="profile-diff-grid" id="profileDiffGrid">
-            <div class="profile-diff-item diff-easy"><div class="profile-diff-name">⭐ Easy</div><div class="profile-diff-val" id="pdEasy">0 次通關</div></div>
-            <div class="profile-diff-item diff-normal"><div class="profile-diff-name">⭐⭐ Normal</div><div class="profile-diff-val" id="pdNormal">0 次通關</div></div>
-            <div class="profile-diff-item diff-hard"><div class="profile-diff-name">⭐⭐⭐ Hard</div><div class="profile-diff-val" id="pdHard">0 次通關</div></div>
-            <div class="profile-diff-item diff-expert"><div class="profile-diff-name">⭐⭐⭐⭐ Expert</div><div class="profile-diff-val" id="pdExpert">0 次通關</div></div>
+            <div class="profile-diff-item diff-easy"><div class="profile-diff-name"><span class="diff-dot diff-easy-dot"></span> Easy</div><div class="profile-diff-val" id="pdEasy">0 次通關</div></div>
+            <div class="profile-diff-item diff-normal"><div class="profile-diff-name"><span class="diff-dot diff-normal-dot"></span> Normal</div><div class="profile-diff-val" id="pdNormal">0 次通關</div></div>
+            <div class="profile-diff-item diff-hard"><div class="profile-diff-name"><span class="diff-dot diff-hard-dot"></span> Hard</div><div class="profile-diff-val" id="pdHard">0 次通關</div></div>
+            <div class="profile-diff-item diff-expert"><div class="profile-diff-name"><span class="diff-dot diff-expert-dot"></span> Expert</div><div class="profile-diff-val" id="pdExpert">0 次通關</div></div>
+        </div>
         </div>
 
+        <div class="profile-card">
         <div class="profile-section-title">🎮 各遊戲最高分</div>
         <div class="profile-game-bests" id="profileGameBests">
-            <div class="profile-game-best"><span class="pgb-icon">🎵</span><span class="pgb-name">音名辨別</span><span class="pgb-score" id="pgbGame1">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏打擊</span><span class="pgb-score" id="pgbGame2">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-score" id="pgbGame3">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器辨別</span><span class="pgb-score" id="pgbGame4">---</span></div>
+            <div class="profile-game-best pgb-game1"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名辨別</span></div><div class="pgb-score" id="pgbGame1">---</div></div>
+            <div class="profile-game-best pgb-game2"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏打擊</span></div><div class="pgb-score" id="pgbGame2">---</div></div>
+            <div class="profile-game-best pgb-game3"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">音樂術語</span></div><div class="pgb-score" id="pgbGame3">---</div></div>
+            <div class="profile-game-best pgb-game4"><div class="pgb-top"><span class="pgb-icon">♫</span><span class="pgb-name">樂器辨別</span></div><div class="pgb-score" id="pgbGame4">---</div></div>
+        </div>
         </div>
 
         <div class="profile-avatars-section">
-            <div class="profile-section-title">🎨 選擇頭像</div>
+            <div class="profile-section-title"><i data-lucide="palette"></i> 選擇頭像</div>
             <div class="profile-avatar-grid" id="profileAvatarGrid"></div>
         </div>
 
         <div class="profile-sig-section">
-            <div class="profile-section-title">✏️ 個人簽名</div>
+            <div class="profile-section-title"><i data-lucide="pencil"></i> 個人簽名</div>
             <input type="text" class="profile-sig-input" id="profileSigInput" maxlength="30" placeholder="寫一句你的座右銘...">
-            <button class="btn-action profile-sig-save" id="profileSigSave">💾 儲存</button>
+            <button class="btn-action profile-sig-save" id="profileSigSave"><i data-lucide="save"></i> 儲存</button>
         </div>
     </div>
 
@@ -219,26 +316,27 @@
     <!-- ===================================== -->
     <div id="screen-classmates" class="screen">
         <button class="btn-back-hub" id="classmatesBackBtn">← 返回大廳</button>
-        <h2 class="social-title">👥 同學名冊</h2>
-        <div class="social-subtitle">查看同班同學的音樂檔案</div>
-
-        <div class="classmate-filters">
-            <div class="hub-field" style="flex:1;min-width:80px;">
-                <label>年級</label>
-                <select id="cmGrade">
-                    <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
-                    <option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option>
-                </select>
-            </div>
-            <div class="hub-field" style="flex:1;min-width:80px;">
-                <label>班別</label>
-                <select id="cmClass">
-                    <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
-                    <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
-                </select>
+        <div class="cm-header-card">
+            <h2 class="social-title">👥 同學名冊</h2>
+            <div class="social-subtitle">查看同班同學的音樂檔案</div>
+            <div class="classmate-filters">
+                <div class="cm-filter-field">
+                    <label>年級</label>
+                    <select id="cmGrade">
+                        <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                        <option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option>
+                    </select>
+                </div>
+                <div class="cm-filter-field">
+                    <label>班別</label>
+                    <select id="cmClass">
+                        <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
+                        <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
+                    </select>
+                </div>
             </div>
         </div>
-
+        <div class="cm-count" id="cmCount"></div>
         <div class="classmate-list" id="classmateList"></div>
     </div>
 
@@ -248,7 +346,7 @@
     <div id="screen-view-profile" class="screen">
         <button class="btn-back-hub" id="viewProfileBackBtn">← 返回名冊</button>
         <div class="vp-header">
-            <div class="vp-avatar" id="vpAvatar">🎵</div>
+            <div class="vp-avatar" id="vpAvatar">♩</div>
             <div class="vp-info">
                 <div class="vp-name" id="vpName">同學名稱</div>
                 <div class="vp-sig" id="vpSig">尚未設定簽名</div>
@@ -258,19 +356,28 @@
         <div class="vp-level-bar">
             <div class="vp-level-badge" id="vpLevel">Lv.1</div>
             <div class="profile-exp-track"><div class="profile-exp-fill" id="vpExpFill" style="width:0%"></div></div>
+            <div class="profile-exp-text" id="vpExpText">0 / 100 EXP</div>
         </div>
-        <div class="vp-stats-grid" id="vpStatsGrid">
-            <div class="profile-stat"><div class="profile-stat-val" id="vpTotalPlayed">0</div><div class="profile-stat-label">遊戲次數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="vpCleared">0</div><div class="profile-stat-label">通關次數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="vpTotalScore">0</div><div class="profile-stat-label">總分數</div></div>
-            <div class="profile-stat"><div class="profile-stat-val" id="vpMaxCombo">0</div><div class="profile-stat-label">最高連擊</div></div>
+        <div class="profile-card">
+            <div class="profile-section-title">📊 數據統計</div>
+            <div class="vp-stats-grid" id="vpStatsGrid">
+                <div class="profile-stat stat-accent-1"><div class="profile-stat-icon">🎮</div><div class="profile-stat-val" id="vpTotalPlayed">0</div><div class="profile-stat-label">遊戲次數</div></div>
+                <div class="profile-stat stat-accent-2"><div class="profile-stat-icon">✅</div><div class="profile-stat-val" id="vpCleared">0</div><div class="profile-stat-label">通關次數</div></div>
+                <div class="profile-stat stat-accent-3"><div class="profile-stat-icon">⭐</div><div class="profile-stat-val" id="vpTotalScore">0</div><div class="profile-stat-label">總分數</div></div>
+                <div class="profile-stat stat-accent-4"><div class="profile-stat-icon">🎯</div><div class="profile-stat-val" id="vpAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
+                <div class="profile-stat stat-accent-5"><div class="profile-stat-icon">🔥</div><div class="profile-stat-val" id="vpMaxCombo">0</div><div class="profile-stat-label">最高連擊</div></div>
+                <div class="profile-stat stat-accent-6"><div class="profile-stat-icon">💎</div><div class="profile-stat-val" id="vpFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
+                <div class="profile-stat stat-accent-7"><div class="profile-stat-icon">👑</div><div class="profile-stat-val" id="vpAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
+            </div>
         </div>
-        <div class="vp-game-bests">
-            <div class="profile-section-title">🎮 最高分</div>
-            <div class="profile-game-best"><span class="pgb-icon">🎵</span><span class="pgb-name">音名辨別</span><span class="pgb-score" id="vpGame1">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🥁</span><span class="pgb-name">節奏打擊</span><span class="pgb-score" id="vpGame2">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">📖</span><span class="pgb-name">音樂術語</span><span class="pgb-score" id="vpGame3">---</span></div>
-            <div class="profile-game-best"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器辨別</span><span class="pgb-score" id="vpGame4">---</span></div>
+        <div class="profile-card">
+            <div class="profile-section-title"><i data-lucide="gamepad-2"></i> 最高分</div>
+            <div class="profile-game-bests">
+                <div class="profile-game-best pgb-game1"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名辨別</span></div><div class="pgb-score" id="vpGame1">---</div></div>
+                <div class="profile-game-best pgb-game2"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏打擊</span></div><div class="pgb-score" id="vpGame2">---</div></div>
+                <div class="profile-game-best pgb-game3"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">音樂術語</span></div><div class="pgb-score" id="vpGame3">---</div></div>
+                <div class="profile-game-best pgb-game4"><div class="pgb-top"><span class="pgb-icon">♫</span><span class="pgb-name">樂器辨別</span></div><div class="pgb-score" id="vpGame4">---</div></div>
+            </div>
         </div>
     </div>
 
@@ -287,16 +394,16 @@
         <!-- Hidden: synced from hub login -->
         <div class="card" id="setupUserCard" style="display:none;">
             <div class="user-info-area">
-                <div class="user-field" id="nameField"><label>👤</label><select id="userName"><option value="">選擇你的名字</option></select></div>
+                <div class="user-field" id="nameField"><label><i data-lucide="user"></i></label><select id="userName"><option value="">選擇你的名字</option></select></div>
                 <div class="user-field" id="gradeField">
-                    <label>📌</label>
+                    <label><i data-lucide="pin"></i></label>
                     <select id="userGrade">
                         <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
                         <option value="4">小四</option><option value="5">小五</option><option value="6" selected>小六</option>
                     </select>
                 </div>
                 <div class="user-field" id="classField">
-                    <label>📚</label>
+                    <label><i data-lucide="book-open"></i></label>
                     <select id="userClass">
                         <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
                         <option value="D">D班</option><option value="E">E班</option><option value="F">F班</option>
@@ -316,78 +423,78 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時 1 分鐘，衝排行榜</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
-                <div class="mode-icon">🔥</div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 錯一題就結束 ×1.5</div>
+                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 錯一題就結束 ×1.5</div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice">
-                <div class="mode-icon">🎼</div><div class="mode-name">調號辨別</div><div class="mode-desc">認識不同調號</div>
+                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">認識不同調號</div>
             </div>
             <div class="mode-card solfege" data-mode="solfege_practice">
-                <div class="mode-icon">🎤</div><div class="mode-name">唱名辨別</div><div class="mode-desc">看譜說唱名（首調）</div>
+                <div class="mode-icon"><i data-lucide="mic"></i></div><div class="mode-name">唱名辨別</div><div class="mode-desc">看譜說唱名（首調）</div>
             </div>
         </div>
 
         <div class="clef-selector-row" id="clefSelectorRow" style="display:none;">
-            <span class="clef-selector-label">🎵 選擇譜號</span>
+            <span class="clef-selector-label">♩ 選擇譜號</span>
             <div class="clef-selector-btns">
-                <button class="clef-sel-btn active" data-clef="classic60">🎼 高音譜號</button>
-                <button class="clef-sel-btn" data-clef="bass60">🎻 低音譜號</button>
-                <button class="clef-sel-btn" data-clef="mixed60">🎹 混合譜號 ×1.2</button>
+                <button class="clef-sel-btn active" data-clef="classic60">𝄞 高音譜號</button>
+                <button class="clef-sel-btn" data-clef="bass60">𝄢 低音譜號</button>
+                <button class="clef-sel-btn" data-clef="mixed60">♫ 混合譜號 ×1.2</button>
             </div>
         </div>
 
         <div class="practice-diff-row" id="practiceDiffRow">
-            <span class="practice-diff-label">⚡ 練習難度</span>
+            <span class="practice-diff-label"><i data-lucide="zap"></i> 練習難度</span>
             <div class="practice-diff-btns">
-                <button class="diff-btn" data-diff="1">🌿 初學</button>
-                <button class="diff-btn" data-diff="2">⭐ 初級</button>
-                <button class="diff-btn active" data-diff="3">⭐⭐ 中級</button>
-                <button class="diff-btn" data-diff="4">⭐⭐⭐ 進階</button>
-                <button class="diff-btn" data-diff="5">🔥 全力</button>
+                <button class="diff-btn" data-diff="1">初學</button>
+                <button class="diff-btn" data-diff="2">初級</button>
+                <button class="diff-btn active" data-diff="3">中級</button>
+                <button class="diff-btn" data-diff="4">進階</button>
+                <button class="diff-btn" data-diff="5">全力</button>
             </div>
         </div>
 
         <!-- 調號/唱名：模式切換（練習 vs 挑戰） -->
         <div class="keysig-solfege-sub-row" id="keysigSubRow" style="display:none;">
-            <span class="practice-diff-label">🎯 模式</span>
+            <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
             <div class="practice-diff-btns">
-                <button class="ks-mode-btn active" data-ksmode="practice">📝 練習</button>
-                <button class="ks-mode-btn" data-ksmode="challenge">⏱️ 1分鐘挑戰</button>
+                <button class="ks-mode-btn active" data-ksmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
+                <button class="ks-mode-btn" data-ksmode="challenge"><i data-lucide="timer"></i> 1分鐘挑戰</button>
             </div>
         </div>
         <div class="keysig-solfege-sub-row" id="solfegeSubRow" style="display:none;">
-            <span class="practice-diff-label">🎯 模式</span>
+            <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
             <div class="practice-diff-btns">
-                <button class="sol-mode-btn active" data-solmode="practice">📝 練習</button>
-                <button class="sol-mode-btn" data-solmode="challenge">⏱️ 1分鐘挑戰</button>
+                <button class="sol-mode-btn active" data-solmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
+                <button class="sol-mode-btn" data-solmode="challenge"><i data-lucide="timer"></i> 1分鐘挑戰</button>
             </div>
         </div>
 
         <!-- 調號/唱名：年級選擇 -->
         <div class="keysig-solfege-sub-row" id="keysigGradeRow" style="display:none;">
-            <span class="practice-diff-label">📚 年級程度</span>
+            <span class="practice-diff-label"><i data-lucide="book"></i> 年級程度</span>
             <div class="practice-diff-btns">
-                <button class="ks-grade-btn" data-grade="1">🌱 小一</button>
-                <button class="ks-grade-btn" data-grade="2">🌿 小二</button>
-                <button class="ks-grade-btn active" data-grade="3">🌳 小三</button>
-                <button class="ks-grade-btn" data-grade="4">⭐ 小四</button>
-                <button class="ks-grade-btn" data-grade="5">⭐⭐ 小五</button>
-                <button class="ks-grade-btn" data-grade="6">🏆 小六</button>
+                <button class="ks-grade-btn" data-grade="1">小一</button>
+                <button class="ks-grade-btn" data-grade="2">小二</button>
+                <button class="ks-grade-btn active" data-grade="3">小三</button>
+                <button class="ks-grade-btn" data-grade="4">小四</button>
+                <button class="ks-grade-btn" data-grade="5">小五</button>
+                <button class="ks-grade-btn" data-grade="6">小六</button>
             </div>
         </div>
         <div class="keysig-solfege-sub-row" id="solfegeGradeRow" style="display:none;">
-            <span class="practice-diff-label">📚 年級程度</span>
+            <span class="practice-diff-label"><i data-lucide="book"></i> 年級程度</span>
             <div class="practice-diff-btns">
-                <button class="sol-grade-btn" data-grade="1">🌱 小一</button>
-                <button class="sol-grade-btn" data-grade="2">🌿 小二</button>
-                <button class="sol-grade-btn active" data-grade="3">🌳 小三</button>
-                <button class="sol-grade-btn" data-grade="4">⭐ 小四</button>
-                <button class="sol-grade-btn" data-grade="5">⭐⭐ 小五</button>
-                <button class="sol-grade-btn" data-grade="6">🏆 小六</button>
+                <button class="sol-grade-btn" data-grade="1">小一</button>
+                <button class="sol-grade-btn" data-grade="2">小二</button>
+                <button class="sol-grade-btn active" data-grade="3">小三</button>
+                <button class="sol-grade-btn" data-grade="4">小四</button>
+                <button class="sol-grade-btn" data-grade="5">小五</button>
+                <button class="sol-grade-btn" data-grade="6">小六</button>
             </div>
         </div>
 
-        <button class="btn-start" id="startBtn">🚀 準備好了，開始！</button>
-        <button class="btn-view-ranks" id="viewRanksBtn">🏆 查看排行榜</button>
+        <button class="btn-start" id="startBtn"><i data-lucide="play-circle"></i> 準備好了，開始！</button>
+        <button class="btn-view-ranks" id="viewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
     </div>
 
     <!-- ===================================== -->

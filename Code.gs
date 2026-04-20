@@ -173,6 +173,54 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // ── 個人檔案查詢 ─────────────────────────────────────────
+    if (e && e.parameter && e.parameter.action === 'getProfile') {
+      const qName  = String(e.parameter.name  || '').trim().toLowerCase();
+      const qGrade = String(e.parameter.grade || '').trim();
+      const qClass = String(e.parameter.class || '').trim().toLowerCase();
+      const sheet  = ss.getSheetByName(PROFILE_SHEET);
+      if (!sheet) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+      const headers = data[0].map(h => String(h).trim().toLowerCase());
+      const rows = data.slice(1).filter(row => {
+        const rName  = String(row[headers.indexOf('name')]  || '').trim().toLowerCase();
+        const rGrade = String(row[headers.indexOf('grade')] || '').trim();
+        const rClass = String(row[headers.indexOf('class')] || '').trim().toLowerCase();
+        return rName === qName && rGrade === qGrade && rClass === qClass;
+      }).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = row[i]; });
+        return obj;
+      });
+      return ContentService
+        .createTextOutput(JSON.stringify(rows))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── 批次取得所有個人檔案（可選 grade/class 過濾）────────
+    if (e && e.parameter && e.parameter.action === 'getAllProfiles') {
+      const qGrade = String(e.parameter.grade || '').trim();
+      const qClass = String(e.parameter.class || '').trim().toLowerCase();
+      const sheet  = ss.getSheetByName(PROFILE_SHEET);
+      if (!sheet) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
+      const headers = data[0].map(h => String(h).trim().toLowerCase());
+      let rows = data.slice(1);
+      if (qGrade) rows = rows.filter(row => String(row[headers.indexOf('grade')] || '').trim() === qGrade);
+      if (qClass) rows = rows.filter(row => String(row[headers.indexOf('class')] || '').trim().toLowerCase() === qClass);
+      const result = rows.map(row => {
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = row[i]; });
+        return obj;
+      });
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     let allRows = [];
     const filterGame = (e && e.parameter && e.parameter.game) ? e.parameter.game : null;
     const sheetsToLoad = filterGame && GAME_SHEETS[filterGame]

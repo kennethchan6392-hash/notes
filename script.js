@@ -4,7 +4,7 @@
     // ==========================================
     const CONFIG = {
         // GAS API (needs to be accessible to all)
-        API_URL: "https://script.google.com/macros/s/AKfycbzdU2v4AZAxhAidmJdh3IFCPA5IzdivwKFq782i9MryUTWQrm6p3RduK_DiyCVRwP2R/exec",
+        API_URL: "https://script.google.com/macros/s/AKfycbybYu8OVufu2t8HxB8nvqRG4z2FUGDdkseMpzFAJn2WLiPYJH5JbLqjlpvPuQycUyRu/exec",
         
         NOTE_FREQUENCIES: {
             'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
@@ -240,19 +240,6 @@
             dom.userName.parentNode.appendChild(inp);
             inp.addEventListener('focus', () => state.inputFocused = true);
             inp.addEventListener('blur', () => state.inputFocused = false);
-            inp.addEventListener('input', () => {
-                if (dom.userName.value !== '__other__') return;
-                state.currentUser = {
-                    name: inp.value.trim(),
-                    grade: parseInt(dom.userGrade.value) || 0,
-                    class: dom.userClass.value || '',
-                    id: dom.userId.value || ''
-                };
-                const profileScreen = document.getElementById('screen-profile');
-                if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
-                    renderProfileScreen(state.currentUser);
-                }
-            });
             _customNameInput = inp;
         }
         _customNameInput.style.display = ''; _customNameInput.focus();
@@ -416,6 +403,35 @@
 
     function _expForLevel(lvl) { return lvl * 100; }
 
+    // Derive basic stats from allRanks (leaderboard data) for a student
+    function _statsFromRanks(name, grade, cls) {
+        const rows = state.allRanks.filter(r =>
+            String(r.name || '').trim() === String(name).trim() &&
+            String(r.grade || '') === String(grade) &&
+            String(r.class || '').trim().toUpperCase() === String(cls).trim().toUpperCase()
+        );
+        if (!rows.length) return null;
+        let totalScore = 0, maxCombo = 0, totalAcc = 0;
+        const bests = {};
+        rows.forEach(r => {
+            const sc = parseInt(r.score) || 0;
+            const mc = parseInt(r.max_combo) || 0;
+            const acc = parseInt(r.accuracy) || 0;
+            totalScore += sc;
+            if (mc > maxCombo) maxCombo = mc;
+            totalAcc += acc;
+            const gk = r.game || '';
+            if (gk && sc > (bests[gk] || 0)) bests[gk] = sc;
+        });
+        return {
+            totalPlayed: rows.length,
+            totalScore,
+            maxCombo,
+            avgAccuracy: rows.length ? Math.round(totalAcc / rows.length) : 0,
+            gameBests: bests
+        };
+    }
+
     function addProfileExp(profile, expGain) {
         profile.exp += expGain;
         while (profile.exp >= _expForLevel(profile.level)) {
@@ -461,8 +477,161 @@
         return profile;
     }
 
+    const _profileSyncingKeys = new Set();
+
+    async function syncProfileFromGAS(user) {
+        const key = _getProfileKey(user);
+        if (!key || _profileSyncingKeys.has(key)) return;
+        _profileSyncingKeys.add(key);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            const url = `${CONFIG.API_URL}?action=getProfile&grade=${encodeURIComponent(user.grade)}&class=${encodeURIComponent(user.class)}&name=${encodeURIComponent(user.name)}&v=${Date.now()}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                redirect: 'follow',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!res.ok) return;
+
+            const rows = await res.json();
+            if (!Array.isArray(rows) || rows.length === 0) return;
+
+            const existing = loadProfile(user);
+            const profile = _defaultProfile(user);
+            profile.avatar = existing.avatar || profile.avatar;
+            profile.signature = existing.signature || profile.signature;
+            profile.registeredAt = existing.registeredAt || rows[0].timestamp || profile.registeredAt;
+            profile.totalPlayTime = existing.totalPlayTime || 0;
+
+            let latestLevel = 1;
+            let latestExp = 0;
+            let latestTotalPlayed = 0;
+            let latestCleared = 0;
+            let latestFcCount = 0;
+            let latestApCount = 0;
+
+            rows.forEach(row => {
+                const score = parseInt(row.score, 10) || 0;
+                const accuracy = parseInt(row.accuracy, 10) || 0;
+                const maxCombo = parseInt(row.max_combo, 10) || 0;
+                const gameKey = String(row.game || '').trim();
+
+                profile.stats.totalScore += score;
+                profile.stats.totalAccuracy += accuracy;
+                profile.stats.accuracyCount++;
+                profile.stats.maxCombo = Math.max(profile.stats.maxCombo, maxCombo);
+                profile.gameBests[gameKey] = Math.max(profile.gameBests[gameKey] || 0, score);
+
+                latestLevel = parseInt(row.level, 10) || latestLevel;
+                latestExp = parseInt(row.exp, 10) || latestExp;
+                latestTotalPlayed = parseInt(row.total_played, 10) || latestTotalPlayed;
+                latestCleared = parseInt(row.cleared, 10) || latestCleared;
+                latestFcCount = parseInt(row.fc_count, 10) || latestFcCount;
+                latestApCount = parseInt(row.ap_count, 10) || latestApCount;
+            });
+
+            profile.level = latestLevel;
+            profile.exp = latestExp;
+            profile.stats.totalPlayed = latestTotalPlayed || rows.length;
+            profile.stats.cleared = latestCleared || rows.filter(row => (parseInt(row.accuracy, 10) || 0) >= 60).length;
+            profile.stats.fcCount = latestFcCount;
+            profile.stats.apCount = latestApCount;
+
+            saveProfile(profile);
+        } catch (e) {
+            console.error('Profile 讀取失敗：', e);
+        } finally {
+            _profileSyncingKeys.delete(key);
+        }
+    }
+
+    // Batch-sync all profiles for a grade+class from GAS in one request
+    let _allProfilesSyncing = false;
+    async function syncAllProfiles(grade, cls, callback) {
+        if (_allProfilesSyncing) return;
+        _allProfilesSyncing = true;
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const url = `${CONFIG.API_URL}?action=getAllProfiles&grade=${encodeURIComponent(grade)}&class=${encodeURIComponent(cls)}&v=${Date.now()}`;
+            const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!res.ok) return;
+            const allRows = await res.json();
+            if (!Array.isArray(allRows) || !allRows.length) return;
+
+            // Group rows by student name
+            const byStudent = {};
+            allRows.forEach(row => {
+                const n = String(row.name || '').trim();
+                if (!n) return;
+                if (!byStudent[n]) byStudent[n] = [];
+                byStudent[n].push(row);
+            });
+
+            // Update each student's local profile
+            Object.entries(byStudent).forEach(([name, rows]) => {
+                const user = { name, grade, class: cls };
+                const existing = loadProfile(user);
+                const profile = _defaultProfile(user);
+                profile.avatar = existing.avatar || profile.avatar;
+                profile.signature = existing.signature || profile.signature;
+                profile.registeredAt = existing.registeredAt || rows[0].timestamp || profile.registeredAt;
+                profile.totalPlayTime = existing.totalPlayTime || 0;
+
+                let latestLevel = 1, latestExp = 0, latestTotalPlayed = 0;
+                let latestCleared = 0, latestFcCount = 0, latestApCount = 0;
+
+                rows.forEach(row => {
+                    const score = parseInt(row.score, 10) || 0;
+                    const accuracy = parseInt(row.accuracy, 10) || 0;
+                    const maxCombo = parseInt(row.max_combo, 10) || 0;
+                    const gameKey = String(row.game || '').trim();
+
+                    profile.stats.totalScore += score;
+                    profile.stats.totalAccuracy += accuracy;
+                    profile.stats.accuracyCount++;
+                    profile.stats.maxCombo = Math.max(profile.stats.maxCombo, maxCombo);
+                    if (gameKey) profile.gameBests[gameKey] = Math.max(profile.gameBests[gameKey] || 0, score);
+
+                    latestLevel = parseInt(row.level, 10) || latestLevel;
+                    latestExp = parseInt(row.exp, 10) || latestExp;
+                    latestTotalPlayed = parseInt(row.total_played, 10) || latestTotalPlayed;
+                    latestCleared = parseInt(row.cleared, 10) || latestCleared;
+                    latestFcCount = parseInt(row.fc_count, 10) || latestFcCount;
+                    latestApCount = parseInt(row.ap_count, 10) || latestApCount;
+                });
+
+                profile.level = latestLevel;
+                profile.exp = latestExp;
+                profile.stats.totalPlayed = latestTotalPlayed || rows.length;
+                profile.stats.cleared = latestCleared || rows.filter(r => (parseInt(r.accuracy, 10) || 0) >= 60).length;
+                profile.stats.fcCount = latestFcCount;
+                profile.stats.apCount = latestApCount;
+
+                saveProfile(profile);
+            });
+
+            console.log(`✅ 已批次同步 ${Object.keys(byStudent).length} 位同學的檔案`);
+            if (typeof callback === 'function') callback();
+        } catch (e) {
+            console.error('批次同步檔案失敗：', e);
+        } finally {
+            _allProfilesSyncing = false;
+        }
+    }
+
     function renderProfileScreen(user) {
         const p = loadProfile(user);
+        if (user && user.name && p.stats.totalPlayed === 0) {
+            syncProfileFromGAS(user).then(() => {
+                const refreshed = loadProfile(user);
+                if (refreshed.stats.totalPlayed > 0) renderProfileScreen(user);
+            });
+        }
         const avInfo = _avatarLookup(p.avatar);
         const avEl = document.getElementById('profileAvatar');
         avEl.textContent = p.avatar;
@@ -582,6 +751,8 @@
             
             // Global & Setup
             soundToggle: document.getElementById('soundToggle'), 
+            musicPanel: document.getElementById('musicPanel'),
+            musicMuteToggle: document.getElementById('musicMuteToggle'),
             modeCards: document.querySelectorAll('.mode-card'), 
             nameField: document.getElementById('nameField'), 
             idField: document.getElementById('idField'),
@@ -836,6 +1007,78 @@
                 gain.gain.setValueAtTime(0.28 * g, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.13);
                 osc.start(this.ctx.currentTime); osc.stop(this.ctx.currentTime + 0.15);
+            },
+            // Rhythm challenge judgment sound: perfect=bright chime, great=mid chime, good=low chime, miss/wrong=buzz
+            playHit(jClass) {
+                if (!this.ctx || !this.enabled) return;
+                this.resume();
+                const g = this.getSfxGain();
+                const now = this.ctx.currentTime;
+                if (jClass === 'perfect') {
+                    // Two-tone bright chime
+                    [880, 1320].forEach((freq, i) => {
+                        const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                        o.type = 'sine'; o.frequency.value = freq;
+                        o.connect(gn); gn.connect(this.ctx.destination);
+                        gn.gain.setValueAtTime(0, now + i * 0.04);
+                        gn.gain.linearRampToValueAtTime(0.22 * g, now + i * 0.04 + 0.01);
+                        gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.18);
+                        o.start(now + i * 0.04); o.stop(now + i * 0.04 + 0.2);
+                    });
+                } else if (jClass === 'great') {
+                    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = 660;
+                    o.connect(gn); gn.connect(this.ctx.destination);
+                    gn.gain.setValueAtTime(0.2 * g, now);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    o.start(now); o.stop(now + 0.16);
+                } else if (jClass === 'good') {
+                    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                    o.type = 'triangle'; o.frequency.value = 440;
+                    o.connect(gn); gn.connect(this.ctx.destination);
+                    gn.gain.setValueAtTime(0.18 * g, now);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    o.start(now); o.stop(now + 0.13);
+                } else if (jClass === 'miss') {
+                    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = 200;
+                    o.connect(gn); gn.connect(this.ctx.destination);
+                    gn.gain.setValueAtTime(0.15 * g, now);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    o.start(now); o.stop(now + 0.26);
+                } else { // wrong
+                    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                    o.type = 'sawtooth'; o.frequency.setValueAtTime(250, now); o.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+                    o.connect(gn); gn.connect(this.ctx.destination);
+                    gn.gain.setValueAtTime(0.18 * g, now);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    o.start(now); o.stop(now + 0.19);
+                }
+            },
+            // Short correct/wrong chime for quiz-style answers
+            playAnswer(correct) {
+                if (!this.ctx || !this.enabled) return;
+                this.resume();
+                const g = this.getSfxGain();
+                const now = this.ctx.currentTime;
+                if (correct) {
+                    [523, 659, 784].forEach((freq, i) => {
+                        const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                        o.type = 'sine'; o.frequency.value = freq;
+                        o.connect(gn); gn.connect(this.ctx.destination);
+                        gn.gain.setValueAtTime(0, now + i * 0.07);
+                        gn.gain.linearRampToValueAtTime(0.2 * g, now + i * 0.07 + 0.01);
+                        gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.18);
+                        o.start(now + i * 0.07); o.stop(now + i * 0.07 + 0.2);
+                    });
+                } else {
+                    const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+                    o.type = 'sawtooth'; o.frequency.setValueAtTime(300, now); o.frequency.exponentialRampToValueAtTime(140, now + 0.2);
+                    o.connect(gn); gn.connect(this.ctx.destination);
+                    gn.gain.setValueAtTime(0.2 * g, now);
+                    gn.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    o.start(now); o.stop(now + 0.23);
+                }
             },
             scheduleTick(audioT, strong = false, countdown = false) {
                 // Precise AudioContext-scheduled metronome tick
@@ -2543,19 +2786,26 @@
     }
 
     function initEvents() {
-        function syncCurrentUserFromSetup() {
-            const name = getPlayerName();
-            state.currentUser = {
-                name: name || '',
-                grade: parseInt(dom.userGrade.value) || 0,
-                class: dom.userClass.value || '',
-                id: dom.userId.value || ''
-            };
-            const profileScreen = document.getElementById('screen-profile');
-            if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
-                renderProfileScreen(state.currentUser);
+        function updateMusicControlsUI() {
+            if (dom.soundToggle) {
+                dom.soundToggle.classList.toggle('is-muted', !audio.enabled);
+                dom.soundToggle.setAttribute('aria-expanded', dom.musicPanel && dom.musicPanel.classList.contains('open') ? 'true' : 'false');
+            }
+            if (dom.musicMuteToggle) {
+                dom.musicMuteToggle.textContent = audio.enabled ? '🔊 已開啟' : '🔇 已靜音';
+                dom.musicMuteToggle.style.opacity = audio.enabled ? '1' : '0.78';
             }
         }
+
+        function setMusicPanelOpen(open) {
+            if (!dom.musicPanel) return;
+            dom.musicPanel.classList.toggle('open', open);
+            dom.musicPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            if (dom.soundToggle) dom.soundToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        setMusicPanelOpen(false);
+        updateMusicControlsUI();
 
         // Pre-warm audio on first user interaction (unlocks AudioContext on iOS/Safari)
         const warmOnce = () => { audio.init(); audio.warmUp(); audio.bgPlay(); document.removeEventListener('pointerdown', warmOnce); };
@@ -2595,12 +2845,10 @@
             audio.init(); audio.playClick();
             if (dom.textbookMode) { dom.textbookMode.value = dom.userGrade.value; handleTextbookModeChange(); saveSettings(); }
             populateNameDropdown();
-            syncCurrentUserFromSetup();
         });
         dom.userClass.addEventListener('change', () => {
             audio.init(); audio.playClick();
             populateNameDropdown();
-            syncCurrentUserFromSetup();
         });
         dom.userName.addEventListener('change', () => {
             audio.init(); audio.playClick();
@@ -2614,9 +2862,39 @@
                 const sel = dom.userName.selectedOptions[0];
                 dom.userId.value = (sel && sel.dataset.seat) ? sel.dataset.seat : '';
             }
-            syncCurrentUserFromSetup();
         });
-        dom.soundToggle.addEventListener('click', () => { audio.init(); audio.warmUp(); audio.enabled = !audio.enabled; dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; audio.bgSetMute(!audio.enabled); localStorage.setItem('musicGameSoundEnabled', audio.enabled); });
+        dom.soundToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.init();
+            audio.warmUp();
+            const willOpen = !dom.musicPanel?.classList.contains('open');
+            setMusicPanelOpen(willOpen);
+            updateMusicControlsUI();
+        });
+        if (dom.musicMuteToggle) {
+            dom.musicMuteToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                audio.init();
+                audio.warmUp();
+                audio.enabled = !audio.enabled;
+                audio.bgSetMute(!audio.enabled);
+                localStorage.setItem('musicGameSoundEnabled', audio.enabled);
+                updateMusicControlsUI();
+            });
+        }
+        document.addEventListener('click', (e) => {
+            if (!dom.musicPanel || !dom.soundToggle) return;
+            if (!dom.musicPanel.classList.contains('open')) return;
+            if (dom.musicPanel.contains(e.target) || dom.soundToggle.contains(e.target)) return;
+            setMusicPanelOpen(false);
+            updateMusicControlsUI();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                setMusicPanelOpen(false);
+                updateMusicControlsUI();
+            }
+        });
 
         // Mode card selection + clef sub-selector
         const clefSelectorRow = document.getElementById('clefSelectorRow');
@@ -2868,13 +3146,27 @@
             document.getElementById('cmClass').value = state.currentUser.class || 'A';
             renderClassmateList();
             switchScreen('screen-classmates');
+            // Batch-sync all profiles from GAS, then refresh the list
+            const g = document.getElementById('cmGrade').value;
+            const c = document.getElementById('cmClass').value;
+            syncAllProfiles(g, c, () => renderClassmateList());
         });
         // Back buttons
         document.getElementById('classmatesBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
         document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen('screen-classmates'));
         // Classmate filter changes
-        document.getElementById('cmGrade').addEventListener('change', renderClassmateList);
-        document.getElementById('cmClass').addEventListener('change', renderClassmateList);
+        document.getElementById('cmGrade').addEventListener('change', () => {
+            renderClassmateList();
+            const g = document.getElementById('cmGrade').value;
+            const c = document.getElementById('cmClass').value;
+            syncAllProfiles(g, c, () => renderClassmateList());
+        });
+        document.getElementById('cmClass').addEventListener('change', () => {
+            renderClassmateList();
+            const g = document.getElementById('cmGrade').value;
+            const c = document.getElementById('cmClass').value;
+            syncAllProfiles(g, c, () => renderClassmateList());
+        });
 
         // Sync hub selections into classmate filters
         const cmGrade = document.getElementById('cmGrade');
@@ -2894,6 +3186,8 @@
         const cls = document.getElementById('cmClass').value;
         const students = getStudentList(grade, cls);
         const list = document.getElementById('classmateList');
+        const countEl = document.getElementById('cmCount');
+        if (countEl) countEl.textContent = students.length ? `共 ${students.length} 位同學` : '';
 
         if (!students.length) {
             list.innerHTML = '<div class="cm-empty">這個班別暫時沒有同學資料 📭</div>';
@@ -2904,6 +3198,11 @@
         list.innerHTML = students.map((name, i) => {
             const user = { name, grade, class: cls, seat: i + 1 };
             const p = loadProfile(user);
+            const rs = _statsFromRanks(name, grade, cls);
+            const played = rs ? rs.totalPlayed : p.stats.totalPlayed;
+            const score  = rs ? rs.totalScore  : p.stats.totalScore;
+            const combo  = rs ? rs.maxCombo    : p.stats.maxCombo;
+            const avgAcc = rs ? rs.avgAccuracy : (p.stats.accuracyCount > 0 ? Math.round(p.stats.totalAccuracy / p.stats.accuracyCount) : 0);
             const avInfo = _avatarLookup(p.avatar);
             const isMe = me && me.name === name && me.grade == grade && me.class === cls;
             return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${i+1}">
@@ -2911,7 +3210,7 @@
                 <div class="cm-info">
                     <div class="cm-name">${escHtml(name)}${isMe ? ' <span class="cm-me-tag">我</span>' : ''}</div>
                     <div class="cm-detail">Lv.${p.level} · ${p.signature || '未設定簽名'}</div>
-                    <div class="cm-stats">🎮 ${p.stats.totalPlayed}次 · 🏆 ${p.stats.totalScore}分 · 🔥 ${p.stats.maxCombo}連擊</div>
+                    <div class="cm-stats"><span>🎮 ${played}次</span><span>🏆 ${score}分</span><span>🎯 ${avgAcc}%</span><span>🔥 ${combo}連擊</span></div>
                 </div>
                 <div class="cm-actions">
                     <button class="cm-view-btn" title="查看檔案">📋</button>
@@ -2934,39 +3233,64 @@
     }
 
     // ── View Other Profile ──
-    function openViewProfile(user) {
-        _viewingProfile = user;
+    function _renderViewProfile(user) {
         const p = loadProfile(user);
+        const rs = _statsFromRanks(user.name, user.grade, user.class);
         const avInfo = _avatarLookup(p.avatar);
 
         const avEl = document.getElementById('vpAvatar');
         avEl.textContent = p.avatar;
         avEl.style.background = avInfo.bg;
 
-        document.getElementById('vpName').textContent = p.name + ' 同學';
+        document.getElementById('vpName').textContent = (user.name || p.name) + ' 同學';
         document.getElementById('vpSig').textContent = p.signature || '尚未設定簽名';
-        document.getElementById('vpMeta').textContent = `${p.grade ? '小' + p.grade : ''} ${p.class}班 · ${p.seat ? p.seat + '號' : ''}`;
+        document.getElementById('vpMeta').textContent = `${user.grade ? '小' + user.grade : ''} ${user.class}班 · ${user.seat ? user.seat + '號' : ''}`;
         document.getElementById('vpLevel').textContent = 'Lv.' + p.level;
         const needed = _expForLevel(p.level);
-        document.getElementById('vpExpFill').style.width = Math.min(100, Math.round((p.exp / needed) * 100)) + '%';
+        const expPct = Math.min(100, Math.round((p.exp / needed) * 100));
+        document.getElementById('vpExpFill').style.width = expPct + '%';
+        document.getElementById('vpExpText').textContent = `${p.exp} / ${needed} EXP`;
 
-        document.getElementById('vpTotalPlayed').textContent = p.stats.totalPlayed;
-        document.getElementById('vpCleared').textContent = p.stats.cleared;
-        document.getElementById('vpTotalScore').textContent = p.stats.totalScore;
-        document.getElementById('vpMaxCombo').textContent = p.stats.maxCombo;
+        const played = rs ? rs.totalPlayed : p.stats.totalPlayed;
+        const cleared = p.stats.cleared || (rs ? rs.cleared : 0);
+        const totalScore = rs ? rs.totalScore : p.stats.totalScore;
+        const maxCombo = rs ? rs.maxCombo : p.stats.maxCombo;
+        const avgAcc = rs ? rs.avgAccuracy : (p.stats.accuracyCount > 0 ? Math.round(p.stats.totalAccuracy / p.stats.accuracyCount) : 0);
+        const fcCount = p.stats.fcCount || 0;
+        const apCount = p.stats.apCount || 0;
 
-        document.getElementById('vpGame1').textContent = p.gameBests.game1 || '---';
-        document.getElementById('vpGame2').textContent = p.gameBests.game2 || '---';
-        document.getElementById('vpGame3').textContent = p.gameBests.game3 || '---';
+        document.getElementById('vpTotalPlayed').textContent = played;
+        document.getElementById('vpCleared').textContent = cleared;
+        document.getElementById('vpTotalScore').textContent = totalScore;
+        document.getElementById('vpAvgAccuracy').textContent = avgAcc + '%';
+        document.getElementById('vpMaxCombo').textContent = maxCombo;
+        document.getElementById('vpFCCount').textContent = fcCount;
+        document.getElementById('vpAPCount').textContent = apCount;
+
+        const gb = rs ? rs.gameBests : p.gameBests;
+        document.getElementById('vpGame1').textContent = gb.game1 || '---';
+        document.getElementById('vpGame2').textContent = gb.game2 || '---';
+        document.getElementById('vpGame3').textContent = gb.game3 || '---';
         const vp4 = document.getElementById('vpGame4');
-        if (vp4) vp4.textContent = p.gameBests.game4 || '---';
+        if (vp4) vp4.textContent = gb.game4 || '---';
+    }
 
+    function openViewProfile(user) {
+        _viewingProfile = user;
+        _renderViewProfile(user);
         switchScreen('screen-view-profile');
+
+        // Also sync from GAS for full profile (level, exp, etc.)
+        syncProfileFromGAS(user).then(() => {
+            if (_viewingProfile === user) _renderViewProfile(user);
+        });
     }
 
 
     // Initialize on DOM ready
     window.addEventListener('DOMContentLoaded', () => {
+        // Render Lucide icons
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
         initDOM();
         initState();
         initAudio();
@@ -2974,7 +3298,6 @@
         const storedSound = localStorage.getItem('musicGameSoundEnabled'); 
         if (storedSound !== null) { 
             audio.enabled = storedSound === 'true'; 
-            dom.soundToggle.textContent = audio.enabled ? '🔊' : '🔇'; 
         }
         loadSavedSettings();
         // Populate student name dropdown for current grade/class
@@ -2988,6 +3311,7 @@
         const savedSfx = localStorage.getItem('sfxVolume');
         if (savedBg && dom.bgVolume) { dom.bgVolume.value = savedBg; if (dom.bgVolumeVal) dom.bgVolumeVal.textContent = savedBg + '%'; }
         if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
+        if (dom.bgMusic && dom.bgVolume) dom.bgMusic.volume = (parseInt(dom.bgVolume.value, 10) || 18) / 100;
         try { initEvents(); } catch(e) { console.error('initEvents error:', e); }
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
@@ -3113,10 +3437,22 @@
                 hideCustomName();
             }
             if (dom.userId) dom.userId.value = _hubIsGuest ? '' : hubSeat.value;
+            updateCurrentUserFromHub();
         }
 
-        hubGrade.addEventListener('change', () => { populateHub(); syncCurrentUserFromHub(); });
-        hubClass.addEventListener('change', () => { populateHub(); syncCurrentUserFromHub(); });
+        function updateCurrentUserFromHub() {
+            const user = getHubUser();
+            if (!user || !user.name) return;
+            state.currentUser = {
+                name: user.name,
+                grade: parseInt(user.grade, 10) || 0,
+                class: user.class || '',
+                id: user.seat || ''
+            };
+        }
+
+        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); });
+        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); });
         // Defensive: repopulate if user opens the name dropdown and it's still empty
         hubName.addEventListener('mousedown', () => { if (hubName.options.length <= 1) populateHub(); });
         hubName.addEventListener('focus',     () => { if (hubName.options.length <= 1) populateHub(); });
@@ -3143,7 +3479,7 @@
                 badge.classList.remove('show');
                 if (loginCard) loginCard.classList.remove('player-selected');
             }
-            syncCurrentUserFromHub();
+            updateCurrentUserFromHub();
         });
 
         populateHub();
@@ -3157,6 +3493,8 @@
                 if (s.userClass) hubClass.value = s.userClass;
                 populateHub();
                 if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                _handleHubNameMode();
+                hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }
 
@@ -3167,35 +3505,6 @@
             }
             return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
         }
-
-        function syncCurrentUserFromHub() {
-            const val = hubName.value;
-            const displayName = _getHubDisplayName();
-            if (!val || (val === '__other__' && !displayName)) {
-                state.currentUser = {
-                    name: '',
-                    grade: parseInt(hubGrade.value) || 0,
-                    class: hubClass.value || '',
-                    id: ''
-                };
-                return;
-            }
-
-            const user = getHubUser();
-            state.currentUser = {
-                name: user.name || '',
-                grade: parseInt(user.grade) || 0,
-                class: user.class || '',
-                id: user.seat || ''
-            };
-
-            const profileScreen = document.getElementById('screen-profile');
-            if (profileScreen && profileScreen.classList.contains('active') && state.currentUser.name) {
-                renderProfileScreen(state.currentUser);
-            }
-        }
-
-        syncCurrentUserFromHub();
 
         function requireHubLogin(nameFieldEl) {
             const val = hubName.value;
@@ -3224,6 +3533,7 @@
         document.getElementById('enterGame2').addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
+            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             // Populate player badge on setup screen
             const badgeText = document.getElementById('g2PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
@@ -3296,6 +3606,7 @@
         document.getElementById('enterGame3').addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
+            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             const badgeText = document.getElementById('g3PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
             let g3SelectedMode = 'practice';
@@ -3368,6 +3679,7 @@
         document.getElementById('enterGame4').addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
+            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             const badgeText = document.getElementById('g4PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
 
@@ -3452,7 +3764,9 @@
 
         // ——— 個人檔案按鈕 ———
         document.getElementById('hubProfileBtn').addEventListener('click', () => {
-            if (!state.currentUser) return;
+            if (!requireHubLogin(hubNameField)) return;
+            updateCurrentUserFromHub();
+            if (!state.currentUser || !state.currentUser.name) return;
             renderProfileScreen(state.currentUser);
             switchScreen('screen-profile');
         });
@@ -4436,6 +4750,7 @@
                 rchalState.hp = Math.max(0, rchalState.hp - lvl.hpLoss);
                 _rchalDrawHP();
                 _rchalShowJudgment('MISS', 'miss');
+                audio.playHit('miss');
                 document.getElementById('rchalCombo').textContent = '';
                 const nm = rchalState.noteMap && rchalState.noteMap[tap.idx];
                 if (nm && nm.el) {
@@ -4517,6 +4832,7 @@
             } else {
                 _rchalShowJudgment('禁錯！✗', 'wrong');
             }
+            audio.playHit('wrong');
             const track = document.getElementById('rchalTrack');
             const float = document.createElement('div');
             float.className = 'rchal-score-float wrong';
@@ -4542,6 +4858,8 @@
         const earned = points * mul;
         rchalState.score += earned;
         rchalState.counts[jClass]++;
+
+        audio.playHit(jClass);
 
         // HP recovery
         if (jClass === 'perfect') rchalState.hp = Math.min(100, rchalState.hp + 5);
@@ -4770,50 +5088,35 @@
 
         const durMap = { 4: 'w', 2: 'h', 1.5: 'q', 1: 'q', 0.5: '8', 0.25: '16' };
         const dotBeats = new Set([1.5]);
+        const { Beam } = VexFlow;
+        const beams = [];
         const vfNotes = [];
+        let eighthRun = [];
+        const flushRun = () => { if (eighthRun.length > 1) { try { beams.push(new Beam([...eighthRun])); } catch(e) {} } eighthRun = []; };
 
         notes.forEach((n, i) => {
             const dur = durMap[n.beats] || 'q';
             if (i === blankIdx) {
+                flushRun(); // break beam before blank note
                 const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
                 if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
                 note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 note.setStemStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
                 vfNotes.push(note);
+                // blank note is NOT added to eighthRun — beam is broken after it too
             } else {
                 const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
                 if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
                 vfNotes.push(note);
+                if (n.beats < 1) {
+                    eighthRun.push(note);
+                } else {
+                    flushRun();
+                }
             }
         });
-
-        // Build beam groups: beam consecutive 8th/16th notes within the same beat
-        const { Beam } = VexFlow;
-        const beams = [];
-        if (Beam) {
-            let pos = 0;
-            let beatStart = 0;
-            let group = [];
-            const flush = () => { if (group.length >= 2) { try { beams.push(new Beam(group)); } catch(e) {} } group = []; };
-            notes.forEach((n, i) => {
-                const beatPos = Math.round(pos * 1000) / 1000;
-                const newBeat = Math.floor(beatPos);
-                if (newBeat !== Math.floor(beatStart) && group.length) flush();
-                if (n.beats < 1) { // eighth or sixteenth
-                    if (i === blankIdx) {
-                        flush(); // break beam at the blank note so it's not beamed
-                    } else {
-                        group.push(vfNotes[i]);
-                        beatStart = beatPos;
-                    }
-                } else {
-                    flush();
-                }
-                pos = Math.round((pos + n.beats) * 1000) / 1000;
-            });
-            flush();
-        }
+        flushRun();
 
         const [num] = timeSig.split('/').map(Number);
         const voice = new Voice({ numBeats: num, beatValue: 4 });
@@ -4938,6 +5241,7 @@
         if (isCorrect) {
             omState.correct++;
             omState.score += 10;
+            audio.playAnswer(true);
             if (fb) { fb.textContent = '✓ 答對了！'; fb.className = 'om-feedback-text show correct'; }
             const scoreEl = document.getElementById('omScore');
             if (scoreEl) scoreEl.textContent = omState.score;
@@ -4949,6 +5253,7 @@
             setTimeout(() => floater.remove(), 750);
         } else {
             omState.wrong++;
+            audio.playAnswer(false);
             if (fb) { fb.textContent = '✗ 答錯了'; fb.className = 'om-feedback-text show wrong'; }
         }
 
@@ -8124,10 +8429,22 @@
         { id:'french-horn',  nameZh:'圓號',       nameEn:'French Horn',  family:'brass',      familyZh:'銅管', img:'img/instruments/french-horn.jpg', desc:'圓形的銅管樂器，音色柔和',
           history:'圓號由狩獵號角演變而來，管身展開全長約3.7米。現代圓號有四個調音管，可降低不同度數的半音以擴展音域。它被認為是最難演奏的銅管樂器，演奏者需精確控制口型和氣息才能達到正確音準。圓號音色柔和溫暖，常用於表現大自然、英雄主義和浩瀚情感，貝多芬、布拉姆斯、理查·施特勞斯和馬勒均為圓號寫下了傳世名作。',
           video:'https://www.youtube.com/embed/JY7wZMX9vfo',
+                    parts:[
+                        {nameZh:'號嘴',nameEn:'Mouthpiece',x:8,y:42,lx:17,ly:62},
+                        {nameZh:'管身',nameEn:'Body',x:56,y:19,lx:68,ly:19},
+                        {nameZh:'轉閥',nameEn:'Rotary Valves',x:37,y:63,lx:37,ly:76},
+                        {nameZh:'喇叭口',nameEn:'Bell',x:74,y:85,lx:59,ly:94}
+                    ],
           synthParams:{ wave:'sawtooth', freq:349, dur:1.0, attack:0.04, vol:0.2, filterType:'lowpass', filterFreq:1500, filterQ:1.5, vibRate:4, vibDepth:2 }},
         { id:'tuba',         nameZh:'大號',       nameEn:'Tuba',         family:'brass',      familyZh:'銅管', img:'img/instruments/tuba.jpg', desc:'銅管家族最大最低沉',
           history:'大號於1835年由德國人威廉·維普雷希特和約翰·戈特弗里德·莫里茨共同發明，是銅管家族中最大最低沉的樂器。它重約12公斤，管身展開長達5.5米，通常有四或五個調音管。大號為管弦樂團提供低音基礎，在進行樂隊和管樂隊中也是震撼人心的低音支柱。拉爾夫·沃恩·威廉姆斯曾為大號創作了一首著名的協奏曲，約翰·費利斯也以大號獨奏聞名於世。',
           video:'https://www.youtube.com/embed/17HjK-TiM0g',
+          parts:[
+            {nameZh:'號嘴',nameEn:'Mouthpiece',x:72,y:40,lx:91,ly:29},
+            {nameZh:'管身',nameEn:'Body',x:62,y:56,lx:74,ly:56},
+            {nameZh:'活塞',nameEn:'Valves',x:80,y:43,lx:100,ly:52},
+            {nameZh:'喇叭口',nameEn:'Bell',x:55,y:5,lx:67,ly:5}
+          ],
           synthParams:{ wave:'sawtooth', freq:131, dur:1.0, attack:0.03, vol:0.3, filterType:'lowpass', filterFreq:800, filterQ:1.5 }},
         { id:'cornet',       nameZh:'短號',       nameEn:'Cornet',       family:'brass',      familyZh:'銅管', img:'img/instruments/cornet.jpg', desc:'比小號稍小，音色較柔和',
           history:'短號於1820年代由郵號發展而來，外形與小號相似但管身更短更圓錐形，音色比小號柔和甜美。在英式銅管樂隊中，短號是最重要的旋律獨奏樂器，地位猶如小提琴在弦樂團中的位置。著名演奏家赫伯特·克拉克將短號技藝帶至高峰，而爵士樂界的比克斯·拜德貝克以短號演奏的柔和風格影響了整個20世紀初的爵士樂壇。',
@@ -8299,8 +8616,8 @@
         'pan-flute':     [{part:'管子',en:'Pipes',x:43,y:74,lx:59,ly:86,side:'right',desc:'長短不一的竹管或木管排列而成，長管發低音，短管發高音，演奏者對管口吹氣以發聲。'},{part:'框架',en:'Frame',x:35,y:32,lx:22,ly:34,side:'left',desc:'將所有管子固定排列的支撐框架，保持管子正確間距和角度，便於演奏者持奏。'}],
         'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,lx:8,ly:26,side:'left',desc:'杯形號嘴緊貼嘴唇，演奏者嘴唇振動產生音波，號嘴大小影響音色的明亮度與演奏舒適性。'},{part:'管身',en:'Body',x:32,y:43,lx:24,ly:17,side:'left',desc:'數段U形彎管連接而成的管身，總長約134公分，音域由低音升B到高音G，音色明亮響亮。'},{part:'活塞',en:'Valves',x:48,y:35,lx:52,ly:16,side:'right',desc:'三個圓柱形活塞按下時改變氣流路徑，延長有效管長以降低音高，組合出不同音符。'},{part:'調音管',en:'Tuning Slide',x:35,y:63,lx:40,ly:86,side:'left',desc:'U形滑管可拉出或推入調整整體音高，確保樂器在正確的音準範圍內演奏。'},{part:'喇叭口',en:'Bell',x:88,y:45,lx:91,ly:80,side:'right',desc:'管身末端擴張的喇叭形開口，將聲音向前投射並決定音量與音色的寬廣度。'}],
         'trombone':      [{part:'號嘴',en:'Mouthpiece',x:16,y:75,lx:27,ly:90,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生較低的音波，長號號嘴比小號更大更淺。'},{part:'滑管',en:'Slide',x:48,y:69,lx:59,ly:86,side:'left',desc:'長號獨特的U形伸縮滑管，向外拉出延長管道降低音高，共有七個把位，取代活塞機構。'},{part:'管身',en:'Body',x:29,y:37,lx:41,ly:37,side:'right',desc:'固定管身部分，包含號嘴接頭與連接滑管的管道，決定長號的基本音域和音色特質。'},{part:'喇叭口',en:'Bell',x:59,y:40,lx:71,ly:40,side:'right',desc:'向右延伸的大型喇叭形開口，投射出長號特有的渾厚低沉音色，直徑通常約20-25公分。'}],
-        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:8,y:42,side:'left',desc:'漏斗形號嘴，比其他銅管更深更窄，演奏者需要精確控制嘴唇張力，技術難度較高。'},{part:'管身',en:'Body',x:45,y:50,side:'right',desc:'盤繞成圓形的長管（展開約3.7公尺），圓形設計使樂器易於攜帶，音色圓潤柔和。'},{part:'轉閥',en:'Rotary Valves',x:42,y:22,side:'left',desc:'圓號使用旋轉閥而非活塞，左手操作四個轉閥改變管長，現代雙調圓號可在F調和降B調之間切換。'},{part:'喇叭口',en:'Bell',x:82,y:42,side:'right',desc:'朝向後方的大型喇叭口，演奏時右手伸入喇叭口微調音準和音色，是圓號獨特的演奏技巧。'}],
-        'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生極低的音波，是銅管樂器中最大的號嘴。'},{part:'管身',en:'Body',x:50,y:50,side:'right',desc:'龐大盤繞的管身（展開約5.5公尺），是銅管樂器中最大最重的，提供管弦樂團最低音域的基礎。'},{part:'活塞',en:'Valves',x:40,y:35,side:'left',desc:'三至五個活塞或轉閥，按下時改變氣流路徑延長管長降低音高，通常由右手操作。'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right',desc:'朝上或朝前的巨大喇叭口，投射出深沉渾厚的低音，賦予管弦樂團堅實的低音基礎。'}],
+        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:8,y:42,lx:17,ly:62,side:'left',desc:'漏斗形號嘴，比其他銅管更深更窄，演奏者需要精確控制嘴唇張力，技術難度較高。'},{part:'管身',en:'Body',x:56,y:19,lx:68,ly:19,side:'right',desc:'盤繞成圓形的長管（展開約3.7公尺），圓形設計使樂器易於攜帶，音色圓潤柔和。'},{part:'轉閥',en:'Rotary Valves',x:37,y:63,lx:37,ly:76,side:'left',desc:'圓號使用旋轉閥而非活塞，左手操作四個轉閥改變管長，現代雙調圓號可在F調和降B調之間切換。'},{part:'喇叭口',en:'Bell',x:74,y:85,lx:59,ly:94,side:'right',desc:'朝向後方的大型喇叭口，演奏時右手伸入喇叭口微調音準和音色，是圓號獨特的演奏技巧。'}],
+        'tuba':          [{part:'號嘴',en:'Mouthpiece',x:72,y:40,lx:91,ly:29,side:'right',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生極低的音波，是銅管樂器中最大的號嘴。'},{part:'管身',en:'Body',x:62,y:56,lx:74,ly:56,side:'right',desc:'龐大盤繞的管身（展開約5.5公尺），是銅管樂器中最大最重的，提供管弦樂團最低音域的基礎。'},{part:'活塞',en:'Valves',x:80,y:43,lx:100,ly:52,side:'right',desc:'三至五個活塞或轉閥，按下時改變氣流路徑延長管長降低音高，通常由右手操作。'},{part:'喇叭口',en:'Bell',x:55,y:5,lx:67,ly:5,side:'right',desc:'朝上或朝前的巨大喇叭口，投射出深沉渾厚的低音，賦予管弦樂團堅實的低音基礎。'}],
         'cornet':        [{part:'號嘴',en:'Mouthpiece',x:22,y:8,side:'left',desc:'比小號號嘴略深的杯形號嘴，賦予短號較柔和圓潤的音色，技術上比小號稍易上手。'},{part:'管身',en:'Body',x:40,y:45,side:'left',desc:'比小號更緊湊的圓錐形管身，錐形設計（而非圓柱形）使音色更加柔和溫暖，常見於銅管樂隊。'},{part:'活塞',en:'Valves',x:50,y:28,side:'right',desc:'三個活塞按鍵，功能與小號相同，改變管長調整音高，短號的活塞間距較小，適合手小的演奏者。'},{part:'喇叭口',en:'Bell',x:72,y:72,side:'right',desc:'比小號更寬的喇叭口，投射出短號特有的柔和飽滿音色，在薩爾瓦多軍樂隊和爵士樂中常見。'}],
         'timpani':       [{part:'鼓面',en:'Drum Head',x:50,y:20,side:'right',desc:'覆蓋在銅鍋頂部的塑料或動物皮鼓面，敲擊時振動產生聲音，張力決定音高，可通過踏板即時調整。'},{part:'銅鍋',en:'Kettle',x:50,y:55,side:'right',desc:'半球形的銅製或玻璃纖維鍋體，作為共鳴腔放大聲音，不同大小的定音鼓負責不同音域。'},{part:'調音器',en:'Tuning Gauge',x:20,y:40,side:'left',desc:'顯示當前音高的指示器，讓演奏者在演奏中準確調音，是定音鼓精確音準的重要輔助工具。'},{part:'腳踏板',en:'Foot Pedal',x:50,y:92,side:'right',desc:'用腳踩踏可即時改變鼓面張力以調整音高，是定音鼓區別於其他鼓的最大特色。'}],
         'snare':         [{part:'鼓面',en:'Drum Head',x:50,y:18,side:'right',desc:'頂部的擊打面，演奏者用鼓棒敲擊，振動向下傳遞至響弦，產生小軍鼓特有的清脆噪音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'金屬或木製的圓柱形鼓身，連接頂部鼓面與底部響弦，深度影響共鳴和音色特性。'},{part:'響弦',en:'Snare Wires',x:50,y:80,side:'right',desc:'底部鼓面下方的金屬弦，鼓面振動時響弦拍擊底面產生「沙沙」的噪音，可用開關切換拆除。'},{part:'調音環',en:'Tuning Lug',x:20,y:50,side:'left',desc:'環繞鼓身的金屬螺栓，旋緊或放鬆可調整鼓面張力，改變音高和音色的明亮度。'}],
@@ -8640,7 +8957,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'quiz-opt-btn g4-img-opt-btn';
                 btn.dataset.optVal = instr.id;
-                btn.innerHTML = `<img src="${instr.img}" alt="${instr.nameZh}" loading="lazy"><span class="g4-img-opt-label">${instr.nameZh}</span>`;
+                btn.innerHTML = `<img src="${instr.img}" alt="樂器圖片" loading="lazy">`;
                 btn.onclick = (e) => { e.stopPropagation(); handleG4Answer(instr.id, q.answer, btn, q); };
                 optEl.appendChild(btn);
             });
@@ -8718,7 +9035,8 @@
                 chosen: chosenLabel, correct: correctLabel,
                 explain: explainMap[q.type] || ''
             });
-            document.getElementById('g4Message').textContent = `❌ 正確答案：${correct}`;
+            const correctDisplay = q.type === 'name-image' ? q.instrument.nameZh : correct;
+            document.getElementById('g4Message').textContent = `❌ 正確答案：${correctDisplay}`;
             audio.playEffect('wrong');
         }
 
@@ -8789,11 +9107,9 @@
 
         // Save scores
         saveLocalRank('game4', user, score, accuracy, maxCombo);
-        if (user) {
-            recordGameResult(user, 'game4', score, accuracy, maxCombo, null);
-        }
         if (mode !== 'practice') {
             submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別·挑戰');
+            recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
         }
 
         renderLocalRankList('game4', 'g4RankList', user);
