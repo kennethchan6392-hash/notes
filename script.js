@@ -3806,9 +3806,9 @@
     // ============================================================
 
     const RCHAL_LEVELS = [
-        { id: 1, name: '初級',  icon: '⭐',       bpm: 60,  tokenSet: 'basic',    bars: 16, winScale: 1.4, hpLoss: 10 },
-        { id: 2, name: '中級',  icon: '⭐⭐',     bpm: 60,  tokenSet: 'medium',   bars: 16, winScale: 1.3, hpLoss: 12 },
-        { id: 3, name: '高級',  icon: '⭐⭐⭐',   bpm: 60,  tokenSet: 'advanced', bars: 16, winScale: 1.2, hpLoss: 14 },
+        { id: 1, name: '初級',  icon: '⭐',       bpm: 72,  tokenSet: 'basic',    bars: 16, winScale: 1.4, hpLoss: 10 },
+        { id: 2, name: '中級',  icon: '⭐⭐',     bpm: 72,  tokenSet: 'medium',   bars: 16, winScale: 1.3, hpLoss: 12 },
+        { id: 3, name: '高級',  icon: '⭐⭐⭐',   bpm: 72,  tokenSet: 'advanced', bars: 16, winScale: 1.2, hpLoss: 14 },
     ];
 
     const rchalState = {
@@ -4052,18 +4052,22 @@
             const beamGroups = [];
             const noteGameMap = [];
             const barTapStart = tapIdx;
+            let eighthRun = [];
+            const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
 
             barLabel.split(' ').forEach(token => {
                 const isRest = token === '休';
                 const compound = COMPOUND_TOKENS[token];
 
                 if (isRest) {
+                    flushEighthRun();
                     const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
                     note.addModifier(new Annotation('休止').setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
                     noteGameMap.push({ rest: true, restIdx: restIdx });
                     restIdx++;
                 } else if (compound) {
+                    flushEighthRun();
                     const group = [];
                     compound.forEach(sub => {
                         const dur = durMap[sub.d];
@@ -4087,8 +4091,10 @@
                     vfNotes.push(note);
                     noteGameMap.push([tapIdx]);
                     tapIdx++;
+                    if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
                 }
             });
+            flushEighthRun();
 
             try {
             const nsx = stave.getNoteStartX();
@@ -5645,17 +5651,21 @@
 
             const notes = [];
             const beamGroups = [];
+            let eighthRun = [];
+            const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
 
             barLabel.split(' ').forEach(token => {
                 const isRest = token === '休';
                 const compound = COMPOUND_TOKENS[token];
 
                 if (isRest) {
+                    flushEighthRun();
                     const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
                     note.addModifier(new Annotation('休止')
                         .setVerticalJustification(3));
                     notes.push(note);
                 } else if (compound) {
+                    flushEighthRun();
                     const group = [];
                     compound.forEach(sub => {
                         const dur = durMap[sub.d];
@@ -5685,8 +5695,10 @@
                     note.addModifier(new Annotation(token)
                         .setVerticalJustification(3));
                     notes.push(note);
+                    if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
                 }
             });
+            flushEighthRun();
 
             const voice = new Voice({ numBeats: 4, beatValue: 4 });
             voice.setMode(2); // SOFT mode — allow incomplete bars
@@ -5725,17 +5737,21 @@
         // Map: vfNotes index → array of game-note indices (for coloring)
         const vfToGame = [];
         let gameNoteIdx = 0;
+        let eighthRun = [];
+        const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
 
         barLabel.split(' ').forEach(token => {
             const isRest = token === '休';
             const compound = COMPOUND_TOKENS[token];
 
             if (isRest) {
+                flushEighthRun();
                 const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
                 note.addModifier(new Annotation('休止').setVerticalJustification(3));
                 vfNotes.push(note);
                 vfToGame.push([]); // no game note for rests
             } else if (compound) {
+                flushEighthRun();
                 const group = [];
                 compound.forEach(sub => {
                     const dur = durMap[sub.d];
@@ -5759,8 +5775,10 @@
                 vfNotes.push(note);
                 vfToGame.push([gameNoteIdx]);
                 gameNoteIdx++;
+                if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
             }
         });
+        flushEighthRun();
 
         const voice = new Voice({ numBeats: 4, beatValue: 4 });
         voice.setMode(2);
@@ -7784,7 +7802,16 @@
         { id:'viola',        nameZh:'中提琴',     nameEn:'Viola',        family:'strings',    familyZh:'弦樂', img:'img/instruments/viola.jpg', desc:'比小提琴稍大，音色較溫暖',
           history:'中提琴與小提琴幾乎同時在16世紀的意大利出現，體型比小提琴大約15%至20%，調音為C-G-D-A。它音色較溫暖深沉，在管弦樂團中負責中音聲部，使用中音譜號（C譜號，亦稱中提琴譜號）記譜——這是現代管弦樂中少數仍使用C譜號的場合。中提琴長期被視為「次要樂器」，直到20世紀才逐漸受到重視，英國作曲家沃爾頓和巴爾托克均為其創作了重要的協奏曲。',
           video:'https://www.youtube.com/embed/oHR_wn1Fe9M',
-          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.06, vol:0.25, filterType:'lowpass', filterFreq:1800, filterQ:1, vibRate:5, vibDepth:3.5 }},
+          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.06, vol:0.25, filterType:'lowpass', filterFreq:1800, filterQ:1, vibRate:5, vibDepth:3.5 },
+          parts:[
+            { nameZh:'琴頭',  nameEn:'Scroll',      x:55, y:2,  lx:78,  ly:4,  len:23.3 },
+            { nameZh:'調音栓', nameEn:'Tuning Peg',  x:63, y:14, lx:100, ly:15, len:37.0 },
+            { nameZh:'琴頸',  nameEn:'Neck',         x:48, y:27, lx:32,  ly:28, len:16.1 },
+            { nameZh:'弦線',  nameEn:'Strings',      x:45, y:47, lx:12,  ly:46, len:33.0 },
+            { nameZh:'琴橋',  nameEn:'Bridge',       x:45, y:71, lx:83,  ly:69, len:38.1 },
+            { nameZh:'琴身',  nameEn:'Body',         x:60, y:52, lx:81,  ly:51, len:21.0 },
+            { nameZh:'腮托',  nameEn:'Chin Rest',    x:31, y:92, lx:7,   ly:94, len:24.1 },
+          ]},
         { id:'cello',        nameZh:'大提琴',     nameEn:'Cello',        family:'strings',    familyZh:'弦樂', img:'img/instruments/cello.jpg', desc:'坐着演奏的大型弦樂器',
           history:'大提琴全名Violoncello，16世紀在意大利誕生。演奏時坐着，以末端的尾針支撐於地上。它的音域寬廣達四個八度，既能演奏渾厚的低音旋律，也能唱出如人聲般高亢的獨奏線條。巴赫的六首《無伴奏大提琴組曲》是音樂史上最偉大的獨奏作品之一，曾被遺忘多年，由卡薩爾斯重新發現並推廣。大提琴在交響樂中與低音大提琴共同支撐和聲基礎。',
           video:'https://www.youtube.com/embed/IDn88XRtCqE',
@@ -7792,11 +7819,28 @@
         { id:'double-bass',  nameZh:'低音大提琴', nameEn:'Double Bass',  family:'strings',    familyZh:'弦樂', img:'img/instruments/double-bass.jpg', desc:'弦樂家族中最大最低沉的',
           history:'低音大提琴是弦樂家族中最大的樂器，高約180厘米，演奏者通常站着或坐在高凳上演奏。它有四根（或五根）弦，比大提琴低一個八度。低音大提琴不僅是古典管弦樂團的低音支柱，在爵士樂中以撥弦方式（pizzicato）演奏，成為節奏組的靈魂。傳奇爵士音樂家查爾斯·明格斯將其發展為能演奏旋律和即興的主角樂器。',
           video:'https://www.youtube.com/embed/Gs72OWYKISk',
-          synthParams:{ wave:'sawtooth', freq:110, dur:1.2, attack:0.08, vol:0.3, filterType:'lowpass', filterFreq:1000, filterQ:0.7, vibRate:4, vibDepth:2 }},
+          synthParams:{ wave:'sawtooth', freq:110, dur:1.2, attack:0.08, vol:0.3, filterType:'lowpass', filterFreq:1000, filterQ:0.7, vibRate:4, vibDepth:2 },
+          parts:[
+            { nameZh:'琴頭',  x:50, y:4,  lx:30, ly:6,  len:20.1 },
+            { nameZh:'調音栓', x:50, y:9,  lx:62, ly:9,  len:12.0 },
+            { nameZh:'琴頸',  x:50, y:18, lx:38, ly:18, len:12.0 },
+            { nameZh:'弦線',  x:50, y:42, lx:38, ly:42, len:12.0 },
+            { nameZh:'琴橋',  x:50, y:60, lx:62, ly:60, len:12.0 },
+            { nameZh:'琴身',  x:56, y:50, lx:68, ly:50, len:12.0 },
+            { nameZh:'腳針',  x:51, y:99, lx:72, ly:95, len:21.4 },
+          ]},
         { id:'harp',         nameZh:'豎琴',       nameEn:'Harp',         family:'strings',    familyZh:'弦樂', img:'img/instruments/harp.png', desc:'用手指撥弦演奏的大型樂器',
           history:'豎琴是人類最古老的樂器之一，可追溯至公元前3000年的古埃及和美索不達米亞。現代演奏用的踏板豎琴由法國製琴師塞巴斯蒂安·艾拉爾在1810年改良定型，擁有47根弦和7個踏板。每個踏板有三個位置，可將對應音名升降半音，從而在所有調性中演奏。豎琴音色空靈夢幻，常用於製造閃爍的琶音效果，是管弦樂團中的特殊色彩樂器。',
           video:'https://www.youtube.com/embed/QypI0Vt8qhU',
-          synthParams:{ wave:'sine', freq:523, dur:1.5, attack:0.005, vol:0.3, sustain:0.3 }},
+          synthParams:{ wave:'sine', freq:523, dur:1.5, attack:0.005, vol:0.3, sustain:0.3 },
+          parts:[
+            { nameZh:'頸',   x:40, y:14, lx:58,  ly:13, len:18.0 },
+            { nameZh:'前柱', x:25, y:50, lx:2,   ly:50, len:23.0 },
+            { nameZh:'弦線', x:45, y:42, lx:64,  ly:42, len:19.0 },
+            { nameZh:'共鳴箱', x:60, y:67, lx:97, ly:69, len:37.1 },
+            { nameZh:'琴聲板', x:58, y:55, lx:100,ly:57, len:42.0 },
+            { nameZh:'腳踏', x:64, y:86, lx:89,  ly:94, len:26.2 },
+          ]},
         { id:'guitar',       nameZh:'結他',       nameEn:'Guitar',       family:'strings',    familyZh:'弦樂', img:'img/instruments/guitar.jpg', desc:'用手指或撥片彈奏的弦樂器',
           history:'結他（吉他）的歷史可追溯至4000年前的古代近東，現代六弦古典結他由西班牙工匠安東尼奧·德·托雷斯在19世紀中葉定型。20世紀電結他的發明徹底改變了流行音樂，搖滾、藍調、爵士均以電結他為核心。結他是世界上最流行的樂器，全球估計有數億名演奏者。著名結他手包括古典的塞戈維亞、爵士的喬·帕斯，以及搖滾的吉米·亨德里克斯。',
           video:'https://www.youtube.com/embed/W--hpA9WPTA',
@@ -7804,11 +7848,29 @@
         { id:'bass-guitar',  nameZh:'低音結他',   nameEn:'Bass Guitar',  family:'strings',    familyZh:'弦樂', img:'img/instruments/bass-guitar.jpg', desc:'電低音弦樂器，節奏的支柱',
           history:'電低音結他（電貝斯）由列奧·芬德在1951年發明，設計目的是取代傳統爵士樂隊中笨重的低音大提琴，同時讓聲音更能通過擴音系統放大。它通常有4根弦（也有5或6弦型號），比結他低一個八度。傳奇貝斯手詹姆斯·詹姆森奠定了流行和節奏藍調音樂的貝斯風格，而約翰·保羅·瓊斯和約翰·班漢則把搖滾貝斯推向新高度。',
           video:'https://www.youtube.com/embed/2hDM0yO27Gs',
-          synthParams:{ wave:'triangle', freq:165, dur:1.0, attack:0.005, vol:0.35, filterType:'lowpass', filterFreq:1200, filterQ:0.5 }},
+          synthParams:{ wave:'triangle', freq:165, dur:1.0, attack:0.005, vol:0.35, filterType:'lowpass', filterFreq:1200, filterQ:0.5 },
+          parts:[
+            { nameZh:'琴頭',  nameEn:'Headstock', x:67, y:4,  lx:86, ly:2,  len:19.1 },
+            { nameZh:'琴頸',  nameEn:'Neck',       x:63, y:18, lx:82, ly:16, len:19.1 },
+            { nameZh:'品柱',  nameEn:'Frets',      x:59, y:32, lx:78, ly:30, len:19.1 },
+            { nameZh:'弦線',  nameEn:'Strings',    x:55, y:45, lx:36, ly:44, len:19.0 },
+            { nameZh:'拾音器', nameEn:'Pickup',    x:51, y:62, lx:70, ly:60, len:19.1 },
+            { nameZh:'琴身',  nameEn:'Body',       x:51, y:72, lx:70, ly:70, len:19.1 },
+            { nameZh:'旋鈕',  nameEn:'Knobs',      x:51, y:80, lx:33, ly:80, len:18.0 },
+          ]},
         { id:'ukulele',      nameZh:'烏克麗麗',   nameEn:'Ukulele',      family:'strings',    familyZh:'弦樂', img:'img/instruments/ukulele.jpg', desc:'來自夏威夷的小型四弦琴',
           history:'烏克麗麗（Ukulele）在19世紀由葡萄牙馬德拉島移民帶到夏威夷，並融合當地文化發展而成。其名字在夏威夷語中意為「跳動的跳蚤」，形容演奏者快速撥弦的手指動作。它有4根腸衣弦或尼龍弦，常見調音為G-C-E-A，體型小巧，分為高音、中音、次中音及低音四種型號。20世紀初夏威夷音樂的流行讓烏克麗麗享譽全球，近年再度成為兒童及初學者的熱門入門樂器。',
           video:'https://www.youtube.com/embed/5MgBikgcWnY',
-          synthParams:{ wave:'triangle', freq:440, dur:0.6, attack:0.003, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.5 }},
+          synthParams:{ wave:'triangle', freq:440, dur:0.6, attack:0.003, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.5 },
+          parts:[
+            { nameZh:'琴頭', nameEn:'Headstock',  x:50, y:7,  lx:77, ly:7,  len:27.0 },
+            { nameZh:'調音栓', nameEn:'Tuning Peg', x:46, y:11, lx:20, ly:13, len:26.1 },
+            { nameZh:'琴頸', nameEn:'Neck',         x:50, y:24, lx:31, ly:25, len:19.0 },
+            { nameZh:'品柱', nameEn:'Frets',        x:53, y:33, lx:65, ly:33, len:12.0 },
+            { nameZh:'弦線', nameEn:'Strings',      x:50, y:46, lx:22, ly:47, len:28.0 },
+            { nameZh:'音孔', nameEn:'Sound Hole',   x:51, y:68, lx:82, ly:68, len:31.0 },
+            { nameZh:'琴橋', nameEn:'Bridge',       x:51, y:86, lx:83, ly:85, len:32.0 },
+          ]},
         { id:'banjo',        nameZh:'班卓琴',     nameEn:'Banjo',        family:'strings',    familyZh:'弦樂', img:'img/instruments/banjo.jpg', desc:'圓形共鳴體的撥弦樂器',
           history:'班卓琴源自西非的弦鼓，由被販賣到美洲的非洲人帶來並演變而成。圓形琴身以動物皮膜（現多為合成皮）覆蓋作共鳴板，產生獨特的清脆穿透音色。在美國南部，班卓琴成為鄉村音樂、藍草音樂和舊時爵士的核心樂器。典型演奏技法包括三指撥奏（三指技法）和雙指撥奏。名手厄爾·史克魯格斯的三指技法革命性地改變了班卓的演奏方式。',
           video:'https://www.youtube.com/embed/dxPVyieptwA',
@@ -7816,17 +7878,42 @@
         { id:'mandolin',     nameZh:'曼陀林',     nameEn:'Mandolin',     family:'strings',    familyZh:'弦樂', img:'img/instruments/mandolin.jpg', desc:'淚滴形的小型弦樂器',
           history:'曼陀林起源於17世紀的意大利那不勒斯，由中世紀的魯特琴演變而來。它有8根鋼弦，按G-D-A-E四組雙弦排列，與小提琴音域相同，用撥片快速撥奏（顫音奏法）來模擬持續音效。曼陀林在意大利民謠、藍草音樂及古典音樂中均有重要地位。韋瓦第和貝多芬均為其創作過樂曲，而比爾·孟羅則是現代藍草曼陀林的奠基人。',
           video:'https://www.youtube.com/embed/0We5g77yBMM',
-          synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 }},
+          synthParams:{ wave:'triangle', freq:523, dur:0.4, attack:0.002, vol:0.25, filterType:'lowpass', filterFreq:3000, filterQ:0.6 },
+          parts:[
+            { nameZh:'琴頭', nameEn:'Headstock',  x:51, y:2,  lx:77, ly:6,  len:26.3 },
+            { nameZh:'調音栓', nameEn:'Tuning Peg', x:42, y:7,  lx:24, ly:6,  len:18.0 },
+            { nameZh:'琴頸', nameEn:'Neck',        x:49, y:25, lx:27, ly:28, len:22.2 },
+            { nameZh:'品柱', nameEn:'Frets',       x:51, y:30, lx:63, ly:30, len:12.0 },
+            { nameZh:'音孔', nameEn:'Sound Hole',  x:37, y:74, lx:18, ly:69, len:19.6 },
+            { nameZh:'弦線', nameEn:'Strings',     x:51, y:42, lx:33, ly:42, len:18.0 },
+            { nameZh:'琴橋', nameEn:'Bridge',      x:51, y:78, lx:82, ly:79, len:31.0 },
+          ]},
 
         // ── 木管 Woodwind ──
         { id:'flute',        nameZh:'長笛',       nameEn:'Flute',        family:'woodwind',   familyZh:'木管', img:'img/instruments/flute.jpg', desc:'橫吹的金屬管樂器，音色清亮',
           history:'長笛是人類最古老的樂器之一，最早的骨笛可追溯至四萬年前的歐洲舊石器時代。現代橫吹長笛由德國人特奧巴爾德·波姆在1847年完成改良，改用銀製或鍍銀金屬管並設計了精密的環形按鍵系統，大幅提升了音準和音量。長笛是木管組中最高音的常規成員，演奏者向吹孔邊緣吹氣使空氣柱振動發聲，毋需使用簧片。莫札特、貝多芬、德布西和普羅高菲夫均為其創作了著名的協奏曲或奏鳴曲。',
           video:'https://www.youtube.com/embed/111yvjBvDyU',
-          synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 }},
+          synthParams:{ wave:'sine', freq:880, dur:0.9, attack:0.05, vol:0.25, vibRate:5, vibDepth:4 },
+          parts:[
+            { nameZh:'頭管', nameEn:'Head Joint',      x:92, y:6,  lx:58, ly:5,  len:34.0 },
+            { nameZh:'吹孔', nameEn:'Embouchure Hole',  x:89, y:10, lx:49, ly:21, len:41.5 },
+            { nameZh:'上管', nameEn:'Upper Joint',      x:72, y:27, lx:95, ly:37, len:25.1 },
+            { nameZh:'按鍵', nameEn:'Keys',             x:48, y:51, lx:28, ly:49, len:20.1 },
+            { nameZh:'下管', nameEn:'Lower Joint',      x:36, y:69, lx:64, ly:68, len:28.0 },
+            { nameZh:'喇叭口', nameEn:'Bell',           x:8,  y:96, lx:43, ly:94, len:35.1 },
+          ]},
         { id:'clarinet',     nameZh:'單簧管',     nameEn:'Clarinet',     family:'woodwind',   familyZh:'木管', img:'img/instruments/clarinet.jpg', desc:'用單簧片振動發聲',
           history:'單簧管約在1700年由德國樂器師約翰·克里斯托弗·丹納在沙呂莫管的基礎上改良發明，使用一片蘆葦或合成簧片振動發聲。它音域寬廣達四個八度，低音區深沉如夜、高音區明亮輝煌，是管弦樂、爵士樂和室內樂中都極為重要的樂器。莫扎特深愛單簧管，其《A大調單簧管協奏曲》被譽為最美麗的木管協奏曲之一。爵士界的班尼·古德曼被稱為「搖擺樂之王」，更將單簧管推上流行文化的巔峰。',
           video:'https://www.youtube.com/embed/xKIKiYgRnHc',
-          synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 }},
+          synthParams:{ wave:'square', freq:466, dur:0.9, attack:0.03, vol:0.18, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:2 },
+          parts:[
+            { nameZh:'吹嘴',  nameEn:'Mouthpiece',   x:50, y:13, lx:62, ly:13, len:12.0 },
+            { nameZh:'簧片',  nameEn:'Reed',          x:47, y:15, lx:35, ly:15, len:12.0 },
+            { nameZh:'上管',  nameEn:'Upper Joint',   x:50, y:25, lx:62, ly:25, len:12.0 },
+            { nameZh:'按鍵',  nameEn:'Keys',          x:46, y:43, lx:22, ly:43, len:24.0 },
+            { nameZh:'下管',  nameEn:'Lower Joint',   x:50, y:60, lx:62, ly:60, len:12.0 },
+            { nameZh:'喇叭口', nameEn:'Bell',         x:51, y:87, lx:71, ly:85, len:20.1 },
+          ]},
         { id:'oboe',         nameZh:'雙簧管',     nameEn:'Oboe',         family:'woodwind',   familyZh:'木管', img:'img/instruments/oboe.jpg', desc:'音色尖銳明亮，用雙簧片發聲',
           history:'雙簧管在17世紀由法國宮廷樂師從肖姆管改良發展而來，使用兩片薄蘆葦簧片夾合振動發聲，音色尖銳穿透且略帶哀愁。由於雙簧管的A音音準極為穩定，管弦樂團在演出前通常以雙簧管吹出的A音（440Hz）作為全團調音基準。雙簧管演奏者需自行削製蘆葦簧片，是樂手技藝的重要部分。巴赫、莫扎特、理察·施特勞斯均為其創作了重要作品，普羅高菲夫的《彼得與狼》中以雙簧管代表鴨子。',
           video:'https://www.youtube.com/embed/NU-8cklBdYo',
@@ -7842,7 +7929,12 @@
         { id:'piccolo',      nameZh:'短笛',       nameEn:'Piccolo',      family:'woodwind',   familyZh:'木管', img:'img/instruments/piccolo.jpg', desc:'比長笛更小，音域最高',
           history:'短笛是長笛家族中最小的成員，長度約為標準長笛的一半，但音域比長笛高整整一個八度，是管弦樂團中音域最高的常規樂器。它在記譜時比實際音高低一個八度，以避免大量加線。短笛聲音尖銳穿透力極強，貝多芬在《第五交響曲》終樂章首次將其引入交響樂，此後成為管弦樂團的標準配置。在軍樂隊中，短笛是帶領隊伍行進的核心聲部。',
           video:'https://www.youtube.com/embed/111yvjBvDyU',
-          synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 }},
+          synthParams:{ wave:'sine', freq:1568, dur:0.6, attack:0.03, vol:0.18, vibRate:6, vibDepth:5 },
+          parts:[
+                { nameZh:'吹孔', nameEn:'Embouchure Hole', x:86, y:29, lx:84, ly:77, len:22.4 },
+                { nameZh:'管身', nameEn:'Body',            x:58, y:49, lx:70, ly:76, len:17.1 },
+                { nameZh:'按鍵', nameEn:'Keys',            x:50, y:52, lx:44, ly:80, len:35.7 },
+          ]},
         { id:'english-horn', nameZh:'英國管',     nameEn:'English Horn',  family:'woodwind',   familyZh:'木管', img:'img/instruments/english%20horn.jpg', desc:'比雙簧管音域低，帶梨形喇叭口',
           history:'英國管其實既不是「英國的」也不是「號角」，其法文名稱cor anglais可能源自「彎角」（cor anglé）的諧音。它是雙簧管的次中音版本，管身比雙簧管長，末端有獨特的梨形喇叭口，音域比雙簧管低五度。英國管音色溫暖憂鬱，常被用來表達思鄉、哀愁和遼闊的大自然。德沃夏克《新世界交響曲》第二樂章中英國管奏出的緩板主題，是音樂史上最令人動容的旋律之一。白遼士和西貝流士亦為其寫下精彩的獨奏段落。',
           video:'https://www.youtube.com/embed/ycgzqC92DbQ',
@@ -7850,18 +7942,45 @@
         { id:'alto-sax',     nameZh:'中音薩克斯風', nameEn:'Alto Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/alto-sax.jpg', desc:'最常見的薩克斯風，音色溫暖',
           history:'薩克斯風由比利時樂器師阿道夫·薩克斯於1846年在法國巴黎發明並申請專利，目的是創造一種音量大於木管、音色柔和於銅管的樂器，以連接兩個家族。中音薩克斯風是最常見的型號，雖然管身由黃銅製造，但因使用單簧片發聲而依照聲學原理被歸類為木管樂器。薩克斯風在爵士樂的發展中舉足輕重，查理·帕克（中音）和約翰·科爾特蘭（次中音）重新定義了爵士樂的語言。',
           video:'https://www.youtube.com/embed/UYU4R-GfFr0',
-          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.02, vol:0.22, filterType:'lowpass', filterFreq:2200, filterQ:2, vibRate:5, vibDepth:3 }},
-        { id:'tenor-sax',    nameZh:'次中音薩克斯風', nameEn:'Tenor Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/tenor-sax.jpg', desc:'爵士樂中最受歡迎的薩克斯風',
+          synthParams:{ wave:'sawtooth', freq:440, dur:1.0, attack:0.02, vol:0.22, filterType:'lowpass', filterFreq:2200, filterQ:2, vibRate:5, vibDepth:3 },
+          parts:[
+            { nameZh:'吹嘴',  nameEn:'Mouthpiece', x:93, y:5,  lx:93, ly:20, len:15.0 },
+            { nameZh:'頸管',  nameEn:'Neck',       x:56, y:10, lx:40, ly:12, len:16.1 },
+            { nameZh:'管身',  nameEn:'Body',       x:47, y:49, lx:59, ly:49, len:12.0 },
+            { nameZh:'按鍵',  nameEn:'Keys',       x:39, y:39, lx:28, ly:25, len:17.8 },
+            { nameZh:'喇叭口', nameEn:'Bell',      x:16, y:40, lx:11, ly:31, len:10.3 },
+          ]},
+        { id:'tenor-sax',    nameZh:'次中音薩克斯風', nameEn:'Tenor Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/tenor saxophone.jpg', desc:'爵士樂中最受歡迎的薩克斯風',
           history:'次中音薩克斯風比中音薩克斯風大，管身呈彎曲的U型，音域比中音薩克斯風低五度。它是爵士樂中最具代表性的聲音之一，傳奇演奏家約翰·科爾特蘭以其探索性的演奏重新定義了爵士樂的邊界，索尼·羅林斯則以強勁豪放的即興著稱。次中音薩克斯風在爵士大樂團、流行樂和搖滾樂中均有廣泛使用，其低沉有力的音色極具魅力。',
           video:'https://www.youtube.com/embed/cGjYy_9UCqI',
-          synthParams:{ wave:'sawtooth', freq:330, dur:1.0, attack:0.02, vol:0.24, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:3 }},
-        { id:'soprano-sax',  nameZh:'高音薩克斯風', nameEn:'Soprano Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/soprano-sax.jpg', desc:'直管型薩克斯風，音域最高',
+          synthParams:{ wave:'sawtooth', freq:330, dur:1.0, attack:0.02, vol:0.24, filterType:'lowpass', filterFreq:1800, filterQ:2, vibRate:4.5, vibDepth:3 },
+          parts:[
+            { nameZh:'吹嘴',  nameEn:'Mouthpiece', x:22, y:13, lx:6,  ly:21, len:17.9 },
+            { nameZh:'頸管',  nameEn:'Neck',       x:50, y:14, lx:35, ly:29, len:21.2 },
+            { nameZh:'管身',  nameEn:'Body',       x:55, y:40, lx:69, ly:34, len:15.2 },
+            { nameZh:'按鍵',  nameEn:'Keys',       x:53, y:52, lx:26, ly:54, len:27.1 },
+            { nameZh:'喇叭口', nameEn:'Bell',      x:72, y:53, lx:91, ly:49, len:19.4 },
+          ]},
+        { id:'soprano-sax',  nameZh:'高音薩克斯風', nameEn:'Soprano Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/Soprano Saxophone.jpg', desc:'直管型薩克斯風，音域最高',
           history:'高音薩克斯風是薩克斯風家族中最小的常見成員，通常為直管形狀，外觀與單簧管相似但末端微微上翹。它的音色明亮穿透，高音區甚至帶有嘹亮的哨音質感。在古典音樂中，高音薩克斯風常見於薩克斯風四重奏；在爵士界，史提夫·雷西和韋恩·蕭特以其創作了大量前衛風格作品。流行樂手肯尼·G更以高音薩克斯風獨特的綿長氣息聞名全球。',
           video:'https://www.youtube.com/embed/u4cMY7qeaiM',
-          synthParams:{ wave:'sawtooth', freq:587, dur:0.9, attack:0.02, vol:0.2, filterType:'lowpass', filterFreq:2800, filterQ:2, vibRate:5.5, vibDepth:3.5 }},
+          synthParams:{ wave:'sawtooth', freq:587, dur:0.9, attack:0.02, vol:0.2, filterType:'lowpass', filterFreq:2800, filterQ:2, vibRate:5.5, vibDepth:3.5 },
+          parts:[
+            { nameZh:'吹嘴',  nameEn:'Mouthpiece', x:52, y:7,  lx:71, ly:7,  len:19.0 },
+            { nameZh:'管身',  nameEn:'Body',       x:55, y:41, lx:75, ly:42, len:20.0 },
+            { nameZh:'按鍵',  nameEn:'Keys',       x:43, y:57, lx:25, ly:58, len:18.0 },
+            { nameZh:'喇叭口', nameEn:'Bell',      x:51, y:96, lx:68, ly:93, len:17.3 },
+          ]},
         { id:'baritone-sax', nameZh:'上低音薩克斯風', nameEn:'Baritone Saxophone', family:'woodwind', familyZh:'木管', img:'img/instruments/baritone-sax.jpg', desc:'最大的常見薩克斯風，音域最低',
           history:'上低音薩克斯風是薩克斯風家族中體型最大的常見型號，管身折疊成巨大的J型，重約5公斤，演奏者通常需要肩帶支撐。它的音域比中音薩克斯風低兩個五度，提供深沉有力的低音，在爵士大樂團和管樂團中擔任低音聲部。傳奇爵士演奏家哈利·卡尼在艾靈頓公爵樂隊中以上低音薩克斯風打造了標誌性的音色，後來哈姆·彼得森更進一步拓展了其獨奏可能性。',
           video:'https://www.youtube.com/embed/k91FjkE3v3Q',
+          parts:[
+            {nameZh:'吹嘴',nameEn:'Mouthpiece',x:30,y:13,lx:12,ly:18},
+            {nameZh:'頸管',nameEn:'Neck',x:43,y:16,lx:30,ly:25},
+            {nameZh:'管身',nameEn:'Body',x:65,y:47,lx:77,ly:47},
+            {nameZh:'按鍵',nameEn:'Keys',x:53,y:54,lx:36,ly:57},
+            {nameZh:'喇叭口',nameEn:'Bell',x:65,y:27,lx:87,ly:17}
+          ],
           synthParams:{ wave:'sawtooth', freq:196, dur:1.2, attack:0.03, vol:0.26, filterType:'lowpass', filterFreq:1200, filterQ:1.8, vibRate:4, vibDepth:2 }},
         { id:'harmonica',    nameZh:'口琴',       nameEn:'Harmonica',    family:'woodwind',   familyZh:'木管', img:'img/instruments/harmonica.jpg', desc:'用嘴吹奏的小型簧片樂器',
           history:'口琴在1820年代由德國和奧地利的工匠分別改良發展而成，體積小巧，可放入口袋中，是最便於攜帶的旋律樂器之一。演奏者通過向不同孔位吹氣和吸氣使內部的金屬自由簧片振動發聲，吹氣和吸氣可產生不同音高。口琴在藍調音樂中被稱為「harp」，鮑勃·狄倫和尼爾·楊將其帶入民謠和搖滾，而史帝維·旺達和西佐·波薩則以半音階口琴征服了流行樂壇。',
@@ -8033,59 +8152,59 @@
 
     // ── Instrument structure annotation data (x,y % on image, side = label direction) ──
     const INSTRUMENT_STRUCTURE = {
-        'violin':        [{part:'琴頭',en:'Scroll',x:74,y:14,side:'right',desc:'小提琴頂端的螺旋形裝飾，由工匠手工雕刻而成，是識別樂器的標誌性特徵。'},{part:'調音栓',en:'Tuning Peg',x:77,y:22,side:'right',desc:'用於調整弦線張力以改變音高的木製旋鈕，四根分別對應 G、D、A、E 弦。'},{part:'琴頸',en:'Neck',x:69,y:25,side:'right',desc:'演奏者左手握持的部分，由木材製成，連接琴頭與琴身。'},{part:'指板',en:'Fingerboard',x:66,y:30,side:'left',desc:'左手手指按壓弦線以改變音高的黑色木板，通常由烏木製成，覆蓋於琴頸之上。'},{part:'弦線',en:'Strings',x:57,y:48,side:'left',desc:'四條弦線由低至高為 G、D、A、E 弦，現代多為鋼芯或合成纖維製成。'},{part:'琴橋',en:'Bridge',x:50,y:65,side:'left',desc:'支撐弦線並將振動傳送至琴身共鳴箱的精密薄木片，對音色有重要影響。'},{part:'F孔',en:'F-hole',x:48,y:59,side:'left',desc:'琴身兩側的 F 形音孔，讓琴身內的空氣振動得以傳出，豐富音色。'},{part:'琴身',en:'Body',x:63,y:52,side:'right',desc:'小提琴的共鳴箱，由面板、背板和側板組成，是放大聲音的關鍵部件。'},{part:'腮托',en:'Chin Rest',x:38,y:82,side:'left',desc:'演奏時供演奏者夾在下巴與肩膀之間的支撐部件，有助穩定樂器。'},{part:'拉弦板',en:'Tailpiece',x:49,y:76,side:'right',desc:'固定弦線末端的部件，通常由黑木或金屬製成，位於琴身底部。'}],
-        'viola':         [{part:'琴頭',en:'Scroll',x:55,y:2,side:'right',desc:'中提琴頂端的螺旋形裝飾，造型與小提琴相似，但琴頭整體比小提琴更寬厚。'},{part:'調音栓',en:'Tuning Peg',x:57,y:15,side:'right',desc:'用於調整弦線張力的木製旋鈕，四根分別對應 C、G、D、A 弦，音域比小提琴低五度。'},{part:'琴頸',en:'Neck',x:48,y:27,side:'left',desc:'演奏者左手握持的部分，比小提琴略長，連接琴頭與較寬大的琴身。'},{part:'弦線',en:'Strings',x:45,y:47,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，最低的 C 弦賦予中提琴獨特的渾厚音色。'},{part:'琴橋',en:'Bridge',x:45,y:71,side:'right',desc:'精密薄木片，支撐弦線並將振動傳至共鳴箱，中提琴琴橋比小提琴更寬。'},{part:'琴身',en:'Body',x:60,y:52,side:'right',desc:'中提琴的共鳴箱，體積介於小提琴與大提琴之間，賦予其溫暖而略帶鼻音的音色。'},{part:'腮托',en:'Chin Rest',x:31,y:92,side:'left',desc:'夾在演奏者下巴與肩膀之間的支撐部件，因中提琴較重，腮托設計尤為重要。'}],
+        'violin':        [{part:'琴頭',en:'Scroll',x:74,y:14,lx:89,ly:8,side:'right',desc:'小提琴頂端的螺旋形裝飾，由工匠手工雕刻而成，是識別樂器的標誌性特徵。'},{part:'調音栓',en:'Tuning Peg',x:77,y:22,lx:95,ly:22,side:'right',desc:'用於調整弦線張力以改變音高的木製旋鈕，四根分別對應 G、D、A、E 弦。'},{part:'琴頸',en:'Neck',x:69,y:25,lx:88,ly:35,side:'right',desc:'演奏者左手握持的部分，由木材製成，連接琴頭與琴身。'},{part:'指板',en:'Fingerboard',x:66,y:30,lx:30,ly:30,side:'left',desc:'左手手指按壓弦線以改變音高的黑色木板，通常由烏木製成，覆蓋於琴頸之上。'},{part:'弦線',en:'Strings',x:57,y:48,lx:25,ly:48,side:'left',desc:'四條弦線由低至高為 G、D、A、E 弦，現代多為鋼芯或合成纖維製成。'},{part:'琴橋',en:'Bridge',x:50,y:65,lx:20,ly:68,side:'left',desc:'支撐弦線並將振動傳送至琴身共鳴箱的精密薄木片，對音色有重要影響。'},{part:'F孔',en:'F-hole',x:48,y:59,lx:18,ly:56,side:'left',desc:'琴身兩側的 F 形音孔，讓琴身內的空氣振動得以傳出，豐富音色。'},{part:'琴身',en:'Body',x:63,y:52,lx:82,ly:52,side:'right',desc:'小提琴的共鳴箱，由面板、背板和側板組成，是放大聲音的關鍵部件。'},{part:'腮托',en:'Chin Rest',x:38,y:82,lx:12,ly:82,side:'left',desc:'演奏時供演奏者夾在下巴與肩膀之間的支撐部件，有助穩定樂器。'},{part:'拉弦板',en:'Tailpiece',x:49,y:76,lx:75,ly:76,side:'right',desc:'固定弦線末端的部件，通常由黑木或金屬製成，位於琴身底部。'}],
+        'viola':         [{part:'琴頭',en:'Scroll',x:55,y:2,side:'right',desc:'中提琴頂端的螺旋形裝飾，造型與小提琴相似，但琴頭整體比小提琴更寬厚。'},{part:'調音栓',en:'Tuning Peg',x:63,y:14,side:'right',desc:'用於調整弦線張力的木製旋鈕，四根分別對應 C、G、D、A 弦，音域比小提琴低五度。'},{part:'琴頸',en:'Neck',x:48,y:27,side:'left',desc:'演奏者左手握持的部分，比小提琴略長，連接琴頭與較寬大的琴身。'},{part:'弦線',en:'Strings',x:45,y:47,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，最低的 C 弦賦予中提琴獨特的渾厚音色。'},{part:'琴橋',en:'Bridge',x:45,y:71,side:'right',desc:'精密薄木片，支撐弦線並將振動傳至共鳴箱，中提琴琴橋比小提琴更寬。'},{part:'琴身',en:'Body',x:60,y:52,side:'right',desc:'中提琴的共鳴箱，體積介於小提琴與大提琴之間，賦予其溫暖而略帶鼻音的音色。'},{part:'腮托',en:'Chin Rest',x:31,y:92,side:'left',desc:'夾在演奏者下巴與肩膀之間的支撐部件，因中提琴較重，腮托設計尤為重要。'}],
 
-        'cello':         [{part:'琴頭',en:'Scroll',x:50,y:2,side:'right',desc:'大提琴頂端的螺旋裝飾，體積比小提琴和中提琴更大，雕工同樣精細。'},{part:'調音栓',en:'Tuning Peg',x:54,y:8,side:'right',desc:'用於調整弦線音高的木製旋鈕，四根對應 C、G、D、A 弦，旋轉時需要較大的力道。'},{part:'琴頸',en:'Neck',x:50,y:17,side:'left',desc:'演奏時左手拇指繞抱琴頸以輔助換把，大提琴夾於雙腿之間演奏，琴頸角度因此較直。'},{part:'弦線',en:'Strings',x:50,y:42,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，用弓弦拉奏，音域低沉寬廣，接近人聲男低音。'},{part:'琴橋',en:'Bridge',x:50,y:69,side:'right',desc:'大型精密薄木片，支撐四條弦並將振動傳至琴身，對音量與音色均有顯著影響。'},{part:'琴身',en:'Body',x:58,y:49,side:'right',desc:'大型共鳴箱，由雲杉面板與楓木背板側板組成，共鳴空間大，音色低沉豐富。'},{part:'F孔',en:'F-hole',x:44,y:67,side:'left',desc:'琴身兩側的 F 形音孔，讓腔體內空氣振動傳出，增加音量並豐富泛音。'},{part:'腳針',en:'Endpin',x:50,y:99,side:'right',desc:'從琴身底部伸出的金屬棒，演奏時頂住地面以支撐樂器，可調節長度適合不同身高的演奏者。'}],
+        'cello':         [{part:'琴頭',en:'Scroll',x:50,y:2,lx:70,ly:1,side:'right',desc:'大提琴頂端的螺旋裝飾，體積比小提琴和中提琴更大，雕工同樣精細。'},{part:'調音栓',en:'Tuning Peg',x:54,y:8,lx:72,ly:12,side:'right',desc:'用於調整弦線音高的木製旋鈕，四根對應 C、G、D、A 弦，旋轉時需要較大的力道。'},{part:'琴頸',en:'Neck',x:50,y:17,lx:30,ly:17,side:'left',desc:'演奏時左手拇指繞抱琴頸以輔助換把，大提琴夾於雙腿之間演奏，琴頸角度因此較直。'},{part:'弦線',en:'Strings',x:50,y:42,lx:28,ly:42,side:'left',desc:'四條弦由低至高為 C、G、D、A 弦，用弓弦拉奏，音域低沉寬廣，接近人聲男低音。'},{part:'琴橋',en:'Bridge',x:50,y:69,lx:70,ly:72,side:'right',desc:'大型精密薄木片，支撐四條弦並將振動傳至琴身，對音量與音色均有顯著影響。'},{part:'琴身',en:'Body',x:58,y:49,lx:78,ly:49,side:'right',desc:'大型共鳴箱，由雲杉面板與楓木背板側板組成，共鳴空間大，音色低沉豐富。'},{part:'F孔',en:'F-hole',x:44,y:67,lx:22,ly:64,side:'left',desc:'琴身兩側的 F 形音孔，讓腔體內空氣振動傳出，增加音量並豐富泛音。'},{part:'腳針',en:'Endpin',x:50,y:99,lx:72,ly:96,side:'right',desc:'從琴身底部伸出的金屬棒，演奏時頂住地面以支撐樂器，可調節長度適合不同身高的演奏者。'}],
 
-        'double-bass':   [{part:'琴頭',en:'Scroll',x:50,y:4,side:'right',desc:'低音大提琴頂端的裝飾部分，部分琴款採用渦卷形，部分採用獸頭雕刻，整體比其他弓弦樂器更大。'},{part:'調音栓',en:'Tuning Peg',x:50,y:9,side:'right',desc:'低音大提琴常配備機械齒輪調音器，因弦線張力極大，純木製旋鈕難以精確調音。'},{part:'琴頸',en:'Neck',x:50,y:18,side:'left',desc:'粗壯的琴頸供演奏者左手握持，站立或坐於高凳演奏，需要更大的手指延展。'},{part:'弦線',en:'Strings',x:50,y:42,side:'left',desc:'四條弦（E、A、D、G）是管弦樂團中音域最低的弓弦樂器，提供整個樂隊的低音基礎。'},{part:'琴橋',en:'Bridge',x:50,y:60,side:'right',desc:'厚實的木製琴橋，承受四條粗弦的巨大張力，同時高效地傳遞振動至琴身。'},{part:'琴身',en:'Body',x:56,y:50,side:'right',desc:'管弦樂團中最大的弓弦樂器琴身，肩部通常呈斜肩設計，方便演奏者的弓臂操作。'},{part:'腳針',en:'Endpin',x:50,y:96,side:'right',desc:'從琴底伸出的粗大金屬支撐棒，站立演奏時頂住地面，可調節高度適合不同的演奏者。'}],
+        'double-bass':   [{part:'琴頭',en:'Scroll',x:50,y:4,side:'left',desc:'低音大提琴頂端的裝飾部分，部分琴款採用渦卷形，部分採用獸頭雕刻，整體比其他弓弦樂器更大。'},{part:'調音栓',en:'Tuning Peg',x:50,y:9,side:'right',desc:'低音大提琴常配備機械齒輪調音器，因弦線張力極大，純木製旋鈕難以精確調音。'},{part:'琴頸',en:'Neck',x:50,y:18,side:'left',desc:'粗壯的琴頸供演奏者左手握持，站立或坐於高凳演奏，需要更大的手指延展。'},{part:'弦線',en:'Strings',x:50,y:42,side:'left',desc:'四條弦（E、A、D、G）是管弦樂團中音域最低的弓弦樂器，提供整個樂隊的低音基礎。'},{part:'琴橋',en:'Bridge',x:50,y:60,side:'right',desc:'厚實的木製琴橋，承受四條粗弦的巨大張力，同時高效地傳遞振動至琴身。'},{part:'琴身',en:'Body',x:56,y:50,side:'right',desc:'管弦樂團中最大的弓弦樂器琴身，肩部通常呈斜肩設計，方便演奏者的弓臂操作。'},{part:'腳針',en:'Endpin',x:51,y:99,side:'right',desc:'從琴底伸出的粗大金屬支撐棒，站立演奏時頂住地面，可調節高度適合不同的演奏者。'}],
 
-        'harp':          [{part:'頸',en:'Neck',x:40,y:14,side:'right',desc:'豎琴頂部弧形的部件，內藏調音機構，連接前柱與共鳴箱，是整個框架的關鍵結構。'},{part:'前柱',en:'Fore-pillar',x:25,y:50,side:'left',desc:'豎琴最粗壯的直立支柱，承受所有弦線的巨大張力，通常由硬木製成，是整個樂器的骨架。'},{part:'弦線',en:'Strings',x:45,y:42,side:'right',desc:'音樂會豎琴共有 47 條弦，由金屬線和羊腸線製成，跨越六個半八度的音域，演奏時用雙手手指撥弦。'},{part:'共鳴箱',en:'Resonator',x:60,y:67,side:'right',desc:'三角形的中空腔體，將弦線振動放大並投射出去，通常由雲杉面板與楓木背板製成。'},{part:'琴聲板',en:'Sound Board',x:58,y:55,side:'right',desc:'弦線固定於其上的面板，振動時將能量傳入共鳴箱，是音色形成的核心部件。'},{part:'腳踏',en:'Pedal',x:45,y:88,side:'left',desc:'音樂會豎琴有七個踏板，分別控制七個音名，每個踏板有三段位置，可升降半音，實現不同調性的演奏。'}],
+        'harp':          [{part:'頸',en:'Neck',x:40,y:14,side:'right',desc:'豎琴頂部弧形的部件，內藏調音機構，連接前柱與共鳴箱，是整個框架的關鍵結構。'},{part:'前柱',en:'Fore-pillar',x:25,y:50,side:'left',desc:'豎琴最粗壯的直立支柱，承受所有弦線的巨大張力，通常由硬木製成，是整個樂器的骨架。'},{part:'弦線',en:'Strings',x:45,y:42,side:'right',desc:'音樂會豎琴共有 47 條弦，由金屬線和羊腸線製成，跨越六個半八度的音域，演奏時用雙手手指撥弦。'},{part:'共鳴箱',en:'Resonator',x:60,y:67,side:'right',desc:'三角形的中空腔體，將弦線振動放大並投射出去，通常由雲杉面板與楓木背板製成。'},{part:'琴聲板',en:'Sound Board',x:58,y:55,side:'right',desc:'弦線固定於其上的面板，振動時將能量傳入共鳴箱，是音色形成的核心部件。'},{part:'腳踏',en:'Pedal',x:64,y:86,side:'right',desc:'音樂會豎琴有七個踏板，分別控制七個音名，每個踏板有三段位置，可升降半音，實現不同調性的演奏。'}],
 
-        'guitar':        [{part:'琴頭',en:'Headstock',x:51,y:11,side:'right',desc:'吉他頂端固定調音器的部件，造型因品牌而異，是辨識吉他款式的特徵之一。'},{part:'調音器',en:'Tuner',x:46,y:14,side:'left',desc:'機械式調音旋鈕，轉動可調整弦線張力以改變音高，現代吉他多採用封閉式機械調音器。'},{part:'琴頸',en:'Neck',x:51,y:26,side:'left',desc:'演奏者左手握持及按弦的部分，通常由楓木或桃花心木製成，內有鋼筋調整弧度。'},{part:'品柱',en:'Frets',x:54,y:36,side:'right',desc:'嵌入指板的金屬條，將音階分割為半音，手指按在品柱之間可發出準確音高。'},{part:'音孔',en:'Sound Hole',x:51,y:58,side:'right',desc:'琴身中央的圓形開口，讓琴腔內的空氣振動傳出，擴大音量並豐富音色。'},{part:'弦線',en:'Strings',x:51,y:45,side:'left',desc:'六條弦由低至高為 E、A、D、G、B、E 弦，可用手指撥奏或撥片彈奏。'},{part:'琴橋',en:'Bridge',x:51,y:72,side:'right',desc:'固定弦線末端並將振動傳至琴身的部件，對音色和音準均有影響。'},{part:'琴身',en:'Body',x:51,y:65,side:'right',desc:'吉他的共鳴箱，由面板、背板和側板組成，形狀影響音色特性。'}],
+        'guitar':        [{part:'琴頭',en:'Headstock',x:51,y:11,lx:70,ly:7,side:'right',desc:'吉他頂端固定調音器的部件，造型因品牌而異，是辨識吉他款式的特徵之一。'},{part:'調音器',en:'Tuner',x:46,y:14,lx:24,ly:14,side:'left',desc:'機械式調音旋鈕，轉動可調整弦線張力以改變音高，現代吉他多採用封閉式機械調音器。'},{part:'琴頸',en:'Neck',x:51,y:26,lx:30,ly:26,side:'left',desc:'演奏者左手握持及按弦的部分，通常由楓木或桃花心木製成，內有鋼筋調整弧度。'},{part:'品柱',en:'Frets',x:54,y:36,lx:72,ly:36,side:'right',desc:'嵌入指板的金屬條，將音階分割為半音，手指按在品柱之間可發出準確音高。'},{part:'音孔',en:'Sound Hole',x:51,y:58,lx:75,ly:55,side:'right',desc:'琴身中央的圓形開口，讓琴腔內的空氣振動傳出，擴大音量並豐富音色。'},{part:'弦線',en:'Strings',x:51,y:45,lx:28,ly:45,side:'left',desc:'六條弦由低至高為 E、A、D、G、B、E 弦，可用手指撥奏或撥片彈奏。'},{part:'琴橋',en:'Bridge',x:51,y:72,lx:78,ly:76,side:'right',desc:'固定弦線末端並將振動傳至琴身的部件，對音色和音準均有影響。'},{part:'琴身',en:'Body',x:51,y:65,lx:80,ly:65,side:'right',desc:'吉他的共鳴箱，由面板、背板和側板組成，形狀影響音色特性。'}],
         'bass-guitar':   [{part:'琴頭',en:'Headstock',x:67,y:4,side:'right',desc:'低音吉他頂端固定調音器的部件，通常比一般吉他更寬以容納粗重的低音弦。'},{part:'琴頸',en:'Neck',x:63,y:18,side:'right',desc:'較長且寬闊的指板，通常為四弦或五弦，需要手指有較大的延展能力。'},{part:'品柱',en:'Frets',x:59,y:32,side:'right',desc:'金屬分音條，也有無品設計，無品貝斯音色更圓滑，接近雙低音提琴。'},{part:'弦線',en:'Strings',x:55,y:45,side:'left',desc:'通常四條弦（E、A、D、G），音域比吉他低八度，為樂隊提供低音節奏基礎。'},{part:'拾音器',en:'Pickup',x:51,y:62,side:'right',desc:'將弦線振動轉換為電信號的磁性裝置，不同類型拾音器產生不同音色。'},{part:'琴身',en:'Body',x:51,y:72,side:'right',desc:'多為實心木材，不需共鳴腔，通過拾音器和擴音器輸出聲音。'},{part:'旋鈕',en:'Knobs',x:51,y:80,side:'left',desc:'控制音量和音色（高低頻）的旋鈕，調整輸出到擴音器的聲音特性。'}],
-        'ukulele':       [{part:'琴頭',en:'Headstock',x:50,y:7,side:'right',desc:'烏克麗麗頂端固定調音器的小型琴頭，造型多樣，常見鳳梨形或標準形。'},{part:'調音栓',en:'Tuning Peg',x:46,y:11,side:'left',desc:'調整四條弦音高的旋鈕，標準調音為 G、C、E、A，音域明亮輕快。'},{part:'琴頸',en:'Neck',x:50,y:24,side:'left',desc:'短小的琴頸，適合小手演奏，是烏克麗麗易於上手的原因之一。'},{part:'品柱',en:'Frets',x:53,y:33,side:'right',desc:'指板上的金屬分音條，數量通常少於吉他，演奏範圍相對較小。'},{part:'音孔',en:'Sound Hole',x:50,y:60,side:'right',desc:'琴身中央的音孔，讓共鳴箱內的聲音傳出，增加音量與音色層次。'},{part:'弦線',en:'Strings',x:50,y:46,side:'left',desc:'四條尼龍弦，音色清亮輕快，與夏威夷音樂和民謠風格相得益彰。'},{part:'琴橋',en:'Bridge',x:50,y:73,side:'right',desc:'固定弦線末端並傳遞振動至琴面的部件，通常由烏木或玫瑰木製成。'}],
+        'ukulele':       [{part:'琴頭',en:'Headstock',x:50,y:7,side:'right',desc:'烏克麗麗頂端固定調音器的小型琴頭，造型多樣，常見鳳梨形或標準形。'},{part:'調音栓',en:'Tuning Peg',x:46,y:11,side:'left',desc:'調整四條弦音高的旋鈕，標準調音為 G、C、E、A，音域明亮輕快。'},{part:'琴頸',en:'Neck',x:50,y:24,side:'left',desc:'短小的琴頸，適合小手演奏，是烏克麗麗易於上手的原因之一。'},{part:'品柱',en:'Frets',x:53,y:33,side:'right',desc:'指板上的金屬分音條，數量通常少於吉他，演奏範圍相對較小。'},{part:'弦線',en:'Strings',x:50,y:46,side:'left',desc:'四條尼龍弦，音色清亮輕快，與夏威夷音樂和民謠風格相得益彰。'},{part:'音孔',en:'Sound Hole',x:51,y:68,side:'right',desc:'琴身中央的音孔，讓共鳴箱內的聲音傳出，增加音量與音色層次。'},{part:'琴橋',en:'Bridge',x:51,y:86,side:'right',desc:'固定弦線末端並傳遞振動至琴面的部件，通常由烏木或玫瑰木製成。'}],
         'banjo':         [{part:'調音栓',en:'Tuning Peg',x:47,y:9,side:'left',desc:'調整弦線音高的旋鈕，五弦班卓有五根調音栓，第五根位於琴頸中段。'},{part:'琴頸',en:'Neck',x:51,y:22,side:'left',desc:'細長的指板供手指按弦，五弦班卓常見於藍草音樂，四弦則用於傳統爵士。'},{part:'品柱',en:'Frets',x:54,y:30,side:'right',desc:'嵌入指板的金屬條，使演奏者能按出準確音高。'},{part:'鼓面',en:'Drum Head',x:52,y:62,side:'right',desc:'班卓琴圓形共鳴體上的鼓皮面板，演奏時用手指或撥片撥弦，振動通過鼓面放大。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'通常五條弦，撥奏時產生清脆明亮的音色，是美國民間音樂的特色樂器。'},{part:'共鳴器',en:'Resonator',x:52,y:74,side:'right',desc:'背面的圓形碗狀共鳴器，將聲音向前投射，增加音量，常見於演奏用班卓琴。'}],
-        'mandolin':      [{part:'琴頭',en:'Headstock',x:51,y:2,side:'right',desc:'曼陀鈴頂端固定八個調音旋鈕的部件，因為共有四組雙弦，旋鈕比一般吉他多。'},{part:'調音栓',en:'Tuning Peg',x:48,y:8,side:'left',desc:'調整八條弦（四組雙弦）音高的旋鈕，成對調成同音以增強音量與共鳴。'},{part:'琴頸',en:'Neck',x:51,y:20,side:'left',desc:'短小的指板，音域與小提琴相同（G、D、A、E），可演奏小提琴曲目。'},{part:'品柱',en:'Frets',x:53,y:28,side:'right',desc:'指板上的金屬分音條，使曼陀鈴比小提琴更易於初學者按出準確音高。'},{part:'音孔',en:'Sound Hole',x:53,y:55,side:'right',desc:'傳統曼陀鈴有圓形音孔，F型曼陀鈴則有兩個F形音孔，影響音色特性。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',desc:'四組共八條鋼弦，每組兩條調成同音，演奏時同時撥響，音色洪亮穿透。'},{part:'琴橋',en:'Bridge',x:51,y:68,side:'right',desc:'支撐弦線的可移動木橋，調整音準時可前後移動，通常由烏木製成。'}],
-        'flute':         [{part:'吹嘴',en:'Mouthpiece',x:50,y:20,lx:72,ly:16,side:'right'},{part:'簧片',en:'Reed',x:49,y:14,lx:30,ly:12,side:'left'},{part:'上管',en:'Upper Joint',x:50,y:25,lx:70,ly:27,side:'right'},{part:'按鍵',en:'Keys',x:48,y:51,lx:28,ly:49,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:68,lx:71,ly:63,side:'right'},{part:'喇叭口',en:'Bell',x:49,y:86,lx:66,ly:86,side:'right'}],
-        'clarinet':      [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'簧片',en:'Reed',x:35,y:8,side:'left'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right'},{part:'按鍵',en:'Keys',x:35,y:40,side:'left'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
-        'oboe':          [{part:'雙簧片',en:'Double Reed',x:84,y:10,lx:63,ly:6,side:'left'},{part:'上管',en:'Upper Joint',x:70,y:26,lx:90,ly:31,side:'right'},{part:'按鍵',en:'Keys',x:46,y:54,lx:33,ly:46,side:'left'},{part:'下管',en:'Lower Joint',x:36,y:64,lx:53,ly:70,side:'right'},{part:'喇叭口',en:'Bell',x:11,y:92,lx:36,ly:93,side:'right'}],
-        'bassoon':       [{part:'雙簧片',en:'Double Reed',x:74,y:44,lx:89,ly:54,side:'right'},{part:'翼管',en:'Wing Joint',x:53,y:46,lx:22,ly:44,side:'left'},{part:'長管',en:'Long Joint',x:40,y:62,lx:55,ly:67,side:'right'},{part:'底管',en:'Boot',x:6,y:96,lx:31,ly:93,side:'right'},{part:'喇叭口',en:'Bell',x:96,y:5,lx:70,ly:6,side:'left'}],
-        'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,lx:76,ly:19,side:'right'},{part:'管身',en:'Body',x:53,y:61,lx:75,ly:61,side:'right'},{part:'指孔',en:'Finger Holes',x:49,y:50,lx:23,ly:48,side:'left'},{part:'尾端',en:'Foot',x:50,y:92,lx:62,ly:92,side:'right'}],
-        'piccolo':       [{part:'吹口',en:'Mouthpiece',x:15,y:50,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'按鍵',en:'Keys',x:50,y:30,side:'right'}],
-        'english-horn':  [{part:'雙簧片',en:'Double Reed',x:92,y:10,side:'right',lx:60,ly:10},{part:'管身',en:'Body',x:55,y:45,side:'right',lx:71,ly:47},{part:'按鍵',en:'Keys',x:44,y:53,side:'left',lx:26,ly:46},{part:'梨形喇叭口',en:'Pear Bell',x:14,y:92,side:'left',lx:43,ly:93}],
-        'alto-sax':      [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
-        'tenor-sax':     [{part:'吹嘴',en:'Mouthpiece',x:42,y:3,side:'left'},{part:'頸管',en:'Neck',x:45,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:88,side:'right'}],
-        'soprano-sax':   [{part:'吹嘴',en:'Mouthpiece',x:50,y:3,side:'right'},{part:'管身',en:'Body',x:50,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:50,y:92,side:'right'}],
-        'baritone-sax':  [{part:'吹嘴',en:'Mouthpiece',x:35,y:3,side:'left'},{part:'頸管',en:'Neck',x:40,y:12,side:'left'},{part:'管身',en:'Body',x:55,y:40,side:'right'},{part:'按鍵',en:'Keys',x:35,y:50,side:'left'},{part:'喇叭口',en:'Bell',x:60,y:88,side:'right'}],
-        'harmonica':     [{part:'蓋板',en:'Cover Plate',x:50,y:20,side:'right'},{part:'吹孔',en:'Blow Holes',x:50,y:50,side:'right'},{part:'簧片',en:'Reeds',x:50,y:75,side:'right'},{part:'琴身',en:'Body',x:20,y:50,side:'left'}],
-        'bagpipes':      [{part:'吹管',en:'Blowpipe',x:25,y:25,side:'left'},{part:'風袋',en:'Bag',x:45,y:50,side:'right'},{part:'旋律管',en:'Chanter',x:55,y:85,side:'right'},{part:'低音管',en:'Drone Pipes',x:50,y:10,side:'right'}],
-        'pan-flute':     [{part:'管子',en:'Pipes',x:50,y:40,side:'right'},{part:'框架',en:'Frame',x:20,y:70,side:'left'}],
-        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:55,side:'right'},{part:'調音管',en:'Tuning Slide',x:30,y:70,side:'left'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right'}],
-        'trombone':      [{part:'號嘴',en:'Mouthpiece',x:8,y:30,side:'left'},{part:'滑管',en:'Slide',x:40,y:65,side:'left'},{part:'管身',en:'Body',x:60,y:30,side:'right'},{part:'喇叭口',en:'Bell',x:88,y:30,side:'right'}],
-        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:15,y:45,side:'left'},{part:'管身',en:'Body',x:50,y:45,side:'right'},{part:'轉閥',en:'Rotary Valves',x:45,y:55,side:'left'},{part:'喇叭口',en:'Bell',x:75,y:60,side:'right'}],
-        'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left'},{part:'管身',en:'Body',x:50,y:50,side:'right'},{part:'活塞',en:'Valves',x:40,y:35,side:'left'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right'}],
-        'cornet':        [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left'},{part:'管身',en:'Body',x:45,y:40,side:'left'},{part:'活塞',en:'Valves',x:45,y:58,side:'right'},{part:'喇叭口',en:'Bell',x:85,y:45,side:'right'}],
-        'timpani':       [{part:'鼓面',en:'Drum Head',x:50,y:20,side:'right'},{part:'銅鍋',en:'Kettle',x:50,y:55,side:'right'},{part:'調音器',en:'Tuning Gauge',x:20,y:40,side:'left'},{part:'腳踏板',en:'Foot Pedal',x:50,y:92,side:'right'}],
-        'snare':         [{part:'鼓面',en:'Drum Head',x:50,y:18,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'響弦',en:'Snare Wires',x:50,y:80,side:'right'},{part:'調音環',en:'Tuning Lug',x:20,y:50,side:'left'}],
-        'bass-drum':     [{part:'鼓面',en:'Drum Head',x:50,y:30,side:'right'},{part:'鼓身',en:'Shell',x:50,y:55,side:'right'},{part:'鼓棒',en:'Mallet',x:20,y:30,side:'left'}],
-        'xylophone':     [{part:'音板',en:'Bars',x:50,y:25,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right'}],
-        'triangle':      [{part:'金屬棒',en:'Metal Bar',x:50,y:30,side:'right'},{part:'敲棒',en:'Beater',x:70,y:60,side:'right'},{part:'懸掛繩',en:'Suspension',x:50,y:5,side:'right'}],
-        'cymbals':       [{part:'銅片',en:'Cymbal Plate',x:50,y:40,side:'right'},{part:'鐘頂',en:'Bell',x:50,y:25,side:'left'},{part:'把手',en:'Handle',x:50,y:55,side:'right'}],
-        'tambourine':    [{part:'鼓面',en:'Drum Head',x:50,y:35,side:'right'},{part:'框架',en:'Frame',x:20,y:55,side:'left'},{part:'鈴片',en:'Jingles',x:75,y:55,side:'right'}],
-        'glockenspiel':  [{part:'金屬音板',en:'Metal Bars',x:50,y:30,side:'right'},{part:'框架',en:'Frame',x:15,y:60,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right'}],
-        'marimba':       [{part:'木音板',en:'Wooden Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'鼓棒',en:'Mallets',x:80,y:10,side:'right'}],
-        'vibraphone':    [{part:'金屬音板',en:'Metal Bars',x:50,y:20,side:'right'},{part:'共鳴管',en:'Resonators',x:50,y:55,side:'right'},{part:'踏板',en:'Pedal',x:50,y:92,side:'right'},{part:'馬達',en:'Motor',x:20,y:55,side:'left'}],
-        'drums':         [{part:'大鼓',en:'Bass Drum',x:50,y:75,side:'right'},{part:'小鼓',en:'Snare',x:35,y:55,side:'left'},{part:'嗵鼓',en:'Toms',x:50,y:30,side:'right'},{part:'踩鈸',en:'Hi-hat',x:15,y:40,side:'left'},{part:'碎音鈸',en:'Crash',x:25,y:15,side:'left'},{part:'騎鈸',en:'Ride',x:80,y:25,side:'right'}],
+        'mandolin':      [{part:'琴頭',en:'Headstock',x:51,y:2,side:'right',lx:77,ly:6,desc:'曼陀鈴頂端固定八個調音旋鈕的部件，因為共有四組雙弦，旋鈕比一般吉他多。'},{part:'調音栓',en:'Tuning Peg',x:42,y:7,side:'left',lx:24,ly:6,desc:'調整八條弦（四組雙弦）音高的旋鈕，成對調成同音以增強音量與共鳴。'},{part:'琴頸',en:'Neck',x:49,y:25,side:'left',lx:27,ly:28,desc:'短小的指板，音域與小提琴相同（G、D、A、E），可演奏小提琴曲目。'},{part:'品柱',en:'Frets',x:51,y:30,side:'right',lx:63,ly:30,desc:'指板上的金屬分音條，使曼陀鈴比小提琴更易於初學者按出準確音高。'},{part:'音孔',en:'Sound Hole',x:37,y:74,side:'left',lx:18,ly:69,desc:'傳統曼陀鈴有圓形音孔，F型曼陀鈴則有兩個F形音孔，影響音色特性。'},{part:'弦線',en:'Strings',x:51,y:42,side:'left',lx:33,ly:42,desc:'四組共八條鋼弦，每組兩條調成同音，演奏時同時撥響，音色洪亮穿透。'},{part:'琴橋',en:'Bridge',x:51,y:78,side:'right',lx:82,ly:79,desc:'支撐弦線的可移動木橋，調整音準時可前後移動，通常由烏木製成。'}],
+        'flute':         [{part:'頭管',en:'Head Joint',x:92,y:6,side:'left',lx:58,ly:5,desc:'長笛可拆卸的頂端管節，上面有吹孔，演奏者橫吹使氣流切過吹孔邊緣，使管內空氣柱振動發聲，無需使用任何簧片。'},{part:'吹孔',en:'Embouchure Hole',x:89,y:10,side:'left',lx:49,ly:21,desc:'頭管上方的橢圓形小孔，演奏者將嘴唇放在吹孔邊緣，以特定角度吹氣使空氣柱振動，是長笛唯一的發聲部位。'},{part:'上管',en:'Upper Joint',x:72,y:27,lx:95,ly:37,side:'right',desc:'上半段管身，設有高音區按鍵，是演奏者左手操控的主要區域。'},{part:'按鍵',en:'Keys',x:48,y:51,lx:28,ly:49,side:'left',desc:'精密的銀製機械按鍵，按下時封閉音孔改變振動管長，從而改變音高。'},{part:'下管',en:'Lower Joint',x:36,y:69,lx:64,ly:68,side:'right',desc:'下半段管身，設有低音區按鍵，與上管共同組成完整音域。'},{part:'喇叭口',en:'Bell',x:8,y:96,lx:43,ly:94,side:'right',desc:'管身末端略微外擴的開口，聲音從此向外投射，形狀影響音色的圓潤度。'}],
+        'clarinet':      [{part:'吹嘴',en:'Mouthpiece',x:50,y:13,side:'right',desc:'單簧管頂端，演奏者含住並吹氣使簧片振動，吹嘴的開口大小影響音色。'},{part:'簧片',en:'Reed',x:47,y:15,side:'left',desc:'一片薄竹片，固定於吹嘴扁平面，吹氣時高速振動產生聲音，是單簧管的發聲核心。'},{part:'上管',en:'Upper Joint',x:50,y:25,side:'right',desc:'左手操控的上半段管身，設有多個音孔和按鍵，覆蓋中高音域。'},{part:'按鍵',en:'Keys',x:46,y:43,side:'left',desc:'覆蓋上下管的複雜金屬按鍵系統，由貝姆（Böhm）系統設計，確保按鍵靈活精確。'},{part:'下管',en:'Lower Joint',x:50,y:60,side:'right',desc:'右手操控的下半段管身，與上管相接，設有低音區按鍵。'},{part:'喇叭口',en:'Bell',x:51,y:87,side:'right',desc:'管身末端略微外擴的喇叭形開口，讓聲音向外投射，賦予單簧管圓潤溫暖的音色。'}],
+        'oboe':          [{part:'雙簧片',en:'Double Reed',x:84,y:10,lx:63,ly:6,side:'left',desc:'由兩片蘆葦竹綁合而成，吹氣時兩片相互振動發聲，音色尖銳穿透，演奏者需自行手工製作。'},{part:'上管',en:'Upper Joint',x:70,y:26,lx:90,ly:31,side:'right',desc:'上半段管身，左手按鍵控制高音區，管身圓錐形設計賦予雙簧管獨特的音色。'},{part:'按鍵',en:'Keys',x:46,y:54,lx:33,ly:46,side:'left',desc:'精密的機械按鍵系統，封閉音孔改變音高，雙簧管按鍵比單簧管更為複雜精細。'},{part:'下管',en:'Lower Joint',x:36,y:64,lx:53,ly:70,side:'right',desc:'下半段管身，右手按鍵控制低音區，與上管無縫接合組成完整音域。'},{part:'喇叭口',en:'Bell',x:11,y:92,lx:36,ly:93,side:'right',desc:'管身末端微微外擴的開口，聲音自此傳出，雙簧管的喇叭口比單簧管更短小。'}],
+        'bassoon':       [{part:'雙簧片',en:'Double Reed',x:74,y:44,lx:89,ly:54,side:'right',desc:'兩片薄蘆葦竹綁成的雙簧片，插入S形彎管頂端，吹氣振動發聲，製作精細且費時。'},{part:'翼管',en:'Wing Joint',x:53,y:46,lx:22,ly:44,side:'left',desc:'緊接S形彎管的上段管身，由楓木製成，設有指孔和按鍵，左手拇指負責按壓背面音孔。'},{part:'長管',en:'Long Joint',x:40,y:62,lx:55,ly:67,side:'right',desc:'主要的長段管身，貫穿巴松管大部分音域，設有複雜的按鍵機構。'},{part:'底管',en:'Boot',x:6,y:96,lx:31,ly:93,side:'right',desc:'底部U形彎折的管段，將兩段管道並排折回，使整個樂器長度可被演奏者把持。'},{part:'喇叭口',en:'Bell',x:96,y:5,lx:70,ly:6,side:'left',desc:'頂端向上張開的喇叭形開口，聲音從此傳出，朝向演奏者後方投射。'}],
+        'recorder':      [{part:'吹口',en:'Mouthpiece',x:50,y:3,lx:76,ly:19,side:'right',desc:'頂端的吹嘴，內有氣道引導氣流衝擊邊緣產生聲音，無需特殊吹奏技巧，適合初學者。'},{part:'管身',en:'Body',x:53,y:61,lx:75,ly:61,side:'right',desc:'木製或塑膠的主管體，中空的管道是聲音的共鳴腔，材質影響音色的溫暖程度。'},{part:'指孔',en:'Finger Holes',x:49,y:50,lx:23,ly:48,side:'left',desc:'管身上的七個圓形指孔，以手指開閉控制音高，是牧童笛最易辨識的特徵。'},{part:'尾端',en:'Foot',x:50,y:92,lx:62,ly:92,side:'right',desc:'管身最底部的末端，開口讓空氣流通，部分牧童笛在此設有額外按鍵擴展音域。'}],
+            'piccolo':       [{part:'吹孔',en:'Embouchure Hole',x:86,y:29,lx:84,ly:77,side:'left',desc:'短笛橫吹的橢圓形吹孔，氣流切過吹孔邊緣使空氣柱振動，演奏方式與長笛相同，無需簧片，音域高出長笛一個八度。'},{part:'管身',en:'Body',x:58,y:49,lx:70,ly:76,side:'right',desc:'短小的管身，通常由木材或金屬製成，是管弦樂團中音域最高的管樂器。'},{part:'按鍵',en:'Keys',x:50,y:52,lx:44,ly:80,side:'right',desc:'銀製按鍵，封閉音孔改變音高，因管身短小，按鍵數量比長笛略少。'}],
+        'english-horn':  [{part:'雙簧片',en:'Double Reed',x:92,y:10,side:'right',lx:60,ly:10,desc:'兩片蘆葦竹製成的雙簧片，振動方式與雙簧管相同，但英國管音色更溫暖深沉，帶鄉愁感。'},{part:'管身',en:'Body',x:55,y:45,side:'right',lx:71,ly:47,desc:'較雙簧管更長的管身，使音域比雙簧管低五度，渾厚的音色常用於描繪田園或哀愁的旋律。'},{part:'按鍵',en:'Keys',x:44,y:53,side:'left',lx:26,ly:46,desc:'精密的金屬按鍵系統，結構與雙簧管相近，封閉音孔改變音高。'},{part:'梨形喇叭口',en:'Pear Bell',x:14,y:92,side:'left',lx:43,ly:93,desc:'末端獨特的梨形球狀喇叭口，是英國管最顯著的外觀特徵，賦予其溫暖圓潤的共鳴音色。'}],
+        'alto-sax':      [{part:'吹嘴',en:'Mouthpiece',x:93,y:5,side:'right',desc:'演奏者含住的吹嘴，配合單簧片振動發聲，材質（橡膠或金屬）影響音色的明暗。'},{part:'頸管',en:'Neck',x:56,y:10,side:'left',desc:'連接吹嘴與管身的S形彎曲金屬管，讓演奏者能以舒適角度持奏。'},{part:'管身',en:'Body',x:47,y:49,side:'right',desc:'彎曲的主管身，由黃銅製成，上面布滿音孔和按鍵，決定音域和音色特性。'},{part:'按鍵',en:'Keys',x:39,y:39,side:'left',desc:'複雜的機械按鍵系統，封閉音孔改變振動管長，中音薩克斯共有約23個按鍵。'},{part:'喇叭口',en:'Bell',x:16,y:40,side:'left',desc:'管身底部向上彎曲的喇叭形開口，聲音從此向前投射，增加音量和共鳴效果。'}],
+        'tenor-sax':     [{part:'吹嘴',en:'Mouthpiece',x:22,y:13,side:'left',desc:'次中音薩克斯的吹嘴比中音更大，配合寬簧片產生更豐富低沉的音色，是爵士樂的經典音色。'},{part:'頸管',en:'Neck',x:50,y:14,side:'left',desc:'比中音薩克斯更長的S形頸管，連接吹嘴與管身，適應更大的管身體積。'},{part:'管身',en:'Body',x:55,y:40,side:'right',desc:'較中音薩克斯更大的管身，音域低一個全音，音色渾厚飽滿，常見於爵士和搖滾音樂。'},{part:'按鍵',en:'Keys',x:53,y:52,side:'left',desc:'封閉音孔改變音高的機械按鍵系統，按鍵間距比中音更寬，需更大的手掌操控。'},{part:'喇叭口',en:'Bell',x:72,y:53,side:'right',desc:'管身末端的大型喇叭形開口，投射出次中音薩克斯特有的溫暖渾厚音色。'}],
+        'soprano-sax':   [{part:'吹嘴',en:'Mouthpiece',x:52,y:7,side:'right',desc:'小型吹嘴配合細小簧片，高音薩克斯音域最高，音色明亮穿透，常見於爵士和古典音樂。'},{part:'管身',en:'Body',x:55,y:41,side:'right',desc:'直管形設計，外觀近似單簧管，是四種薩克斯中最小、音域最高的。'},{part:'按鍵',en:'Keys',x:43,y:57,side:'left',desc:'精密按鍵系統，封閉音孔改變音高，因管身較直，持奏角度接近豎直。'},{part:'喇叭口',en:'Bell',x:51,y:96,side:'right',desc:'管身末端略微外擴的開口，聲音清亮穿透，適合演奏流暢的旋律線條。'}],
+        'baritone-sax':  [{part:'吹嘴',en:'Mouthpiece',x:30,y:13,lx:12,ly:18,side:'left',desc:'四種薩克斯中最大的吹嘴，配合寬大簧片振動，產生深沉厚重的低音音色。'},{part:'頸管',en:'Neck',x:43,y:16,lx:30,ly:25,side:'left',desc:'較長彎曲的頸管，連接吹嘴與龐大的管身，頸部彎曲幅度比其他薩克斯更大。'},{part:'管身',en:'Body',x:65,y:47,lx:77,ly:47,side:'right',desc:'四種薩克斯中最大最重的管身，音域最低，管身頂部有額外的低音延伸管。'},{part:'按鍵',en:'Keys',x:53,y:54,lx:36,ly:57,side:'left',desc:'大型按鍵系統，間距寬廣需較大手掌操控，包含專屬的低音延伸按鍵。'},{part:'喇叭口',en:'Bell',x:65,y:27,lx:87,ly:17,side:'right',desc:'巨大的喇叭形開口，投射出低沉渾厚的低音，是薩克斯四重奏的重要低音基礎。'}],
+        'harmonica':     [{part:'蓋板',en:'Cover Plate',x:50,y:20,side:'right',desc:'覆蓋在簧片板上方的金屬蓋，保護簧片並將聲音反射向前投射，通常由不鏽鋼製成。'},{part:'吹孔',en:'Blow Holes',x:50,y:50,side:'right',desc:'沿琴身排列的小孔，吹氣和吸氣分別產生不同音高，10孔口琴可演奏約三個八度的音域。'},{part:'簧片',en:'Reeds',x:50,y:75,side:'right',desc:'固定在金屬板上的薄片，氣流通過吹孔使其振動發聲，每個孔有吹簧和吸簧各一片。'},{part:'琴身',en:'Body',x:20,y:50,side:'left',desc:'中央的木製或塑膠框架，將蓋板和簧片板固定在一起，形狀讓演奏者能舒適地握持演奏。'}],
+        'bagpipes':      [{part:'吹管',en:'Blowpipe',x:25,y:25,side:'left',desc:'演奏者用嘴吹氣充填風袋的管道，內有止回閥防止空氣回流，保持風袋持續充氣。'},{part:'風袋',en:'Bag',x:45,y:50,side:'right',desc:'皮革製的氣囊，儲存空氣並持續供氣給各管，使旋律不因演奏者呼吸而中斷。'},{part:'旋律管',en:'Chanter',x:55,y:85,side:'right',desc:'雙簧片管，演奏者手指控制音孔演奏旋律，是風笛的主要樂器聲部。'},{part:'低音管',en:'Drone Pipes',x:50,y:10,side:'right',desc:'持續發出固定低音的管道，通常有2至3支，為旋律提供不間斷的和聲背景。'}],
+        'pan-flute':     [{part:'管子',en:'Pipes',x:50,y:40,side:'right',desc:'長短不一的竹管或木管排列而成，長管發低音，短管發高音，演奏者對管口吹氣以發聲。'},{part:'框架',en:'Frame',x:20,y:70,side:'left',desc:'將所有管子固定排列的支撐框架，保持管子正確間距和角度，便於演奏者持奏。'}],
+        'trumpet':       [{part:'號嘴',en:'Mouthpiece',x:8,y:45,side:'left',desc:'杯形號嘴緊貼嘴唇，演奏者嘴唇振動產生音波，號嘴大小影響音色的明亮度與演奏舒適性。'},{part:'管身',en:'Body',x:45,y:45,side:'left',desc:'數段U形彎管連接而成的管身，總長約134公分，音域由低音升B到高音G，音色明亮響亮。'},{part:'活塞',en:'Valves',x:48,y:35,side:'right',desc:'三個圓柱形活塞按下時改變氣流路徑，延長有效管長以降低音高，組合出不同音符。'},{part:'調音管',en:'Tuning Slide',x:28,y:62,side:'left',desc:'U形滑管可拉出或推入調整整體音高，確保樂器在正確的音準範圍內演奏。'},{part:'喇叭口',en:'Bell',x:88,y:45,side:'right',desc:'管身末端擴張的喇叭形開口，將聲音向前投射並決定音量與音色的寬廣度。'}],
+        'trombone':      [{part:'號嘴',en:'Mouthpiece',x:8,y:30,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生較低的音波，長號號嘴比小號更大更淺。'},{part:'滑管',en:'Slide',x:40,y:65,side:'left',desc:'長號獨特的U形伸縮滑管，向外拉出延長管道降低音高，共有七個把位，取代活塞機構。'},{part:'管身',en:'Body',x:60,y:30,side:'right',desc:'固定管身部分，包含號嘴接頭與連接滑管的管道，決定長號的基本音域和音色特質。'},{part:'喇叭口',en:'Bell',x:88,y:30,side:'right',desc:'向右延伸的大型喇叭形開口，投射出長號特有的渾厚低沉音色，直徑通常約20-25公分。'}],
+        'french-horn':   [{part:'號嘴',en:'Mouthpiece',x:8,y:42,side:'left',desc:'漏斗形號嘴，比其他銅管更深更窄，演奏者需要精確控制嘴唇張力，技術難度較高。'},{part:'管身',en:'Body',x:45,y:50,side:'right',desc:'盤繞成圓形的長管（展開約3.7公尺），圓形設計使樂器易於攜帶，音色圓潤柔和。'},{part:'轉閥',en:'Rotary Valves',x:42,y:22,side:'left',desc:'圓號使用旋轉閥而非活塞，左手操作四個轉閥改變管長，現代雙調圓號可在F調和降B調之間切換。'},{part:'喇叭口',en:'Bell',x:82,y:42,side:'right',desc:'朝向後方的大型喇叭口，演奏時右手伸入喇叭口微調音準和音色，是圓號獨特的演奏技巧。'}],
+        'tuba':          [{part:'號嘴',en:'Mouthpiece',x:25,y:8,side:'left',desc:'大型杯形號嘴，演奏者嘴唇鬆弛振動產生極低的音波，是銅管樂器中最大的號嘴。'},{part:'管身',en:'Body',x:50,y:50,side:'right',desc:'龐大盤繞的管身（展開約5.5公尺），是銅管樂器中最大最重的，提供管弦樂團最低音域的基礎。'},{part:'活塞',en:'Valves',x:40,y:35,side:'left',desc:'三至五個活塞或轉閥，按下時改變氣流路徑延長管長降低音高，通常由右手操作。'},{part:'喇叭口',en:'Bell',x:55,y:5,side:'right',desc:'朝上或朝前的巨大喇叭口，投射出深沉渾厚的低音，賦予管弦樂團堅實的低音基礎。'}],
+        'cornet':        [{part:'號嘴',en:'Mouthpiece',x:22,y:8,side:'left',desc:'比小號號嘴略深的杯形號嘴，賦予短號較柔和圓潤的音色，技術上比小號稍易上手。'},{part:'管身',en:'Body',x:40,y:45,side:'left',desc:'比小號更緊湊的圓錐形管身，錐形設計（而非圓柱形）使音色更加柔和溫暖，常見於銅管樂隊。'},{part:'活塞',en:'Valves',x:50,y:28,side:'right',desc:'三個活塞按鍵，功能與小號相同，改變管長調整音高，短號的活塞間距較小，適合手小的演奏者。'},{part:'喇叭口',en:'Bell',x:72,y:72,side:'right',desc:'比小號更寬的喇叭口，投射出短號特有的柔和飽滿音色，在薩爾瓦多軍樂隊和爵士樂中常見。'}],
+        'timpani':       [{part:'鼓面',en:'Drum Head',x:50,y:20,side:'right',desc:'覆蓋在銅鍋頂部的塑料或動物皮鼓面，敲擊時振動產生聲音，張力決定音高，可通過踏板即時調整。'},{part:'銅鍋',en:'Kettle',x:50,y:55,side:'right',desc:'半球形的銅製或玻璃纖維鍋體，作為共鳴腔放大聲音，不同大小的定音鼓負責不同音域。'},{part:'調音器',en:'Tuning Gauge',x:20,y:40,side:'left',desc:'顯示當前音高的指示器，讓演奏者在演奏中準確調音，是定音鼓精確音準的重要輔助工具。'},{part:'腳踏板',en:'Foot Pedal',x:50,y:92,side:'right',desc:'用腳踩踏可即時改變鼓面張力以調整音高，是定音鼓區別於其他鼓的最大特色。'}],
+        'snare':         [{part:'鼓面',en:'Drum Head',x:50,y:18,side:'right',desc:'頂部的擊打面，演奏者用鼓棒敲擊，振動向下傳遞至響弦，產生小軍鼓特有的清脆噪音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'金屬或木製的圓柱形鼓身，連接頂部鼓面與底部響弦，深度影響共鳴和音色特性。'},{part:'響弦',en:'Snare Wires',x:50,y:80,side:'right',desc:'底部鼓面下方的金屬弦，鼓面振動時響弦拍擊底面產生「沙沙」的噪音，可用開關切換拆除。'},{part:'調音環',en:'Tuning Lug',x:20,y:50,side:'left',desc:'環繞鼓身的金屬螺栓，旋緊或放鬆可調整鼓面張力，改變音高和音色的明亮度。'}],
+        'bass-drum':     [{part:'鼓面',en:'Drum Head',x:50,y:30,side:'right',desc:'大型的鼓皮面板，管弦樂團中大鼓直立放置，用特製大槌敲擊側面鼓皮產生低沉宏亮的聲音。'},{part:'鼓身',en:'Shell',x:50,y:55,side:'right',desc:'超大的圓柱形木製鼓身，龐大的共鳴腔產生深沉渾厚的低頻聲音，是樂團中音量最大的打擊樂器。'},{part:'鼓棒',en:'Mallet',x:20,y:30,side:'left',desc:'頭部包有毛氈的大型圓頭槌，柔軟的材質使敲擊時產生渾厚而非尖銳的低音。'}],
+        'xylophone':     [{part:'音板',en:'Bars',x:50,y:25,side:'right',desc:'硬木製成的長方形音板，按音階排列，長板發低音，短板發高音，敲擊後聲音短促乾脆。'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right',desc:'每塊音板下方懸掛的金屬管，長度與音板匹配，放大並延長特定頻率的振動聲音。'},{part:'框架',en:'Frame',x:15,y:50,side:'left',desc:'支撐所有音板和共鳴管的金屬框架，通常安裝於可折疊的腳架上便於搬運。'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right',desc:'頭部由橡膠或硬塑料製成的敲擊槌，材質較硬使音色清脆明亮，演奏時雙手各持一或兩支。'}],
+        'triangle':      [{part:'金屬棒',en:'Metal Bar',x:50,y:30,side:'right',desc:'由鋼鐵彎折成三角形的金屬棒，一角留有開口使聲音能自由共鳴，敲擊時產生清澈延續的高音。'},{part:'敲棒',en:'Beater',x:70,y:60,side:'right',desc:'細長的金屬棒，敲擊三角鐵產生清脆的叮噹聲，在三角鐵內壁來回敲擊可演奏顫音。'},{part:'懸掛繩',en:'Suspension',x:50,y:5,side:'right',desc:'懸掛三角鐵的細繩或魚線，讓金屬棒能自由振動而不受阻礙，接觸點越少音色越純淨。'}],
+        'cymbals':       [{part:'銅片',en:'Cymbal Plate',x:50,y:40,side:'right',desc:'大圓形的銅合金薄板，兩片相互碰撞或刷擦產生響亮的金屬音，厚薄和大小影響音色特質。'},{part:'鐘頂',en:'Bell',x:50,y:25,side:'left',desc:'鈸面中央凸起的圓丘，是鈸最厚實的部分，敲擊時聲音最清亮，常用鼓棒頭部敲擊。'},{part:'把手',en:'Handle',x:50,y:55,side:'right',desc:'縫在皮革把手上供演奏者抓握，演奏時雙手持鈸對擊，或單手持鈸碰撞另一靜止的鈸。'}],
+        'tambourine':    [{part:'鼓面',en:'Drum Head',x:50,y:35,side:'right',desc:'圓形框架上的薄鼓皮，用手指敲擊或用拇指摩擦邊緣可產生不同效果，也可不裝鼓皮。'},{part:'框架',en:'Frame',x:20,y:55,side:'left',desc:'淺圓形木製框架，周邊開有缺口安裝銅製鈴片，可用手持握搖動或敲擊演奏。'},{part:'鈴片',en:'Jingles',x:75,y:55,side:'right',desc:'成對嵌入框架缺口的小型金屬圓片，搖動或敲擊時互相碰撞發出叮叮響聲，是鈴鼓的標誌性特色。'}],
+        'glockenspiel':  [{part:'金屬音板',en:'Metal Bars',x:50,y:30,side:'right',desc:'鋼製的長方形音板按音階排列，敲擊後產生清亮悅耳的鐘聲，音域比木琴高，聲音延續較長。'},{part:'框架',en:'Frame',x:15,y:60,side:'left',desc:'支撐金屬音板的框架，通常較小型便於攜帶，行進樂隊版本可手持演奏。'},{part:'鼓棒',en:'Mallets',x:80,y:15,side:'right',desc:'頭部由橡膠或塑料製成的小槌，敲擊金屬音板產生清澈的鐘聲，材質越硬音色越明亮。'}],
+        'marimba':       [{part:'木音板',en:'Wooden Bars',x:50,y:20,side:'right',desc:'玫瑰木或合成材料製成的音板，比木琴更寬更厚，底部削成弧形以調整音調，音色溫暖圓潤。'},{part:'共鳴管',en:'Resonators',x:50,y:65,side:'right',desc:'每塊音板下方的金屬共鳴管，比木琴的更長，使聲音延續更久並增添豐富的泛音色彩。'},{part:'框架',en:'Frame',x:15,y:50,side:'left',desc:'支撐音板和共鳴管的大型金屬框架，通常裝有輪子便於移動，標準馬林巴可達四至五個八度。'},{part:'鼓棒',en:'Mallets',x:80,y:10,side:'right',desc:'頭部包有毛線或橡膠的軟質槌，柔軟材質使敲擊時產生溫暖圓潤的音色，演奏者可同時持兩至四支。'}],
+        'vibraphone':    [{part:'金屬音板',en:'Metal Bars',x:50,y:20,side:'right',desc:'鋁合金製的音板，音色介於木琴和鐘琴之間，聲音延續長且帶有獨特的顫音效果。'},{part:'共鳴管',en:'Resonators',x:50,y:55,side:'right',desc:'每塊音板下方的金屬管，管口裝有可旋轉的扇葉，由馬達驅動產生週期性開閉形成顫音效果。'},{part:'踏板',en:'Pedal',x:50,y:92,side:'right',desc:'控制消音器的踏板，踩下時消音器離開音板讓聲音自由延續，釋放時消音使聲音停止。'},{part:'馬達',en:'Motor',x:20,y:55,side:'left',desc:'驅動共鳴管頂部扇葉旋轉的小型電動馬達，轉速決定顫音的快慢，是顫音琴最獨特的部件。'}],
+        'drums':         [{part:'大鼓',en:'Bass Drum',x:50,y:75,side:'right',desc:'鼓組最大的鼓，平設後用腳踏槌敲擊鼓面，按車節奏，提供整順音樂的低音風檢基礎。'},{part:'小鼓',en:'Snare',x:35,y:55,side:'left',desc:'帶有響弦的小型鼓，產生清脆尖銳的火花聲，是鼓組中節奏的核心，通常置於演奏者左手邊。'},{part:'嗵鼓',en:'Toms',x:50,y:30,side:'right',desc:'沒有響弦的中型鼓，音色飽滿圓潤，通常有多個不同大小，如中鼓和地鼓，用於填充和修飾旋律。'},{part:'踩鈸',en:'Hi-hat',x:15,y:40,side:'left',desc:'兩片金屬鈸由腳踏板控制開閉，開車音色張放，閉鈸聲音短促，是保持节奏动感的核心打擊樂器。'},{part:'碎音鈸',en:'Crash',x:25,y:15,side:'left',desc:'張力較大、音色尖銳的鈸，進行加強音像和渴染效果，敲擊後聲音突然蠀辣再漸漸消退。'},{part:'騎鈸',en:'Ride',x:80,y:25,side:'right',desc:'較厚層的大鈸，產生清晰明亮的泛音，常用於爵士樂和中速曲風的持續音色節奏。'}],
         'cajon':         [{part:'打擊面',en:'Tapa',x:50,y:40,side:'right'},{part:'箱身',en:'Body',x:20,y:50,side:'left'},{part:'音孔',en:'Sound Hole',x:50,y:85,side:'right'}],
-        'maracas':       [{part:'球體',en:'Gourd',x:50,y:25,side:'right'},{part:'手柄',en:'Handle',x:50,y:75,side:'right'},{part:'珠粒',en:'Beads',x:30,y:25,side:'left'}],
-        'egg-shakers':   [{part:'蛋形殼',en:'Egg Shell',x:50,y:40,side:'right'},{part:'珠粒',en:'Beads',x:30,y:40,side:'left'}],
-        'tubular-bells': [{part:'金屬管',en:'Metal Tubes',x:50,y:35,side:'right'},{part:'框架',en:'Frame',x:15,y:50,side:'left'},{part:'踏板',en:'Damper Pedal',x:50,y:92,side:'right'},{part:'鼓棒',en:'Mallet',x:80,y:15,side:'right'}],
-        'cabasa':        [{part:'金屬珠鏈',en:'Bead Chain',x:50,y:30,side:'right'},{part:'圓筒',en:'Cylinder',x:50,y:45,side:'left'},{part:'手柄',en:'Handle',x:50,y:80,side:'right'}],
-        'djembe':        [{part:'鼓面',en:'Goat Skin',x:50,y:15,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'繩索',en:'Rope Tuning',x:25,y:55,side:'left'}],
-        'castanets':     [{part:'貝殼片',en:'Shell Pair',x:50,y:35,side:'right'},{part:'連接繩',en:'String',x:50,y:10,side:'right'}],
-        'congas':        [{part:'鼓面',en:'Drum Head',x:50,y:12,side:'right'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right'},{part:'調音環',en:'Tuning Lugs',x:25,y:30,side:'left'}],
-        'cowbell':       [{part:'鐘身',en:'Bell Body',x:50,y:45,side:'right'},{part:'敲棒',en:'Beater',x:20,y:30,side:'left'}],
+        'maracas':       [{part:'球體',en:'Gourd',x:50,y:25,side:'right',desc:'圓球形的中空殼體，傳統用葡葦乾果，現代常用塑膠或木製，內裝珠粒或種子。'},{part:'手柄',en:'Handle',x:50,y:75,side:'right',desc:'木製或塑膠手柄，搖動時帶動球體內的珠粒撞擊殼壁產生聲音，數量影響音量。'},{part:'珠粒',en:'Beads',x:30,y:25,side:'left',desc:'球體內的小珠粒或種子，搖動時撞擊内壁產生沙沙的響聲，珠粒大小和數量影響音色。'}],
+        'egg-shakers':   [{part:'蛋形殼',en:'Egg Shell',x:50,y:40,side:'right',desc:'蛋形的塑膠殼體，小巧輕便易握，內裝小珠粒搖動即可產生柔和的沙沙聲。'},{part:'珠粒',en:'Beads',x:30,y:40,side:'left',desc:'殼內的細小珠粒，搖動時撞擊內壁產生聲音，音量比沙槌更柔和細致，適合兒童音樂配器。'}],
+        'tubular-bells': [{part:'金屬管',en:'Metal Tubes',x:50,y:35,side:'right',desc:'不同長度的黃銅管按音高排列，敲擊產生清亮深遠的教堂鐘聲效果，常用於管弦樂在鵅鸽場景的音樂中。'},{part:'框架',en:'Frame',x:15,y:50,side:'left',desc:'金屬支撐架，將金屬管懸掛在空中使其自由振動，頂部有掛勾固定，港口有消音裝置。'},{part:'踏板',en:'Damper Pedal',x:50,y:92,side:'right',desc:'釋放踏板時消音器接觸金屬管止音，踩下踏板則讓聲音自由延續，控制聲音的長短。'},{part:'鼓棒',en:'Mallet',x:80,y:15,side:'right',desc:'專用的硬賯圓頭槌，敲擊金屬管頂端產生清亮的鐘聲，散摺不同管上的不同部位可產生不同音色。'}],
+        'cabasa':        [{part:'金屬珠鏈',en:'Bead Chain',x:50,y:30,side:'right',desc:'繞在圓筒外的金屬珠鏈，旋轉或搖動時與圓筒表面摩擦產生獨特的沙沙金屬聲。'},{part:'圓筒',en:'Cylinder',x:50,y:45,side:'left',desc:'中央的圓柱形結構，表面有綋路與珠鏈摩擦產生聲音，材質影響聲音的豐富度。'},{part:'手柄',en:'Handle',x:50,y:80,side:'right',desc:'木製手柄，一手握住手柄，另一手控制圓筒旋轉珠鏈產生聲音，強弱由摩擦力道控制。'}],
+        'djembe':        [{part:'鼓面',en:'Goat Skin',x:50,y:15,side:'right',desc:'山羊皮製成的鼓面，用雙手拍打不同位置產生三種基本音色：中心低音、中間中音和邊緣高音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'杯形的整塊木雕鼓身，底部收窄形成開口，木材和形狀影響音色，發源於西非曼子族。'},{part:'繩索',en:'Rope Tuning',x:25,y:55,side:'left',desc:'繞在鼓身外側的繩索，將鼓面拉緊固定在鼓身上，拉緊可提高音高，新麻絹調音系統。'}],
+        'castanets':     [{part:'貝殼片',en:'Shell Pair',x:50,y:35,side:'right',desc:'一對貝殼形的硬木片，互相撞擊產生清脆急促的「啦啦」聲，是西班牙舞蹈的經典伴奏。'},{part:'連接繩',en:'String',x:50,y:10,side:'right',desc:'將兩片貝殼片連接的繩子，套在拇指上，用手指控制兩片的開合和撞擊，產生快速的節奏聲。'}],
+        'congas':        [{part:'鼓面',en:'Drum Head',x:50,y:12,side:'right',desc:'水牛皮或合成皮製成，用手掌和手指拍打產生多種音色，包括低音、開放音和清脆的拍打音。'},{part:'鼓身',en:'Shell',x:50,y:50,side:'right',desc:'圖桶形的木製或玻璃纖維鼓身，底部有開口，形狀和大小影響音色和音域。'},{part:'調音環',en:'Tuning Lugs',x:25,y:30,side:'left',desc:'環繞鼓身頂部的金屬螺栓，旋轉可調整鼓面張力以改變音高，通常成對使用以平衡張力。'}],
+        'cowbell':       [{part:'鐘身',en:'Bell Body',x:50,y:45,side:'right',desc:'梯形的金屬鐘體，敲擊不同位置產生不同音色——開口處聲音明亮，封閉處聲音沉鬶，拉丁音樂和搖滾樂常見。'},{part:'敲棒',en:'Beater',x:20,y:30,side:'left',desc:'木棒或鼓棒敲擊鐘體產生響亮的金屬聲，在拉丁音樂和搖滾音樂中常見。'}],
         'guiro':         [{part:'刮紋面',en:'Ridged Surface',x:50,y:35,side:'right'},{part:'共鳴腔',en:'Chamber',x:50,y:65,side:'right'},{part:'刮棒',en:'Scraper',x:20,y:30,side:'left'}],
         'piano':         [{part:'琴鍵',en:'Keys',x:50,y:55,side:'right'},{part:'琴弦',en:'Strings',x:50,y:25,side:'right'},{part:'琴槌',en:'Hammers',x:50,y:35,side:'left'},{part:'踏板',en:'Pedals',x:50,y:92,side:'right'},{part:'共鳴板',en:'Soundboard',x:25,y:30,side:'left'}],
         'organ':         [{part:'琴鍵',en:'Keys',x:50,y:60,side:'right'},{part:'風管',en:'Pipes',x:50,y:15,side:'right'},{part:'音栓',en:'Stops',x:20,y:45,side:'left'},{part:'踏板鍵',en:'Pedal Board',x:50,y:92,side:'right'}],
@@ -8817,8 +8936,8 @@
         lb.innerHTML = `
             <div class="g4-struct-wrap">
                 <div class="g4-struct-panel-left">
+                    <button class="g4-struct-lb-close" aria-label="關閉">✕</button>
                     <div class="g4-struct-lb-body">
-                        <button class="g4-struct-lb-close" aria-label="關閉">✕</button>
                         <img src="${inst.img}" alt="${inst.nameEn}" class="g4-struct-lb-img" id="g4StructImg">
                         <div class="g4-anno-overlay" id="g4StructOverlay"></div>
                     </div>
