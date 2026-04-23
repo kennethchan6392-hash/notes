@@ -1,0 +1,8 @@
+{
+  "name": "notes-music-game",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "validate": "node scripts/build.mjs"
+  }
+}

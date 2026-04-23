@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+/**
+ * Static site — no bundling. Validates assets so CI / pre-deploy can run `npm run build`.
+ */
+import { spawnSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(__dirname, "..");
+
+function fail(msg) {
+  console.error("build:", msg);
+  process.exit(1);
+}
+
+function checkJs(file) {
+  const p = path.join(root, file);
+  if (!fs.existsSync(p)) fail(`missing ${file}`);
+  const r = spawnSync(process.execPath, ["--check", p], { encoding: "utf8" });
+  if (r.status !== 0) {
+    console.error(r.stderr || r.stdout);
+    fail(`syntax: ${file}`);
+  }
+  console.log("ok", file);
+}
+
+function checkJson(file) {
+  const p = path.join(root, file);
+  if (!fs.existsSync(p)) fail(`missing ${file}`);
+  try {
+    JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch (e) {
+    fail(`invalid JSON ${file}: ${e.message}`);
+  }
+  console.log("ok", file);
+}
+
+console.log("build: validate (root =", root + ")");
+
+for (const f of ["script.js", "bootstrap-instruments.js"]) checkJs(f);
+for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
+
+for (const f of ["index.html", "style.css"]) {
+  if (!fs.existsSync(path.join(root, f))) fail(`missing ${f}`);
+  console.log("ok", f);
+}
+
+console.log("build: done");
