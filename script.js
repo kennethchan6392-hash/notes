@@ -3078,7 +3078,7 @@
             if (dfWrap && dfSel) {
                 if (gfVal === 'game2') {
                     dfWrap.style.display = '';
-                    dfSel.innerHTML = '<option value="0">全部類型</option><option value="節奏挑戰">節奏挑戰</option><option value="1分鐘挑戰">1分鐘挑戰</option><option value="時值辨別">時值辨別</option>';
+                    dfSel.innerHTML = '<option value="節奏挑戰">節奏挑戰</option><option value="1分鐘挑戰">1分鐘挑戰</option><option value="時值辨別">時值辨別</option>';
                 } else if (gfVal === 'game3') {
                     dfWrap.style.display = '';
                     dfSel.innerHTML = '<option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option>';
@@ -8583,7 +8583,7 @@
           history:'沙蛋是沙槌家族中最小巧的成員，因形似雞蛋而得名。內部裝有微細砂粒或金屬珠，搖動時發出沙沙聲。體積小巧，手感圓潤，非常適合兒童課堂使用，也常用於音樂治療。在流行樂、民謠和兒童音樂教育中，沙蛋提供了輕柔的持續節奏背景，多位樂手可同時使用，共同構建豐富的律動層次。',
           video:'https://www.youtube.com/embed/GGfrTQ8IPfc',
           synthParams:{ noise:true, dur:0.2, filterType:'highpass', filterFreq:5000, filterQ:0.5, vol:0.18 }},
-        { id:'tubular-bells', nameZh:'管鐘',      nameEn:'Tubular Bells', family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/管鐘.jpg', desc:'一排垂掛的金屬管，音色如大鐘',
+        { id:'tubular-bells', nameZh:'管鐘',      nameEn:'Tubular Bells', family:'percussion', familyZh:'敲擊', img:'file:///Users/kenneth/.cursor/projects/Users-kenneth-Desktop-notes/assets/__-acd6d1fd-26d0-4b09-bd2d-51e0b6939f74.png', desc:'一排垂掛的金屬管，音色如大鐘',
           history:'管鐘（Tubular Bells）由一排按音高排列、垂掛於架上的金屬管組成，用小槌敲擊頂端發聲，音色渾厚如教堂大鐘。管鐘由英國人約翰·哈靈頓於1886年發明，目的是在管弦樂團中模擬教堂鐘聲，同時比真正的大鐘更易搬運。馬勒、普契尼和拉威爾均在作品中使用管鐘。1973年，麥克·歐菲爾德的唱片《Tubular Bells》更以此命名，成為史上最暢銷的器樂唱片之一，管鐘因此廣為人知。',
           video:'https://www.youtube.com/embed/VKyRgtEMy2c',
           synthParams:{ wave:'sine', freq:523, dur:2.5, attack:0.005, vol:0.22, sustain:0.25 }},
@@ -8609,7 +8609,7 @@
           synthParams:{ wave:'square', freq:800, dur:0.4, attack:0.002, vol:0.22, filterType:'bandpass', filterFreq:900, filterQ:4 }},
         { id:'guiro',        nameZh:'刮胡',       nameEn:'Güiro',        family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/guiro.jpg', desc:'有鋸齒紋路的葫蘆，用棒刮擦發聲',
           history:'刮胡（Güiro）源自加勒比海地區的泰諾原住民，最初以葫蘆製成，外表刻有橫向鋸齒槽，用木棒或金屬棒來回刮擦發出沙沙的刮擦聲。現代刮胡以木材、金屬或塑膠製成，常見魚形設計（Fish Guiro）尤其受兒童歡迎。刮胡是古巴頌樂、波多黎各音樂和梅連格舞曲的重要節奏樂器，演奏者需控制刮擦速度和力度以創造不同的節奏型態，是拉丁打擊樂中不可或缺的色彩樂器。',
-          video:'https://www.youtube.com/embed/tDNkLMmGsXA',
+          video:'https://www.youtube.com/embed/Wzm6i7mhSho',
           synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:2500, filterQ:1.5, vol:0.2 }},
         { id:'agogo-bell',   nameZh:'阿哥哥鈴',   nameEn:'Agogo Bell',   family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/agogo-bell.jpg', desc:'雙鈴的非洲傳統金屬樂器',
           history:'阿哥哥鈴源自西非約魯巴族的傳統音樂，由兩個大小不同的金屬鈴連接在一個U形握柄上，用金屬棒敲擊兩鈴可奏出高低兩個固定音高。它是非裔巴西宗教音樂坎東布雷（Candomblé）和卡波耶拉中不可缺少的樂器，後被薩爾薩、阿弗羅古巴爵士和流行音樂廣泛採用。阿哥哥鈴的節奏型通常作為整個樂隊的「鐘聲」基準，引領其他樂手的節奏，音色明亮穿透，即使在嘈雜的演奏環境中仍清晰可辨。',
@@ -8637,7 +8637,7 @@
           synthParams:{ noise:true, dur:0.6, filterType:'bandpass', filterFreq:1500, filterQ:3, vol:0.25 }},
         { id:'woodblock',    nameZh:'響棒',       nameEn:'Claves',       family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/woodblock.jpg', desc:'一對硬木短棒，互相敲擊發出清脆聲',
           history:'響棒（Claves）起源於古巴與加勒比海地區，是一對由硬木製成的短棒，彼此敲擊可產生清脆、穿透力極高的節奏聲。它是薩爾薩、倫巴、松（Son）等拉丁音樂中的核心節奏樂器，「clave 節奏型」更是整個樂隊的時間骨架。演奏時通常一手持共鳴棒形成空腔，另一手以敲擊棒擊打，透過握法與力度變化產生不同音色，簡單卻極具辨識度。',
-          video:'https://www.youtube.com/embed/1soGwaPwyCo',
+          video:'https://www.youtube.com/embed/G6eo9ssUJVs',
           synthParams:{ wave:'sine', freq:1200, dur:0.15, attack:0.001, vol:0.28, sustain:0.05, filterType:'bandpass', filterFreq:1300, filterQ:5 }},
 
         // ── 鍵盤 Keyboard ──
