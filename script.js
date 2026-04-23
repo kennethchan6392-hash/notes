@@ -7572,9 +7572,9 @@
     // Hand-crafted special questions (key signatures, comparisons, symbol recognition)
     const G3_SPECIAL_Q = {
         easy: [
-            { q: '「< 」漸強記號跟哪個術語一樣？', sym: '<', ans: 'cresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「<」形狀 = 聲音由小到大 = 漸強 = crescendo。' },
+            { q: '「< 」漸強記號跟哪個術語一樣？', sym: '<', ans: 'cresc.', opts: ['cresc.','decresc.','f','p'], optImgMap: { 'cresc.': 'file:///Users/kenneth/.cursor/projects/Users-kenneth-Desktop-notes/assets/image-ed1c4dc1-77c4-498d-9fff-95295247aad9.png' }, isText: true, explain: '「<」形狀 = 聲音由小到大 = 漸強 = crescendo。' },
             { q: '「> 」漸弱記號跟哪個術語一樣？', sym: '>', ans: 'decresc.', opts: ['cresc.','decresc.','f','p'], isText: true, explain: '「>」形狀 = 聲音由大到小 = 漸弱 = decrescendo。' },
-            { q: '以下力度術語由弱到強排序，哪個在中間？', sym: 'p _ f', ans: 'mf', opts: ['mf','mp','ff','pp'], isText: true, explain: 'pp → p → mp → mf → f → ff，p 和 f 之間是 mf。' },
+            { q: '以下力度術語由弱到強排序，緊接在「p」後面的是哪個？', sym: 'pp  p  _  mf  f  ff', ans: 'mp', opts: ['mf','mp','ff','pp'], isText: true, explain: '標準排序是 pp → p → mp → mf → f → ff，所以緊接在 p 後面的是 mp。' },
             { q: '以下哪個力度最弱？', sym: 'pp  p  mp', ans: 'pp', opts: ['pp','p','mp','mf'], isText: true, explain: 'pp = pianissimo = 很弱，是三者中最弱的。' },
             { q: '以下哪個力度最強？', sym: 'f  mf  ff', ans: 'ff', opts: ['f','mf','ff','mp'], isText: true, explain: 'ff = fortissimo = 很強，是三者中最強的。' },
             { q: 'C大調的調號有多少個升降號？', ans: '沒有（0個）', opts: ['沒有（0個）','1個升號','1個降號','2個升號'], ksImg:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/cards/keysig-0n.png', ksCaption:'<strong class="ks-major">C大調 / a小調</strong>', explain: 'C大調是唯一沒有升降號的大調。' },
@@ -7777,7 +7777,7 @@
         { cat:'tempo',    sym:'a tempo',   name:'A tempo',      meaning:'回原速',         grade:4 },
         { cat:'tempo',    sym:'più mosso', name:'Più mosso',    meaning:'更快地',         grade:6 },
         // 奏法 (Articulation)
-        { cat:'articulation', sym:'~',   name:'Legato',    meaning:'連奏',             grade:2 },
+        { cat:'articulation', sym:'⌢',   name:'Legato',    meaning:'連奏',             grade:2 },
         { cat:'articulation', sym:'·',   name:'Staccato',  meaning:'斷奏',             grade:2, img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/cards/sym-art-staccato.png' },
         { cat:'articulation', sym:'>',   name:'Accent',    meaning:'重音',             grade:3, img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/cards/sym-art-accent.png' },
         { cat:'articulation', sym:'—',   name:'Tenuto',    meaning:'持音（保持音值）', grade:5, img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/cards/sym-art-tenuto.png' },
@@ -8103,7 +8103,11 @@
             const btn = document.createElement('button');
             btn.className = 'quiz-opt-btn';
             btn.dataset.answer = opt;
-            btn.innerHTML = `<span class="opt-letter">${G3_LETTERS[i]}</span><span class="opt-text">${escHtml(opt)}</span>`;
+            const optImg = q.optImgMap && q.optImgMap[opt];
+            const optContent = optImg
+                ? `<img src="${escHtml(optImg)}" class="quiz-opt-img" alt="${escHtml(opt)}" loading="eager">`
+                : escHtml(opt);
+            btn.innerHTML = `<span class="opt-letter">${G3_LETTERS[i]}</span><span class="opt-text">${optContent}</span>`;
             btn.addEventListener('click', () => handleG3Answer(opt, q.ans, btn, q));
             optEl.appendChild(btn);
         });
@@ -8524,7 +8528,7 @@
                         {nameZh:'鈴片',nameEn:'Jingles',x:70,y:72,lx:81,ly:84}
                     ],
           synthParams:{ noise:true, dur:0.35, filterType:'bandpass', filterFreq:6000, filterQ:1, vol:0.22 }},
-        { id:'glockenspiel', nameZh:'鐘琴',       nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/glockenspiel.jpg', desc:'金屬音條，聲音像鐘聲',
+        { id:'glockenspiel', nameZh:'鐵片琴',     nameEn:'Glockenspiel', family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/glockenspiel.jpg', desc:'金屬音條，聲音像鐘聲',
           history:'鐘琴由金屬音條組成，音色清脆悅耳如同小鐘。它起源於16世紀的歐洲，著名演奏家首頭通常使用小槌敲擊。鐘琴在管弦樂中增添亮麗色彩，莫札特的《魔笛》中巴巴跟納之鑄著名的鐘琴樂段就使用了鐘琴的美妙音色。鐘琴在行進樂隊、管樂隊和山岳樂隊中常見，也常用於兒童音樂中。現代鐘琴用金屬音條前一舞台演奏的動作展現，具有視覺與聽覺雙重吸引力。',
           video:'https://www.youtube.com/embed/mxvkjsvgTUo',
                     parts:[
@@ -8611,7 +8615,7 @@
           history:'阿哥哥鈴源自西非約魯巴族的傳統音樂，由兩個大小不同的金屬鈴連接在一個U形握柄上，用金屬棒敲擊兩鈴可奏出高低兩個固定音高。它是非裔巴西宗教音樂坎東布雷（Candomblé）和卡波耶拉中不可缺少的樂器，後被薩爾薩、阿弗羅古巴爵士和流行音樂廣泛採用。阿哥哥鈴的節奏型通常作為整個樂隊的「鐘聲」基準，引領其他樂手的節奏，音色明亮穿透，即使在嘈雜的演奏環境中仍清晰可辨。',
           video:'https://www.youtube.com/embed/0Nj1WDLAghE',
           synthParams:{ wave:'square', freq:900, dur:0.3, attack:0.002, vol:0.22, filterType:'bandpass', filterFreq:1000, filterQ:5 }},
-        { id:'bar-chimes',   nameZh:'管鈴',       nameEn:'Bar Chimes',   family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/bar-chimes.jpg', desc:'多根金屬管懸掛成排，輕撥發出金屬聲',
+        { id:'bar-chimes',   nameZh:'管鈴',       nameEn:'Wind Chimes',  family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/bar-chimes.jpg', desc:'多根金屬管懸掛成排，輕撥發出金屬聲',
           history:'管鈴（Bar Chimes，又稱Mark Tree）由數十根長短不等的細金屬管懸掛成排製成，演奏者以手指或鼓棒從一端掃過，管子相互碰撞發出輕柔的滑音效果。管鈴在1960至70年代的流行音樂錄音室中廣泛使用，常用於製造夢幻、神秘或過渡性的音效。在管弦樂和打擊樂合奏中，管鈴為音樂增添空靈飄逸的色彩，是音效設計師和打擊樂手工具箱中重要的色彩樂器。',
           video:'https://www.youtube.com/embed/4K2xeVAq45M',
           synthParams:{ wave:'sine', freq:1400, dur:1.5, attack:0.01, vol:0.18, sustain:0.3, vibRate:3, vibDepth:2 }},
@@ -8619,7 +8623,7 @@
           history:'邦哥鼓（Bongos）源自古巴東部省份，由一大一小兩個皮鼓固定在一起組成，大鼓稱為Hembra（母），小鼓稱為Macho（公）。演奏者通常將鼓夾於兩膝之間，以指尖和手掌拍擊鼓皮，技法豐富細膩。邦哥鼓在古巴頌樂、拉丁爵士和流行音樂中廣泛使用，音色明亮清脆，節奏感強。傳奇演奏家卡洛斯·帕托·費爾南德斯和艾迪·帕米里將邦哥鼓技藝帶至精湛境界，進一步拓展了其在拉丁音樂中的表現空間。',
           video:'https://www.youtube.com/embed/4wPEIWET0fY',
           synthParams:{ noise:true, dur:0.3, filterType:'bandpass', filterFreq:400, filterQ:1.5, vol:0.28 }},
-        { id:'kalimba',      nameZh:'卡林巴琴',   nameEn:'Kalimba',      family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/kalimba.jpg', desc:'非洲拇指鋼琴，用拇指撥片發聲',
+        { id:'kalimba',      nameZh:'姆指琴',     nameEn:'Kalimba',      family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/kalimba.jpg', desc:'非洲拇指鋼琴，用拇指撥片發聲',
           history:'卡林巴琴（Kalimba）又稱拇指鋼琴，是非洲傳統姆比拉琴（Mbira）的現代版本。演奏者雙手握住木製音箱，用拇指撥動固定於音板上的金屬舌片，不同長度的舌片產生不同音高，音色空靈悅耳。卡林巴在非洲各文化中均有變體，辛巴威的姆比拉是其中最著名的，在修納族的宗教儀式中有神聖地位。1960年代，民族音樂學家休·崔西將其商業化改良並命名為Kalimba，從此傳播全球，成為世界音樂和冥想音樂的熱門樂器。',
           video:'https://www.youtube.com/embed/DAHqLGzbmyM',
           synthParams:{ wave:'sine', freq:659, dur:1.2, attack:0.003, vol:0.25, sustain:0.2, vibRate:5, vibDepth:2 }},
@@ -8631,8 +8635,8 @@
           history:'顫音板（Vibraslap）是驢顎骨（Quijada）的現代替代品，由LP公司於1960年代發明。其結構為一根鋼條連接一個木球和一個有金屬鉚釘的木質共鳴箱：用手掌擊打木球，衝擊振動使共鳴箱內的金屬鉚釘顫動，發出獨特的嗡嗡顫響聲。顫音板常用於拉丁音樂、流行樂和打擊樂合奏中作為特殊音效，聲音極具辨識度，一聲顫響便能為音樂增添生動的律動色彩。',
           video:'https://www.youtube.com/embed/GGK1NIY-Q18',
           synthParams:{ noise:true, dur:0.6, filterType:'bandpass', filterFreq:1500, filterQ:3, vol:0.25 }},
-        { id:'woodblock',    nameZh:'木塊',       nameEn:'Wood Block',   family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/woodblock.jpg', desc:'中空硬木塊，敲擊發出清脆短促聲',
-          history:'木塊（Wood Block）是一種中空的硬木方塊，用鼓錘敲擊上方開縫發出清脆的「答答」聲，音色短促而穿透。與東方的木魚（佛教法器）同屬木製體鳴樂器，但形制和用途有所不同。木塊在爵士樂、行進樂和管弦樂中作為節奏色彩樂器，能模擬蹄聲、時鐘聲等音效。蕭士塔高維奇、普羅科菲耶夫和馬勒等作曲家均在作品中採用木塊，其清脆的音色在強調特定節奏重音時效果出色。',
+        { id:'woodblock',    nameZh:'響棒',       nameEn:'Claves',       family:'percussion', familyZh:'敲擊', img:'https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/instruments/woodblock.jpg', desc:'一對硬木短棒，互相敲擊發出清脆聲',
+          history:'響棒（Claves）起源於古巴與加勒比海地區，是一對由硬木製成的短棒，彼此敲擊可產生清脆、穿透力極高的節奏聲。它是薩爾薩、倫巴、松（Son）等拉丁音樂中的核心節奏樂器，「clave 節奏型」更是整個樂隊的時間骨架。演奏時通常一手持共鳴棒形成空腔，另一手以敲擊棒擊打，透過握法與力度變化產生不同音色，簡單卻極具辨識度。',
           video:'https://www.youtube.com/embed/1soGwaPwyCo',
           synthParams:{ wave:'sine', freq:1200, dur:0.15, attack:0.001, vol:0.28, sustain:0.05, filterType:'bandpass', filterFreq:1300, filterQ:5 }},
 

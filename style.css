@@ -1838,6 +1838,12 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     background: linear-gradient(135deg, var(--primary-blue), #0090CC);
     color: white; border-color: transparent;
 }
+#screen-game3 .quiz-opt-img {
+    height: 30px;
+    max-width: 100%;
+    object-fit: contain;
+    vertical-align: middle;
+}
 #screen-game3 .quiz-opt-btn.correct .opt-letter {
     background: var(--primary-green); color: white; border-color: var(--primary-green-dark);
 }
