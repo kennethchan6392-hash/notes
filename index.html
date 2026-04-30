@@ -238,6 +238,44 @@
             </div>
         </div>
 
+        <!-- 遊戲五：創作工作坊 -->
+            <div class="hub-game-card hub-game5" id="enterGame5">
+                <div class="hub-game-tag">遊戲五</div>
+                <div class="hub-game-illust illust-5">
+                    <div class="illust-bg"></div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Staff lines -->
+                        <g stroke="#FF65A3" stroke-width="1.4" opacity="0.3">
+                            <line x1="18" y1="38" x2="182" y2="38"/>
+                            <line x1="18" y1="48" x2="182" y2="48"/>
+                            <line x1="18" y1="58" x2="182" y2="58"/>
+                            <line x1="18" y1="68" x2="182" y2="68"/>
+                            <line x1="18" y1="78" x2="182" y2="78"/>
+                        </g>
+                        <!-- Treble clef -->
+                        <text x="22" y="76" font-size="46" fill="#FF65A3" opacity="0.65" font-family="serif">𝄞</text>
+                        <!-- Colorful notes on staff -->
+                        <circle cx="80" cy="58" r="8" fill="#FF65A3" opacity="0.85"/>
+                        <rect x="87.5" y="22" width="3" height="36" fill="#FF65A3" opacity="0.85"/>
+                        <circle cx="110" cy="48" r="8" fill="#FFCB45" opacity="0.85"/>
+                        <rect x="117.5" y="14" width="3" height="34" fill="#FFCB45" opacity="0.85"/>
+                        <circle cx="140" cy="68" r="8" fill="#8B66FF" opacity="0.85"/>
+                        <rect x="147.5" y="32" width="3" height="36" fill="#8B66FF" opacity="0.85"/>
+                        <circle cx="168" cy="38" r="7" fill="#00D28E" opacity="0.75"/>
+                        <rect x="175" y="8" width="3" height="30" fill="#00D28E" opacity="0.75"/>
+                        <!-- Pencil icon -->
+                        <g transform="translate(140,86) rotate(-30)" opacity="0.55">
+                            <rect x="0" y="0" width="7" height="22" rx="2" fill="#FF65A3"/>
+                            <polygon points="0,22 7,22 3.5,28" fill="#FFCB45"/>
+                        </g>
+                    </svg>
+                </div>
+                <div class="hub-game-name">創作工作坊</div>
+                <div class="hub-game-desc">自由創作旋律<br>成為小小作曲家</div>
+                <div class="hub-game-btn">開始創作 ▶</div>
+            </div>
+        </div>
+
         <button class="btn-view-ranks" id="hubViewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
     </div>
 
@@ -1234,6 +1272,172 @@
             </div>
             <div class="img-lightbox-hint">🔍 可以縮放/拖動圖片查看細節</div>
         </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲五：創作工作坊 設定 (G5 Setup)     -->
+    <!-- ===================================== -->
+    <div id="screen-g5-setup" class="screen">
+        <button class="btn-back-hub" id="g5BackToHub">← 返回大廳</button>
+        <div>
+            <h1 class="game-title">🎼 創作工作坊</h1>
+            <div class="game-subtitle">自由創作旋律 · 成為小小作曲家</div>
+        </div>
+        <div class="card" id="g5PlayerCard" style="padding:14px 20px; text-align:center;">
+            <div class="hub-player-badge show" id="g5PlayerBadge">👋 <span id="g5PlayerBadgeText">準備中...</span></div>
+        </div>
+
+        <!-- 選擇拍號 -->
+        <div class="g5-setup-section">
+            <div class="g5-setup-label"><i data-lucide="music"></i> 選擇拍號</div>
+            <div class="g5-timesig-cards" id="g5TimeSigCards">
+                <div class="g5-timesig-card active" data-ts="4/4">
+                    <div class="g5-ts-symbol">4<br><span>4</span></div>
+                    <div class="g5-ts-name">四四拍</div>
+                    <div class="g5-ts-desc">每小節 4 拍</div>
+                </div>
+                <div class="g5-timesig-card" data-ts="3/4">
+                    <div class="g5-ts-symbol">3<br><span>4</span></div>
+                    <div class="g5-ts-name">四三拍</div>
+                    <div class="g5-ts-desc">每小節 3 拍</div>
+                </div>
+                <div class="g5-timesig-card" data-ts="2/4">
+                    <div class="g5-ts-symbol">2<br><span>4</span></div>
+                    <div class="g5-ts-name">四二拍</div>
+                    <div class="g5-ts-desc">每小節 2 拍</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 選擇調性 -->
+        <div class="g5-setup-section">
+            <div class="g5-setup-label"><i data-lucide="key"></i> 選擇調性</div>
+            <div class="g5-key-cards" id="g5KeyCards">
+                <div class="g5-key-card active" data-key="C">
+                    <div class="g5-key-name">C大調</div>
+                    <div class="g5-key-scale">Do Re Mi Fa Sol La Si</div>
+                </div>
+                <div class="g5-key-card" data-key="G">
+                    <div class="g5-key-name">G大調</div>
+                    <div class="g5-key-scale">Sol La Si Do Re Mi Fa♯</div>
+                </div>
+                <div class="g5-key-card" data-key="F">
+                    <div class="g5-key-name">F大調</div>
+                    <div class="g5-key-scale">Fa Sol La Si♭ Do Re Mi</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 選擇速度 -->
+        <div class="g5-setup-section">
+            <div class="g5-setup-label"><i data-lucide="gauge"></i> 創作速度</div>
+            <div class="g5-tempo-row">
+                <button class="g5-tempo-btn active" data-bpm="60">🐢 慢速 (60)</button>
+                <button class="g5-tempo-btn" data-bpm="80">🚶 中速 (80)</button>
+                <button class="g5-tempo-btn" data-bpm="100">⚡ 快速 (100)</button>
+            </div>
+        </div>
+
+        <button class="btn-start" id="g5StartBtn"><i data-lucide="pencil-line"></i> 開始創作！</button>
+        <button class="btn-view-ranks" id="g5GalleryBtn" style="background:linear-gradient(135deg,#FFF0F8,#FFE0F0);color:#D83A7D;border-color:rgba(255,101,163,0.35);box-shadow:0 5px 0 rgba(255,101,163,0.25);">🎵 我的作品集</button>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲五：創作工作坊 主畫面              -->
+    <!-- ===================================== -->
+    <div id="screen-g5-workshop" class="screen">
+        <div class="g5-workshop-header">
+            <button class="g5-header-btn" id="g5WorkshopBack">← 返回</button>
+            <div class="g5-header-info">
+                <span class="g5-header-ts" id="g5HeaderTs">4/4</span>
+                <span class="g5-header-key" id="g5HeaderKey">C大調</span>
+                <span class="g5-header-bpm" id="g5HeaderBpm">80 BPM</span>
+            </div>
+            <button class="g5-header-btn g5-play-btn" id="g5PlayBtn">▶ 播放</button>
+        </div>
+
+        <!-- 五線譜顯示區 -->
+        <div class="g5-staff-area">
+            <div class="g5-staff-container" id="g5StaffContainer"></div>
+            <div class="g5-bar-status" id="g5BarStatus"></div>
+        </div>
+
+        <!-- 音符輸入區 -->
+        <div class="g5-input-area">
+            <!-- 音符時值選擇 -->
+            <div class="g5-palette-section">
+                <div class="g5-palette-label">時值</div>
+                <div class="g5-dur-palette" id="g5DurPalette">
+                    <button class="g5-dur-btn active" data-dur="q" data-beats="1" title="四分音符 (1拍)">
+                        <span class="g5-note-symbol">♩</span><span class="g5-note-name">四分<br>1拍</span>
+                    </button>
+                    <button class="g5-dur-btn" data-dur="h" data-beats="2" title="二分音符 (2拍)">
+                        <span class="g5-note-symbol">𝅗𝅥</span><span class="g5-note-name">二分<br>2拍</span>
+                    </button>
+                    <button class="g5-dur-btn" data-dur="w" data-beats="4" title="全音符 (4拍)">
+                        <span class="g5-note-symbol">𝅝𝅥</span><span class="g5-note-name">全音<br>4拍</span>
+                    </button>
+                    <button class="g5-dur-btn" data-dur="8" data-beats="0.5" title="八分音符 (半拍)">
+                        <span class="g5-note-symbol">♪</span><span class="g5-note-name">八分<br>½拍</span>
+                    </button>
+                    <button class="g5-dur-btn" data-dur="qr" data-beats="1" title="四分休止符 (1拍)">
+                        <span class="g5-note-symbol">𝄽</span><span class="g5-note-name">休止<br>1拍</span>
+                    </button>
+                    <button class="g5-dur-btn" data-dur="hr" data-beats="2" title="二分休止符 (2拍)">
+                        <span class="g5-note-symbol">𝄼</span><span class="g5-note-name">休止<br>2拍</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 音高選擇（非休止符才顯示） -->
+            <div class="g5-palette-section" id="g5PitchSection">
+                <div class="g5-palette-label">音高 <span id="g5OctaveLabel">（中音區）</span></div>
+                <div class="g5-pitch-row">
+                    <div class="g5-pitch-btns" id="g5PitchBtns">
+                        <button class="g5-pitch-btn" data-sol="Do" data-note="C">Do</button>
+                        <button class="g5-pitch-btn" data-sol="Re" data-note="D">Re</button>
+                        <button class="g5-pitch-btn" data-sol="Mi" data-note="E">Mi</button>
+                        <button class="g5-pitch-btn" data-sol="Fa" data-note="F">Fa</button>
+                        <button class="g5-pitch-btn" data-sol="Sol" data-note="G">Sol</button>
+                        <button class="g5-pitch-btn" data-sol="La" data-note="A">La</button>
+                        <button class="g5-pitch-btn" data-sol="Si" data-note="B">Si</button>
+                        <button class="g5-pitch-btn g5-octave-hi" data-sol="Do↑" data-note="C" data-octave-hi="1">Do↑</button>
+                    </div>
+                    <button class="g5-octave-toggle" id="g5OctaveToggle" title="切換八度">八度↕</button>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="g5-action-row">
+                <button class="g5-action-btn g5-add-btn" id="g5AddBtn"><i data-lucide="plus-circle"></i> 加入音符</button>
+                <button class="g5-action-btn g5-undo-btn" id="g5UndoBtn"><i data-lucide="undo-2"></i> 刪除最後</button>
+                <button class="g5-action-btn g5-clear-btn" id="g5ClearBtn"><i data-lucide="trash-2"></i> 全部清除</button>
+                <button class="g5-action-btn g5-save-btn" id="g5SaveBtn"><i data-lucide="save"></i> 儲存作品</button>
+            </div>
+        </div>
+
+        <!-- 播放中遮罩 -->
+        <div class="g5-playing-overlay" id="g5PlayingOverlay" style="display:none;">
+            <div class="g5-playing-msg">▶ 播放中...</div>
+            <button class="g5-stop-btn" id="g5StopBtn">■ 停止</button>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 遊戲五：作品集 (G5 Gallery)            -->
+    <!-- ===================================== -->
+    <div id="screen-g5-gallery" class="screen">
+        <button class="btn-back-hub" id="g5GalleryBack">← 返回設定</button>
+        <h1 class="game-title" style="font-size:2.2rem;">🎵 我的作品集</h1>
+        <div class="game-subtitle">點擊作品可播放或繼續編輯</div>
+        <div class="g5-gallery-grid" id="g5GalleryGrid">
+            <div class="g5-gallery-empty" id="g5GalleryEmpty">
+                <div style="font-size:3rem;">🎼</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--text-light);margin-top:12px;">還沒有作品</div>
+                <div style="font-size:0.85rem;color:var(--text-light);margin-top:6px;">回到工作坊創作你的第一首曲子吧！</div>
+            </div>
+        </div>
+        <button class="btn-start" id="g5GalleryNewBtn" style="margin-top:16px;"><i data-lucide="plus-circle"></i> 新建作品</button>
     </div>
 
     <script src="bootstrap-instruments.js" data-app-bootstrap defer></script>

@@ -267,7 +267,7 @@
     let _countdownTimerId = null;
 
     // ── Toast notification helper ──
-    function _showToast(msg, type) {
+    function __showToast(msg, type) {
         const el = document.createElement('div');
         el.className = 'app-toast ' + (type || 'info');
         el.textContent = msg;
@@ -376,7 +376,7 @@
 
     function saveProfile(profile) {
         const key = `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
-        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
+        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { __showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
     }
 
     function _defaultProfile(user) {
@@ -2488,11 +2488,11 @@
                 redirect: 'follow',
                 signal: controller.signal
             });
-            _showToast('✅ 分數已上傳！', 'success');
+            __showToast('✅ 分數已上傳！', 'success');
             setTimeout(loadRanks, 2000);
         } catch (e) {
             console.error("上傳失敗：", e);
-            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
+            __showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
         } finally {
             clearTimeout(timeoutId);
         }
@@ -2526,10 +2526,10 @@
                 redirect: 'follow',
                 signal: controller.signal
             });
-            _showToast('✅ 分數已上傳！', 'success');
+            __showToast('✅ 分數已上傳！', 'success');
         } catch(e) {
             console.error('上傳失敗：', e);
-            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
+            __showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
         } finally {
             clearTimeout(timeoutId);
         }
@@ -3809,6 +3809,56 @@
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
             switchScreen('screen-hub');
+        });
+
+        // ——— 遊戲五：創作工作坊 入口 ———
+        document.getElementById('enterGame5')?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            const user = getHubUser();
+            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
+
+            const badgeText = document.getElementById('g5PlayerBadgeText');
+            if (badgeText) badgeText.textContent =
+                `${user.grade ? ['','小一','小二','小三','小四','小五','小六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
+
+            // Reset setup UI to defaults
+            g5State.timeSig = '4/4';
+            g5State.key = 'C';
+            g5State.bpm = 80;
+
+            document.querySelectorAll('#g5TimeSigCards .g5-timesig-card').forEach(c => {
+                c.classList.toggle('active', c.dataset.ts === g5State.timeSig);
+                c.onclick = () => {
+                    document.querySelectorAll('#g5TimeSigCards .g5-timesig-card').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
+                    g5State.timeSig = c.dataset.ts;
+                };
+            });
+            document.querySelectorAll('#g5KeyCards .g5-key-card').forEach(c => {
+                c.classList.toggle('active', c.dataset.key === g5State.key);
+                c.onclick = () => {
+                    document.querySelectorAll('#g5KeyCards .g5-key-card').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
+                    g5State.key = c.dataset.key;
+                };
+            });
+            document.querySelectorAll('#screen-g5-setup .g5-tempo-btn').forEach(b => {
+                b.classList.toggle('active', parseInt(b.dataset.bpm) === g5State.bpm);
+                b.onclick = () => {
+                    document.querySelectorAll('#screen-g5-setup .g5-tempo-btn').forEach(x => x.classList.remove('active'));
+                    b.classList.add('active');
+                    g5State.bpm = parseInt(b.dataset.bpm);
+                };
+            });
+
+            document.getElementById('g5BackToHub').onclick = () => switchScreen('screen-hub');
+            document.getElementById('g5StartBtn').onclick = () => initG5Workshop();
+            document.getElementById('g5GalleryBtn').onclick = () => {
+                g5RenderGallery();
+                switchScreen('screen-g5-gallery');
+            };
+
+            switchScreen('screen-g5-setup');
         });
 
         updateHubLockState();
@@ -9256,5 +9306,546 @@
         modal.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
         setTimeout(() => { modal.remove(); document.body.style.overflow = ''; }, 180);
     }
+
+    // ==========================================
+    // 遊戲五：創作工作坊
+    // ==========================================
+
+    // 每個調性的音符配置（八度4為中音區，八度5為高音區）
+    const G5_KEY_NOTES = {
+        C: {
+            name: 'C大調',
+            notes: [
+                { sol: 'Do', letter: 'C', octave: 4, vfKey: 'c/4', freq: 261.63 },
+                { sol: 'Re', letter: 'D', octave: 4, vfKey: 'd/4', freq: 293.66 },
+                { sol: 'Mi', letter: 'E', octave: 4, vfKey: 'e/4', freq: 329.63 },
+                { sol: 'Fa', letter: 'F', octave: 4, vfKey: 'f/4', freq: 349.23 },
+                { sol: 'Sol', letter: 'G', octave: 4, vfKey: 'g/4', freq: 392.00 },
+                { sol: 'La', letter: 'A', octave: 4, vfKey: 'a/4', freq: 440.00 },
+                { sol: 'Si', letter: 'B', octave: 4, vfKey: 'b/4', freq: 493.88 },
+                { sol: 'Do↑', letter: 'C', octave: 5, vfKey: 'c/5', freq: 523.25 },
+            ],
+            vfKeySpec: null,
+            timeSigTop: 4,
+        },
+        G: {
+            name: 'G大調',
+            notes: [
+                { sol: 'Sol', letter: 'G', octave: 3, vfKey: 'g/3', freq: 196.00 },
+                { sol: 'La',  letter: 'A', octave: 3, vfKey: 'a/3', freq: 220.00 },
+                { sol: 'Si',  letter: 'B', octave: 3, vfKey: 'b/3', freq: 246.94 },
+                { sol: 'Do',  letter: 'C', octave: 4, vfKey: 'c/4', freq: 261.63 },
+                { sol: 'Re',  letter: 'D', octave: 4, vfKey: 'd/4', freq: 293.66 },
+                { sol: 'Mi',  letter: 'E', octave: 4, vfKey: 'e/4', freq: 329.63 },
+                { sol: 'Fa♯', letter: 'F', octave: 4, vfKey: 'f#/4', freq: 369.99 },
+                { sol: 'Sol↑',letter: 'G', octave: 4, vfKey: 'g/4', freq: 392.00 },
+            ],
+            vfKeySpec: '1',
+            timeSigTop: 4,
+        },
+        F: {
+            name: 'F大調',
+            notes: [
+                { sol: 'Fa',  letter: 'F', octave: 3, vfKey: 'f/3', freq: 174.61 },
+                { sol: 'Sol', letter: 'G', octave: 3, vfKey: 'g/3', freq: 196.00 },
+                { sol: 'La',  letter: 'A', octave: 3, vfKey: 'a/3', freq: 220.00 },
+                { sol: 'Si♭', letter: 'Bb', octave: 3, vfKey: 'bb/3', freq: 233.08 },
+                { sol: 'Do',  letter: 'C', octave: 4, vfKey: 'c/4', freq: 261.63 },
+                { sol: 'Re',  letter: 'D', octave: 4, vfKey: 'd/4', freq: 293.66 },
+                { sol: 'Mi',  letter: 'E', octave: 4, vfKey: 'e/4', freq: 329.63 },
+                { sol: 'Fa↑', letter: 'F', octave: 4, vfKey: 'f/4', freq: 349.23 },
+            ],
+            vfKeySpec: '-1',
+            timeSigTop: 4,
+        }
+    };
+
+    const G5_DUR_BEATS = { w: 4, h: 2, q: 1, '8': 0.5, wr: 4, hr: 2, qr: 1 };
+    const G5_STORAGE_KEY = 'g5_compositions';
+
+    // 工作坊狀態
+    let g5State = {
+        timeSig: '4/4',
+        key: 'C',
+        bpm: 80,
+        notes: [],           // [{vfKey, dur, freq, sol, isRest}]
+        selectedDur: 'q',
+        selectedPitch: null, // index in key notes array
+        octaveHigh: false,
+        playbackCtx: null,
+        playbackSrc: null,
+        playing: false,
+    };
+
+    // 儲存 / 讀取作品集
+    function g5LoadCompositions() {
+        try { return JSON.parse(localStorage.getItem(G5_STORAGE_KEY) || '[]'); } catch { return []; }
+    }
+    function g5SaveCompositions(list) {
+        localStorage.setItem(G5_STORAGE_KEY, JSON.stringify(list));
+    }
+
+    // 計算每小節拍數
+    function g5BeatsPerBar() {
+        return parseInt(g5State.timeSig.split('/')[0]);
+    }
+
+    // 把音符陣列分成各小節
+    function g5GetBars() {
+        const bpb = g5BeatsPerBar();
+        const bars = [];
+        let cur = [];
+        let beats = 0;
+        for (const note of g5State.notes) {
+            const b = G5_DUR_BEATS[note.dur] || 1;
+            cur.push(note);
+            beats += b;
+            if (beats >= bpb) {
+                bars.push({ notes: cur, beats });
+                cur = [];
+                beats = 0;
+            }
+        }
+        if (cur.length) bars.push({ notes: cur, beats });
+        return bars;
+    }
+
+    // VexFlow 渲染工作坊五線譜
+    function g5Render() {
+        const container = document.getElementById('g5StaffContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (typeof VexFlow === 'undefined') {
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">載入五線譜中...</div>';
+            return;
+        }
+
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Accidental, KeySignature, TimeSignature, Dot, Stem } = VexFlow;
+
+        const W = Math.max(container.clientWidth || 340, 280);
+        const BARS = 4;
+        const BARS_PER_ROW = W >= 540 ? 2 : 1;
+        const NUM_ROWS = Math.ceil(BARS / BARS_PER_ROW);
+        const ROW_H = 120;
+        const TOTAL_H = NUM_ROWS * ROW_H + 20;
+
+        const renderer = new Renderer(container, Renderer.Backends.SVG);
+        renderer.resize(W, TOTAL_H);
+        const ctx = renderer.getContext();
+
+        const bpb = g5BeatsPerBar();
+        const keyConfig = G5_KEY_NOTES[g5State.key];
+        const bars = g5GetBars();
+
+        // Ensure we always render exactly 4 bars
+        while (bars.length < BARS) bars.push({ notes: [], beats: 0 });
+
+        const PAD = 8;
+        const barW = (W - PAD * 2) / BARS_PER_ROW;
+
+        for (let bi = 0; bi < BARS; bi++) {
+            const row = Math.floor(bi / BARS_PER_ROW);
+            const col = bi % BARS_PER_ROW;
+            const x = PAD + col * barW;
+            const y = row * ROW_H + 16;
+
+            const stave = new Stave(x, y, barW - PAD);
+
+            // First bar in first row: add clef, key, time sig
+            if (bi === 0) {
+                stave.addClef('treble');
+                if (keyConfig.vfKeySpec) {
+                    const sharps = parseInt(keyConfig.vfKeySpec);
+                    if (sharps > 0) stave.addKeySignature('G');
+                    else if (sharps < 0) stave.addKeySignature('F');
+                }
+                stave.addTimeSignature(g5State.timeSig);
+            } else if (col === 0) {
+                // New row, add clef
+                stave.addClef('treble');
+            }
+
+            stave.setContext(ctx).draw();
+
+            const barData = bars[bi];
+            const vfNotes = [];
+            const beamGroups = [];
+            let eighthRun = [];
+            const flushEighths = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
+
+            for (const note of barData.notes) {
+                if (note.isRest) {
+                    flushEighths();
+                    const dur = note.dur;           // 'qr', 'hr', 'wr'
+                    const vn = new StaveNote({ keys: ['b/4'], duration: dur });
+                    vfNotes.push(vn);
+                } else {
+                    const dur = note.dur;
+                    const vn = new StaveNote({ keys: [note.vfKey], duration: dur, stemDirection: Stem.UP });
+                    // Add accidental if needed (bb, #)
+                    if (note.vfKey.includes('#')) vn.addModifier(new Accidental('#'), 0);
+                    if (note.vfKey.startsWith('bb')) vn.addModifier(new Accidental('b'), 0);
+                    vfNotes.push(vn);
+                    if (dur === '8') eighthRun.push(vn); else flushEighths();
+                }
+            }
+            flushEighths();
+
+            // Fill incomplete bar with ghost rests so VexFlow formats correctly
+            const filledBeats = barData.beats;
+            let remaining = bpb - filledBeats;
+            while (remaining > 0) {
+                const dur = remaining >= 2 ? 'hr' : 'qr';
+                const beats = dur === 'hr' ? 2 : 1;
+                const ghost = new StaveNote({ keys: ['b/4'], duration: dur });
+                ghost.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                vfNotes.push(ghost);
+                remaining -= beats;
+                if (remaining <= 0) break;
+            }
+
+            if (vfNotes.length === 0) continue;
+
+            const voice = new Voice({ numBeats: bpb, beatValue: 4 });
+            voice.setMode(2);
+            try {
+                voice.addTickables(vfNotes);
+                new Formatter().joinVoices([voice]).format([voice], barW - PAD - 60);
+                const beams = beamGroups.map(g => new Beam(g));
+                voice.draw(ctx, stave);
+                beams.forEach(b => b.setContext(ctx).draw());
+            } catch (e) {
+                // Skip failed bars silently
+            }
+        }
+
+        // Update bar status chips
+        g5UpdateBarStatus(bars);
+    }
+
+    // 更新小節狀態標示
+    function g5UpdateBarStatus(bars) {
+        const el = document.getElementById('g5BarStatus');
+        if (!el) return;
+        const bpb = g5BeatsPerBar();
+        el.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+            const bar = bars[i];
+            const beats = bar ? bar.beats : 0;
+            let cls = 'empty', label = `第${i+1}節: 0/${bpb}拍`;
+            if (beats > 0 && beats < bpb) { cls = 'partial'; label = `第${i+1}節: ${beats}/${bpb}拍`; }
+            else if (beats === bpb) { cls = 'full'; label = `第${i+1}節: ✓ ${bpb}拍`; }
+            else if (beats > bpb) { cls = 'over'; label = `第${i+1}節: 超過！`; }
+            const chip = document.createElement('span');
+            chip.className = `g5-bar-chip ${cls}`;
+            chip.textContent = label;
+            el.appendChild(chip);
+        }
+    }
+
+    // 更新音高按鈕（根據調性和八度）
+    function g5UpdatePitchBtns() {
+        const keyNotes = G5_KEY_NOTES[g5State.key].notes;
+        const btns = document.querySelectorAll('#g5PitchBtns .g5-pitch-btn');
+        btns.forEach((btn, i) => {
+            const note = keyNotes[i];
+            if (!note) return;
+            btn.dataset.sol = note.sol;
+            btn.dataset.note = note.letter;
+            btn.dataset.vfKey = note.vfKey;
+            btn.dataset.freq = note.freq;
+            btn.textContent = note.sol;
+        });
+        document.getElementById('g5OctaveLabel').textContent = g5State.octaveHigh ? '（高音區）' : '（中音區）';
+    }
+
+    // 選中的音高資訊
+    function g5GetSelectedNote() {
+        if (g5State.selectedPitch === null) return null;
+        const keyNotes = G5_KEY_NOTES[g5State.key].notes;
+        // In high octave mode, shift all notes up by one octave
+        const note = { ...keyNotes[g5State.selectedPitch] };
+        if (g5State.octaveHigh) {
+            note.octave += 1;
+            note.vfKey = note.vfKey.replace(/\/(\d)$/, (_, o) => `/${parseInt(o)+1}`);
+            // Clamp frequency to octave above
+            note.freq = note.freq * 2;
+        }
+        return note;
+    }
+
+    // 播放單音（Web Audio）
+    function g5PlayNote(freq, dur, startTime, actx) {
+        if (!freq || freq <= 0) return;
+        const beats = G5_DUR_BEATS[dur.replace('r', '')] || 1;
+        const secPerBeat = 60 / g5State.bpm;
+        const duration = beats * secPerBeat * 0.9;
+
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.35, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(actx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.05);
+    }
+
+    // 播放整個作品
+    function g5Play() {
+        if (g5State.notes.length === 0) { _showToast('還沒有音符！請先加入音符', 'warn'); return; }
+        if (g5State.playing) return;
+
+        const actx = new (window.AudioContext || window.webkitAudioContext)();
+        g5State.playbackCtx = actx;
+        g5State.playing = true;
+
+        const overlay = document.getElementById('g5PlayingOverlay');
+        if (overlay) overlay.style.display = 'flex';
+
+        const secPerBeat = 60 / g5State.bpm;
+        let t = actx.currentTime + 0.1;
+        let totalDuration = 0;
+
+        for (const note of g5State.notes) {
+            const beats = G5_DUR_BEATS[note.dur] || 1;
+            const durSec = beats * secPerBeat;
+            if (!note.isRest) g5PlayNote(note.freq, note.dur, t, actx);
+            t += durSec;
+            totalDuration += durSec;
+        }
+
+        // Auto-stop after playback ends
+        g5State._playTimeout = setTimeout(() => {
+            g5StopPlayback();
+        }, (totalDuration + 0.3) * 1000);
+    }
+
+    // 停止播放
+    function g5StopPlayback() {
+        g5State.playing = false;
+        if (g5State._playTimeout) { clearTimeout(g5State._playTimeout); g5State._playTimeout = null; }
+        if (g5State.playbackCtx) {
+            try { g5State.playbackCtx.close(); } catch {}
+            g5State.playbackCtx = null;
+        }
+        const overlay = document.getElementById('g5PlayingOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    // 儲存當前作品
+    function g5SaveWork() {
+        if (g5State.notes.length === 0) { _showToast('還沒有音符！請先創作再儲存', 'warn'); return; }
+        const name = prompt('請為你的作品命名：', `我的作品 ${new Date().toLocaleDateString('zh-HK')}`);
+        if (!name) return;
+
+        const list = g5LoadCompositions();
+        const item = {
+            id: Date.now(),
+            name: name.trim() || '無題',
+            timeSig: g5State.timeSig,
+            key: g5State.key,
+            bpm: g5State.bpm,
+            notes: [...g5State.notes],
+            savedAt: new Date().toISOString(),
+        };
+        list.unshift(item);
+        if (list.length > 20) list.splice(20); // keep max 20
+        g5SaveCompositions(list);
+        _showToast(`🎵 "${item.name}" 已儲存！`, 'success');
+    }
+
+    // 渲染作品集畫面
+    function g5RenderGallery() {
+        const grid = document.getElementById('g5GalleryGrid');
+        const empty = document.getElementById('g5GalleryEmpty');
+        if (!grid) return;
+
+        const list = g5LoadCompositions();
+        if (list.length === 0) {
+            if (empty) empty.style.display = '';
+            return;
+        }
+        if (empty) empty.style.display = 'none';
+
+        const items = list.map(item => {
+            const div = document.createElement('div');
+            div.className = 'g5-gallery-card';
+            const keyName = G5_KEY_NOTES[item.key]?.name || item.key;
+            const noteCount = item.notes.length;
+            const dateStr = item.savedAt ? new Date(item.savedAt).toLocaleDateString('zh-HK') : '';
+            div.innerHTML = `
+                <div class="g5-gallery-icon">🎵</div>
+                <div class="g5-gallery-info">
+                    <div class="g5-gallery-title">${item.name}</div>
+                    <div class="g5-gallery-meta">${item.timeSig} · ${keyName} · ${item.bpm}BPM · ${noteCount}個音符 · ${dateStr}</div>
+                </div>
+                <div class="g5-gallery-actions">
+                    <button class="g5-gallery-play-btn" data-id="${item.id}">▶ 播放</button>
+                    <button class="g5-gallery-del-btn" data-id="${item.id}">✕</button>
+                </div>`;
+            return div;
+        });
+
+        // Clear old content (but keep empty placeholder)
+        [...grid.children].forEach(c => { if (c !== empty) c.remove(); });
+        items.forEach(el => grid.appendChild(el));
+
+        // Play button
+        grid.querySelectorAll('.g5-gallery-play-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.id);
+                const item = g5LoadCompositions().find(x => x.id === id);
+                if (!item) return;
+                g5State.notes = [...item.notes];
+                g5State.timeSig = item.timeSig;
+                g5State.key = item.key;
+                g5State.bpm = item.bpm;
+                // Play gallery item from anywhere
+                g5Play();
+            });
+        });
+
+        // Delete button
+        grid.querySelectorAll('.g5-gallery-del-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.id);
+                if (!confirm('確定刪除這首作品？')) return;
+                const list = g5LoadCompositions().filter(x => x.id !== id);
+                g5SaveCompositions(list);
+                g5RenderGallery();
+            });
+        });
+    }
+
+    // 初始化工作坊主畫面
+    function initG5Workshop() {
+        g5State.notes = [];
+        g5State.selectedDur = 'q';
+        g5State.selectedPitch = null;
+        g5State.octaveHigh = false;
+
+        // Header info
+        document.getElementById('g5HeaderTs').textContent = g5State.timeSig;
+        document.getElementById('g5HeaderKey').textContent = G5_KEY_NOTES[g5State.key].name;
+        document.getElementById('g5HeaderBpm').textContent = g5State.bpm + ' BPM';
+
+        // Duration palette
+        const durBtns = document.querySelectorAll('#g5DurPalette .g5-dur-btn');
+        durBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.dur === g5State.selectedDur);
+            btn.onclick = () => {
+                durBtns.forEach(x => x.classList.remove('active'));
+                btn.classList.add('active');
+                g5State.selectedDur = btn.dataset.dur;
+                const isRest = g5State.selectedDur.endsWith('r');
+                const pitchSection = document.getElementById('g5PitchSection');
+                if (pitchSection) pitchSection.style.opacity = isRest ? '0.4' : '1';
+            };
+        });
+
+        // Pitch buttons
+        g5UpdatePitchBtns();
+        const pitchBtns = document.querySelectorAll('#g5PitchBtns .g5-pitch-btn');
+        pitchBtns.forEach((btn, i) => {
+            btn.classList.remove('active');
+            btn.onclick = () => {
+                pitchBtns.forEach(x => x.classList.remove('active'));
+                btn.classList.add('active');
+                g5State.selectedPitch = i;
+                // Preview the note sound
+                const note = G5_KEY_NOTES[g5State.key].notes[i];
+                if (note) {
+                    const freq = g5State.octaveHigh ? note.freq * 2 : note.freq;
+                    const actx = new (window.AudioContext || window.webkitAudioContext)();
+                    g5PlayNote(freq, 'q', actx.currentTime + 0.02, actx);
+                    setTimeout(() => actx.close(), 1500);
+                }
+            };
+        });
+
+        // Octave toggle
+        const octaveToggle = document.getElementById('g5OctaveToggle');
+        if (octaveToggle) {
+            octaveToggle.onclick = () => {
+                g5State.octaveHigh = !g5State.octaveHigh;
+                octaveToggle.style.background = g5State.octaveHigh ? '#FFF8EC' : '';
+                octaveToggle.style.borderColor = g5State.octaveHigh ? 'var(--primary-yellow)' : '';
+                document.getElementById('g5OctaveLabel').textContent = g5State.octaveHigh ? '（高音區）' : '（中音區）';
+            };
+        }
+
+        // Add note button
+        document.getElementById('g5AddBtn').onclick = () => {
+            const isRest = g5State.selectedDur.endsWith('r');
+            if (!isRest && g5State.selectedPitch === null) {
+                _showToast('請先選擇一個音高！', 'warn'); return;
+            }
+            // Count total beats
+            const totalBeats = g5State.notes.reduce((s, n) => s + (G5_DUR_BEATS[n.dur] || 1), 0);
+            const maxBeats = g5BeatsPerBar() * 4;
+            if (totalBeats >= maxBeats) { _showToast('四個小節已滿！', 'warn'); return; }
+
+            if (isRest) {
+                g5State.notes.push({ isRest: true, dur: g5State.selectedDur, vfKey: 'b/4', freq: 0, sol: '休' });
+            } else {
+                const keyNotes = G5_KEY_NOTES[g5State.key].notes;
+                const note = { ...keyNotes[g5State.selectedPitch] };
+                if (g5State.octaveHigh) {
+                    note.octave += 1;
+                    note.vfKey = note.vfKey.replace(/\/(\d)$/, (_, o) => `/${parseInt(o)+1}`);
+                    note.freq = note.freq * 2;
+                }
+                g5State.notes.push({ isRest: false, dur: g5State.selectedDur, vfKey: note.vfKey, freq: note.freq, sol: note.sol });
+            }
+            g5Render();
+        };
+
+        // Undo button
+        document.getElementById('g5UndoBtn').onclick = () => {
+            if (g5State.notes.length === 0) return;
+            g5State.notes.pop();
+            g5Render();
+        };
+
+        // Clear all button
+        document.getElementById('g5ClearBtn').onclick = () => {
+            if (g5State.notes.length === 0) return;
+            if (!confirm('確定清除所有音符？')) return;
+            g5State.notes = [];
+            g5Render();
+        };
+
+        // Save button
+        document.getElementById('g5SaveBtn').onclick = g5SaveWork;
+
+        // Play button
+        document.getElementById('g5PlayBtn').onclick = g5Play;
+
+        // Stop button
+        document.getElementById('g5StopBtn').onclick = g5StopPlayback;
+
+        // Back button
+        document.getElementById('g5WorkshopBack').onclick = () => {
+            g5StopPlayback();
+            switchScreen('screen-g5-setup');
+        };
+
+        switchScreen('screen-g5-workshop');
+        // Render empty staff after screen transition
+        setTimeout(g5Render, 80);
+    }
+
+    // Gallery screen buttons
+    document.getElementById('g5GalleryBack')?.addEventListener('click', () => switchScreen('screen-g5-setup'));
+    document.getElementById('g5GalleryNewBtn')?.addEventListener('click', () => {
+        switchScreen('screen-g5-setup');
+    });
 
 })();
