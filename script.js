@@ -3575,15 +3575,23 @@
         }
 
         // Game 1 entry — sync hub → setup then show setup
-        document.getElementById('enterGame1').addEventListener('click', () => {
+        const enterGame1El = document.getElementById('enterGame1');
+        enterGame1El.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             syncFromHub();
             // Auto-sync grade textbook level
             if (dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
             switchScreen('screen-setup');
         });
+        enterGame1El.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterGame1El.click();
+            }
+        });
 
-        document.getElementById('enterGame2').addEventListener('click', () => {
+        const enterGame2El = document.getElementById('enterGame2');
+        enterGame2El.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
@@ -3655,8 +3663,15 @@
             };
             switchScreen('screen-g2-setup');
         });
+        enterGame2El.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterGame2El.click();
+            }
+        });
 
-        document.getElementById('enterGame3').addEventListener('click', () => {
+        const enterGame3El = document.getElementById('enterGame3');
+        enterGame3El.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
@@ -3727,9 +3742,16 @@
             };
             switchScreen('screen-g3-setup');
         });
+        enterGame3El.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterGame3El.click();
+            }
+        });
 
         // ── Game 4 Hub Entry ──
-        document.getElementById('enterGame4').addEventListener('click', () => {
+        const enterGame4El = document.getElementById('enterGame4');
+        enterGame4El.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
@@ -3803,13 +3825,26 @@
             };
             switchScreen('screen-g4-setup');
         });
+        enterGame4El.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterGame4El.click();
+            }
+        });
 
-        document.getElementById('enterCompositionStudio')?.addEventListener('click', () => {
+        const enterCompositionStudioEl = document.getElementById('enterCompositionStudio');
+        enterCompositionStudioEl?.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             CompositionStudio.open();
             switchScreen('screen-composition-studio');
+        });
+        enterCompositionStudioEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterCompositionStudioEl.click();
+            }
         });
 
         document.getElementById('hubViewRanksBtn').addEventListener('click', () => {

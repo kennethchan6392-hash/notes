@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#8B66FF">
+    <meta name="theme-color" content="#7d525e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="音符小精靈">
     <title>音符小精靈 · 互動音樂學習站</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
@@ -91,9 +91,9 @@
         </div>
 
         <div class="hub-games-grid">
-            <div class="hub-game-card hub-game1" id="enterGame1">
-                <div class="hub-game-tag">遊戲一</div>
-                <div class="hub-game-illust illust-1">
+            <div class="hub-game-card hub-game1" id="enterGame1" role="button" tabindex="0" aria-label="音名辨別：辨認五線譜音名，快速反應取高分。按一下立即挑戰。">
+                <div class="hub-game-tag" aria-hidden="true">遊戲一</div>
+                <div class="hub-game-illust illust-1" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <!-- Staff lines -->
@@ -119,13 +119,13 @@
                         <text x="140" y="88" font-size="16" fill="#9B7FFF" opacity="0.4" font-weight="bold">♭</text>
                     </svg>
                 </div>
-                <div class="hub-game-name">音名辨別</div>
-                <div class="hub-game-desc">辨認五線譜音名<br>快速反應取高分</div>
-                <div class="hub-game-btn">立即挑戰 ▶</div>
+                <div class="hub-game-name" aria-hidden="true">音名辨別</div>
+                <div class="hub-game-desc" aria-hidden="true">辨認五線譜音名<br>快速反應取高分</div>
+                <div class="hub-game-btn" aria-hidden="true">立即挑戰 ▶</div>
             </div>
-            <div class="hub-game-card hub-game2" id="enterGame2">
-                <div class="hub-game-tag">遊戲二</div>
-                <div class="hub-game-illust illust-2">
+            <div class="hub-game-card hub-game2" id="enterGame2" role="button" tabindex="0" aria-label="節奏打擊：看清節奏卡，跟著節拍器打拍子。按一下立即挑戰。">
+                <div class="hub-game-tag" aria-hidden="true">遊戲二</div>
+                <div class="hub-game-illust illust-2" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <!-- Beamed eighth notes group 1 -->
@@ -158,13 +158,13 @@
                         </g>
                     </svg>
                 </div>
-                <div class="hub-game-name">節奏打擊</div>
-                <div class="hub-game-desc">看清節奏卡<br>跟着節拍器打拍子</div>
-                <div class="hub-game-btn">立即挑戰 ▶</div>
+                <div class="hub-game-name" aria-hidden="true">節奏打擊</div>
+                <div class="hub-game-desc" aria-hidden="true">看清節奏卡<br>跟著節拍器打拍子</div>
+                <div class="hub-game-btn" aria-hidden="true">立即挑戰 ▶</div>
             </div>
-            <div class="hub-game-card hub-game3" id="enterGame3">
-                <div class="hub-game-tag">遊戲三</div>
-                <div class="hub-game-illust illust-3">
+            <div class="hub-game-card hub-game3" id="enterGame3" role="button" tabindex="0" aria-label="音樂術語：認識音樂術語記號，搶快作答得獎勵分。按一下立即挑戰。">
+                <div class="hub-game-tag" aria-hidden="true">遊戲三</div>
+                <div class="hub-game-illust illust-3" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <!-- Big f (forte) -->
@@ -191,13 +191,13 @@
                         <circle cx="82" cy="100" r="2" fill="#4DC4E8" opacity="0.2"/>
                     </svg>
                 </div>
-                <div class="hub-game-name">音樂術語</div>
-                <div class="hub-game-desc">認識音樂術語記號<br>搶快作答得獎勵分</div>
-                <div class="hub-game-btn">立即挑戰 ▶</div>
+                <div class="hub-game-name" aria-hidden="true">音樂術語</div>
+                <div class="hub-game-desc" aria-hidden="true">認識音樂術語記號<br>搶快作答得獎勵分</div>
+                <div class="hub-game-btn" aria-hidden="true">立即挑戰 ▶</div>
             </div>
-            <div class="hub-game-card hub-game4" id="enterGame4">
-                <div class="hub-game-tag">遊戲四</div>
-                <div class="hub-game-illust illust-4">
+            <div class="hub-game-card hub-game4" id="enterGame4" role="button" tabindex="0" aria-label="樂器辨別：觀聲辨樂器，認識管弦家族。按一下立即挑戰。">
+                <div class="hub-game-tag" aria-hidden="true">遊戲四</div>
+                <div class="hub-game-illust illust-4" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <!-- Violin body -->
@@ -238,13 +238,13 @@
                         <text x="168" y="40" font-size="14" fill="#00D28E" opacity="0.25">♫</text>
                     </svg>
                 </div>
-                <div class="hub-game-name">樂器辨別</div>
-                <div class="hub-game-desc">聽聲辨樂器<br>認識管弦家族</div>
-                <div class="hub-game-btn">立即挑戰 ▶</div>
+                <div class="hub-game-name" aria-hidden="true">樂器辨別</div>
+                <div class="hub-game-desc" aria-hidden="true">觀聲辨樂器<br>認識管弦家族</div>
+                <div class="hub-game-btn" aria-hidden="true">立即挑戰 ▶</div>
             </div>
-            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio">
-                <div class="hub-game-tag">創作</div>
-                <div class="hub-game-illust illust-studio">
+            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：伴奏與配音創作，播放, 匯出, 分享。按一下開始創作。">
+                <div class="hub-game-tag" aria-hidden="true">創作</div>
+                <div class="hub-game-illust illust-studio" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <g opacity="0.35" stroke="#7B5EE0" stroke-width="1.2">
@@ -268,9 +268,9 @@
                         </g>
                     </svg>
                 </div>
-                <div class="hub-game-name">創作工作室</div>
-                <div class="hub-game-desc">旋律與節奏創作<br>播放、匯出、分享</div>
-                <div class="hub-game-btn">開始創作 ▶</div>
+                <div class="hub-game-name" aria-hidden="true">創作工作室</div>
+                <div class="hub-game-desc" aria-hidden="true">伴奏與配音創作<br>播放, 匯出, 分享</div>
+                <div class="hub-game-btn" aria-hidden="true">開始創作 ▶</div>
             </div>
         </div>
 
