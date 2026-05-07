@@ -19,8 +19,14 @@
     <!-- 背景裝飾 -->
     <div class="bg-dots"></div>
     <!-- 背景飄動音符 -->
-    <div class="bg-note note-1" aria-hidden="true">♩</div><div class="bg-note note-2" aria-hidden="true">𝄞</div><div class="bg-note note-3" aria-hidden="true">♪</div><div class="bg-note note-4" aria-hidden="true">♫</div><div class="bg-note note-5" aria-hidden="true">♬</div><div class="bg-note note-6" aria-hidden="true">♭</div>
-    <div class="bg-note note-7" aria-hidden="true">🎹</div><div class="bg-note note-8" aria-hidden="true">🎵</div>
+    <div class="bg-note note-1" aria-hidden="true">♩</div>
+    <div class="bg-note note-2" aria-hidden="true">𝄞</div>
+    <div class="bg-note note-3" aria-hidden="true">♪</div>
+    <div class="bg-note note-4" aria-hidden="true">♫</div>
+    <div class="bg-note note-5" aria-hidden="true">♬</div>
+    <div class="bg-note note-6" aria-hidden="true">♭</div>
+    <div class="bg-note note-7" aria-hidden="true">🎹</div>
+    <div class="bg-note note-8" aria-hidden="true">🎵</div>
     <button class="sound-toggle" id="soundToggle" title="音樂設定" aria-label="音樂設定" aria-expanded="false">🎵</button>
     <div class="music-panel" id="musicPanel" aria-hidden="true">
         <div class="music-panel-header">
@@ -236,9 +242,131 @@
                 <div class="hub-game-desc">聽聲辨樂器<br>認識管弦家族</div>
                 <div class="hub-game-btn">立即挑戰 ▶</div>
             </div>
+            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio">
+                <div class="hub-game-tag">創作</div>
+                <div class="hub-game-illust illust-studio">
+                    <div class="illust-bg"></div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g opacity="0.35" stroke="#7B5EE0" stroke-width="1.2">
+                            <line x1="24" y1="40" x2="176" y2="40"/><line x1="24" y1="52" x2="176" y2="52"/>
+                            <line x1="24" y1="64" x2="176" y2="64"/><line x1="24" y1="76" x2="176" y2="76"/>
+                            <line x1="24" y1="88" x2="176" y2="88"/>
+                        </g>
+                        <text x="32" y="78" font-size="40" fill="#8B66FF" opacity="0.75" font-family="serif">𝄞</text>
+                        <g fill="#9B7FFF">
+                            <ellipse cx="118" cy="72" rx="7" ry="5.5" transform="rotate(-12 118 72)"/>
+                            <rect x="124" y="44" width="2.2" height="28" rx="1"/>
+                            <ellipse cx="148" cy="58" rx="7" ry="5.5" transform="rotate(-12 148 58)"/>
+                            <rect x="154" y="32" width="2.2" height="26" rx="1"/>
+                        </g>
+                        <g fill="#D4782A" opacity="0.85">
+                            <ellipse cx="96" cy="102" rx="6" ry="4.5" transform="rotate(-12 96 102)"/>
+                            <rect x="101" y="82" width="2" height="20" rx="1"/>
+                            <ellipse cx="112" cy="102" rx="6" ry="4.5" transform="rotate(-12 112 102)"/>
+                            <rect x="117" y="82" width="2" height="20" rx="1"/>
+                            <rect x="101" y="82" width="18" height="2.5" rx="1"/>
+                        </g>
+                    </svg>
+                </div>
+                <div class="hub-game-name">創作工作室</div>
+                <div class="hub-game-desc">旋律與節奏創作<br>播放、匯出、分享</div>
+                <div class="hub-game-btn">開始創作 ▶</div>
+            </div>
         </div>
 
         <button class="btn-view-ranks" id="hubViewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 創作工作室 (Melody + Rhythm composition) -->
+    <!-- ===================================== -->
+    <div id="screen-composition-studio" class="screen">
+        <button class="btn-back-hub" id="studioBackBtn" type="button">← 返回大廳</button>
+        <h1 class="game-title studio-main-title"><span class="title-icon">✏️</span> 創作工作室</h1>
+        <p class="studio-sub studio-sub--compact">高音譜、4/4 · 節奏／旋律 · 試聽、下載或上傳備份</p>
+
+        <div class="studio-demo-bar">
+            <button type="button" class="studio-demo-toggle" id="studioDemoToggle" aria-pressed="false" title="投影或大螢幕時放大文字與按鈕">
+                <span class="studio-demo-toggle-track" aria-hidden="true"><span class="studio-demo-toggle-knob"></span></span>
+                <span class="studio-demo-toggle-text">示範模式（投影）</span>
+            </button>
+        </div>
+
+        <div class="studio-tabs" role="tablist">
+            <button type="button" class="studio-tab active" data-studio-tab="rhythm" role="tab" aria-selected="true">節奏創作</button>
+            <button type="button" class="studio-tab" data-studio-tab="melody" role="tab" aria-selected="false">旋律創作</button>
+        </div>
+
+        <div class="studio-toolbar card">
+            <div class="studio-bpm-wrap">
+                <label for="studioBpm">速度</label>
+                <input type="range" id="studioBpm" min="40" max="132" value="72">
+                <span id="studioBpmVal">72</span> <span class="studio-bpm-unit">BPM</span>
+            </div>
+            <div class="studio-toolbar-btns">
+                <button type="button" class="btn-studio btn-studio-primary" id="studioPlayBtn"><i data-lucide="play"></i> 播放</button>
+                <button type="button" class="btn-studio" id="studioUndoBtn"><i data-lucide="undo-2"></i> 上一步</button>
+                <button type="button" class="btn-studio" id="studioClearBtn"><i data-lucide="trash-2"></i> 清空</button>
+            </div>
+            <div class="studio-toolbar-btns studio-export-row">
+                <button type="button" class="btn-studio" id="studioSvgBtn"><i data-lucide="download"></i> SVG</button>
+                <button type="button" class="btn-studio" id="studioPngBtn"><i data-lucide="image-down"></i> PNG</button>
+                <button type="button" class="btn-studio" id="studioCopyJsonBtn"><i data-lucide="clipboard"></i> 複製資料</button>
+                <button type="button" class="btn-studio" id="studioShareBtn" style="display:none"><i data-lucide="share-2"></i> 分享</button>
+                <button type="button" class="btn-studio btn-studio-soft" id="studioUploadBtn"><i data-lucide="cloud-upload"></i> 上傳備份</button>
+            </div>
+        </div>
+
+        <div id="studioPanelRhythm" class="studio-panel card">
+            <div class="studio-vf-wrap" id="studioRhythmVf"></div>
+            <p class="studio-rhythm-status" id="studioRhythmStatus">本小節已用 0 / 4 拍 · 共 0 小節</p>
+            <p class="studio-hint studio-hint--tight" id="studioRhythmHint">點選節奏塊加入；附點與切分音須對準拍點。</p>
+            <div class="studio-token-palette" id="studioRhythmPalette"></div>
+        </div>
+
+        <div id="studioPanelMelody" class="studio-panel card" style="display:none">
+            <div class="studio-vf-wrap" id="studioMelodyVf"></div>
+            <p class="studio-hint studio-hint--tight" id="studioMelodyHint">選調號與時值／休止後，直接點鋼琴鍵加入音符或休止。最多十六小節（64 拍）；譜表每行最多兩小節。</p>
+            <div class="studio-key-row">
+                <label class="studio-row-label studio-key-label" for="studioKeySig">調號</label>
+                <select id="studioKeySig" class="studio-key-select" title="大調調號（影響五線譜顯示）"></select>
+            </div>
+            <div class="studio-row-label studio-row-label--tight">音高（鋼琴鍵盤）</div>
+            <div class="studio-pitch-scroll">
+                <div id="studioPitchRow" class="studio-piano-host"></div>
+            </div>
+            <div class="studio-row-label studio-row-label--tight studio-dur-label-row">
+                <span>時值／休止（圖示）</span>
+                <span id="studioDottedBadge" class="studio-dotted-badge" aria-live="polite">附點模式：關</span>
+            </div>
+            <div class="studio-input-hud" id="studioInputHud" aria-live="polite">
+                <span class="studio-hud-pill"><b>時值</b><span id="studioHudDur">四分音符</span></span>
+                <span class="studio-hud-pill"><b>附點</b><span id="studioHudDot">關</span></span>
+                <span class="studio-hud-pill"><b>音高</b><span id="studioHudPitch">C4</span></span>
+            </div>
+            <div class="studio-chip-row studio-dur-row studio-dur-row--icons" id="studioMelodyDurRow">
+                <div class="studio-dur-group">
+                    <div class="studio-dur-group-title">音符</div>
+                    <div class="studio-dur-group-grid">
+                        <button type="button" class="studio-chip studio-dur-chip" data-mdur="w" data-beats="4" title="全音符">全音符</button>
+                        <button type="button" class="studio-chip studio-dur-chip" data-mdur="h" data-beats="2" title="二分音符">二分音符</button>
+                        <button type="button" class="studio-chip studio-dur-chip active" data-mdur="q" data-beats="1" title="四分音符">四分音符</button>
+                        <button type="button" class="studio-chip studio-dur-chip" data-mdur="8" data-beats="0.5" title="八分音符">八分音符</button>
+                        <button type="button" class="studio-chip studio-dur-chip" data-mdur="16" data-beats="0.25" title="十六分音符">十六分音符</button>
+                    </div>
+                </div>
+                <div class="studio-dur-group">
+                    <div class="studio-dur-group-title">休止</div>
+                    <div class="studio-dur-group-grid">
+                        <button type="button" class="studio-chip studio-rest-chip" data-mdur="wr" data-beats="4" title="全休止">全休止</button>
+                        <button type="button" class="studio-chip studio-rest-chip" data-mdur="hr" data-beats="2" title="二分休止">二分休止</button>
+                        <button type="button" class="studio-chip studio-rest-chip" data-mdur="qr" data-beats="1" title="四分休止">四分休止</button>
+                        <button type="button" class="studio-chip studio-rest-chip" data-mdur="8r" data-beats="0.5" title="八分休止">八分休止</button>
+                        <button type="button" class="studio-chip studio-rest-chip" data-mdur="16r" data-beats="0.25" title="十六分休止">十六分休止</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ===================================== -->

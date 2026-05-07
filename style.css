@@ -39,11 +39,17 @@ button, select, input { touch-action: manipulation; }
 
 body {
     background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.38) 36%, rgba(255, 255, 255, 0.52) 100%),
+        radial-gradient(circle at 18% 16%, rgba(255, 245, 214, 0.36) 0%, transparent 38%),
+        radial-gradient(circle at 84% 18%, rgba(255, 220, 235, 0.34) 0%, transparent 42%),
+        radial-gradient(circle at 22% 84%, rgba(214, 243, 255, 0.36) 0%, transparent 40%),
+        url("img/chiikawa-scene-bg.png"),
         linear-gradient(160deg,
-            #EDE0FF 0%, #D4DCFF 18%, #C8EFFA 32%,
-            #DDFCE8 46%, #FFF7D6 60%, #FFE8F0 74%,
-            #E0D4FF 88%, #D6E4FF 100%);
-    background-size: 500% 500%;
+            #FFF8E8 0%, #FFEFF6 22%, #EAF3FF 44%,
+            #F5F0FF 64%, #ECFAF3 82%, #FFF8ED 100%);
+    background-size: auto, auto, auto, auto, cover, 500% 500%;
+    background-position: center, center, center, center, center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
     background-attachment: fixed;
     animation: gradientDrift 40s ease infinite;
     min-height: 100vh; min-height: 100dvh;
@@ -68,20 +74,28 @@ input { user-select: auto; }
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     pointer-events: none; z-index: 0;
     background-image:
-        radial-gradient(circle, rgba(139,102,255,0.05) 2px, transparent 2px),
-        radial-gradient(circle, rgba(255,101,163,0.04) 1.5px, transparent 1.5px),
-        radial-gradient(circle, rgba(0,210,142,0.035) 1.5px, transparent 1.5px);
+        radial-gradient(circle, rgba(255, 170, 198, 0.12) 1.8px, transparent 1.8px),
+        radial-gradient(circle, rgba(140, 186, 255, 0.1) 1.3px, transparent 1.3px),
+        radial-gradient(circle, rgba(255, 228, 156, 0.11) 1.5px, transparent 1.5px);
     background-size: 42px 42px, 28px 28px, 56px 56px;
     background-position: 0 0, 14px 14px, 7px 28px;
+}
+.bg-dots::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.12;
+    background: url("img/chiikawa-watermark.png") center 56% / clamp(320px, 58vw, 760px) no-repeat;
+    filter: saturate(0.95) contrast(1.04);
 }
 .bg-dots::after {
     content: ''; position: absolute; inset: 0;
     background:
-        radial-gradient(ellipse 650px 650px at 12% 18%, rgba(139,102,255,0.12) 0%, transparent 65%),
-        radial-gradient(ellipse 550px 550px at 88% 72%, rgba(255,101,163,0.10) 0%, transparent 65%),
-        radial-gradient(ellipse 450px 450px at 50% 45%, rgba(0,210,142,0.08) 0%, transparent 65%),
-        radial-gradient(ellipse 400px 400px at 30% 80%, rgba(255,203,69,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 350px 350px at 72% 20%, rgba(0,166,237,0.07) 0%, transparent 60%);
+        radial-gradient(ellipse 650px 650px at 12% 18%, rgba(255, 196, 216, 0.2) 0%, transparent 65%),
+        radial-gradient(ellipse 550px 550px at 88% 72%, rgba(255, 239, 182, 0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 450px 450px at 50% 45%, rgba(188, 222, 255, 0.16) 0%, transparent 65%),
+        radial-gradient(ellipse 400px 400px at 30% 80%, rgba(222, 210, 255, 0.16) 0%, transparent 60%),
+        radial-gradient(ellipse 350px 350px at 72% 20%, rgba(214, 247, 230, 0.14) 0%, transparent 60%);
     animation: glowPulse 14s ease-in-out infinite alternate;
 }
 @keyframes glowPulse {
@@ -980,10 +994,21 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
         -webkit-overflow-scrolling: touch;
         gap: 14px;
     }
+    /* Composition Studio: mimic game 1-4 mobile screen behavior */
+    #screen-composition-studio {
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        justify-content: space-between;
+        padding-bottom: calc(env(safe-area-inset-bottom, 8px) + 12px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 14px;
+    }
     #screen-game > .card { padding: 8px 12px; }
     #screen-setup, #screen-leaderboard {
         padding-bottom: env(safe-area-inset-bottom, 8px);
     }
+    #screen-composition-studio .card { padding: 8px 12px; }
     /* Shrink sound toggle on phones so it overlaps less */
     .sound-toggle { width: 46px; height: 46px; font-size: 1.15rem; bottom: 14px; right: 14px; border-width: 2.5px; }
     /* Action row: add right padding to avoid sound toggle overlap */
@@ -1210,12 +1235,28 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     padding: 24px 26px 20px;
     background: rgba(255,255,255,0.96);
     border: 2.5px solid rgba(139,102,255,0.18);
-    position: relative; overflow: hidden;
+    position: relative; overflow: visible;
 }
 .hub-login-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
     background: linear-gradient(90deg, var(--primary-purple), var(--primary-pink), var(--primary-yellow));
     border-radius: 4px 4px 0 0;
+}
+.hub-login-card::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -132px;
+    height: 150px;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.2;
+    background-image: url("img/chiikawa-left.png"), url("img/chiikawa-center.png"), url("img/chiikawa-right.png");
+    background-repeat: no-repeat;
+    background-position: left 14px bottom, calc(50% - 250px) top, right 14px bottom;
+    background-size: 70px auto, 62px auto, 70px auto;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
 }
 .hub-login-title {
     font-size: 1rem; font-weight: 900; color: var(--primary-purple-dark);
@@ -1251,7 +1292,10 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     background-color: white;
     box-shadow: 0 0 0 4px rgba(139,102,255,0.13);
 }
-.hub-field-name { flex: 2; min-width: 160px; }
+.hub-field-name {
+    flex: 2;
+    min-width: 160px;
+}
 .hub-field-name select { min-width: 0; }
 .hub-field input { padding: 12px 16px; width: 72px; text-align: center; color: var(--primary-purple-dark); font-size: 1rem; cursor: default; }
 .hub-field.error select, .hub-field.error input { border-color: var(--primary-red); animation: shake 0.4s ease; }
@@ -1262,10 +1306,21 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     #screen-hub .game-title { padding-right: 52px; padding-left: 52px; font-size: 2.2rem; text-align: center; }
 }
 
-/* Hub Game Grid */
+/* Hub Game Grid — 創作工作室與遊戲 1–4 同排：寬螢幕用 5 欄 */
 .hub-games-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 16px; width: 100%; max-width: 900px; margin: 8px auto 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+    margin: 8px auto 0;
+}
+@media (min-width: 900px) {
+    .hub-games-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        max-width: min(1180px, calc(100vw - 32px));
+    }
 }
 @media (max-width: 600px) {
     .hub-games-grid { gap: 10px; grid-template-columns: repeat(2, 1fr); max-width: 440px; }
@@ -1923,12 +1978,19 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .hub-game-name { font-size: 0.95rem; }
     .hub-game-desc { font-size: 0.72rem; }
     .hub-login-card { padding: 18px 14px 16px; }
+    .hub-login-card::after {
+        top: -106px;
+        height: 120px;
+        background-position: left 2px bottom, calc(50% - 165px) top, right 2px bottom;
+        background-size: 54px auto, 48px auto, 54px auto;
+    }
     .quiz-card { padding: 18px 14px 16px; }
     .quiz-question { font-size: 1.08rem; }
     .quiz-opt-btn { font-size: 0.95rem; padding: 14px 8px; }
 }
 
-@media (min-width: 681px) and (max-width: 900px) {
+/* 899px 以下仍用 3 欄；900px+ 與 .hub-games-grid 五欄規則銜接，避免與五欄衝突 */
+@media (min-width: 681px) and (max-width: 899px) {
     .hub-games-grid { grid-template-columns: repeat(3, 1fr); max-width: 720px; gap: 14px; }
     .hub-game-card { padding: 0 14px 18px; }
     .hub-game-illust { height: 100px; }
@@ -3858,17 +3920,19 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 /* 歷史 tab */
 .g4-history-body { padding: 0; }
 .g4-history-quote {
+    --g4-history-accent: #8B66FF;
+    --g4-history-accent-soft: rgba(139,102,255,0.18);
     font-size: 1rem; line-height: 1.9; color: #3a3650;
     padding: 16px 18px 16px 26px;
     background: linear-gradient(135deg, #faf9ff, #f3f0ff);
-    border-left: 4px solid #8B66FF;
+    border-left: 4px solid var(--g4-history-accent);
     border-radius: 0 14px 14px 0;
     position: relative;
     box-shadow: 0 2px 8px rgba(139,102,255,0.06);
 }
 .g4-history-quote::before {
     content: '\201C';
-    font-size: 2.4rem; line-height: 0; color: rgba(139,102,255,0.18);
+    font-size: 2.4rem; line-height: 0; color: var(--g4-history-accent-soft);
     position: absolute; top: 18px; left: 6px;
     font-family: Georgia, serif; pointer-events: none;
 }
@@ -4299,4 +4363,875 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     font-size: 0.82rem; font-weight: 900; color: var(--primary-purple-dark);
     background: rgba(139,102,255,0.1); padding: 3px 10px;
     border-radius: 10px; white-space: nowrap;
+}
+
+/* ===== 創作工作室 ===== */
+.hub-game-studio {
+    border-color: rgba(139, 102, 255, 0.45);
+    background: linear-gradient(165deg, #fff 45%, #F3EEFF 100%);
+}
+.hub-game-studio::after { background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark)); }
+.hub-game-studio .hub-game-btn {
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+    box-shadow: 0 4px 14px rgba(139, 102, 255, 0.35);
+}
+.hub-game-studio .hub-game-tag {
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+}
+.illust-studio .illust-bg {
+    background: radial-gradient(circle at 30% 30%, rgba(139,102,255,0.2), transparent 55%);
+}
+
+#screen-composition-studio {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 32px;
+    max-width: min(768px, calc(100vw - 24px));
+    margin: 0 auto;
+}
+
+/* Mimic game screens: move studio controls to bottom (like action-row) */
+#screen-composition-studio .studio-toolbar { order: 999; }
+#screen-composition-studio #studioPanelRhythm { order: 500; }
+#screen-composition-studio #studioPanelMelody { order: 500; }
+
+/* Melody compose: DAW-like layout (toolbar on top, keyboard at bottom) */
+#screen-composition-studio.studio-mode-melody .studio-toolbar { order: 10; }
+#screen-composition-studio.studio-mode-melody #studioPanelMelody { order: 20; }
+#screen-composition-studio.studio-mode-melody #studioPanelRhythm { order: 30; }
+#screen-composition-studio .studio-main-title {
+    font-size: clamp(1.35rem, 4vw, 1.75rem);
+    margin: 0;
+    text-align: center;
+}
+.studio-sub {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-light);
+    text-align: center;
+    max-width: 36em;
+    line-height: 1.45;
+    margin: 0;
+}
+#screen-composition-studio .card {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 16px;
+    border: 1px solid rgba(139, 102, 255, 0.12);
+}
+
+.studio-tabs {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(139, 102, 255, 0.2);
+    gap: 4px;
+    justify-content: center;
+    align-items: stretch;
+    margin-left: auto;
+    margin-right: auto;
+    /* keep the tab bar from looking too wide on large phones/tablets */
+    max-width: 520px;
+}
+.studio-tab {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 10px;
+    font-weight: 900;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: var(--text-light);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    min-height: 46px;
+    white-space: nowrap;
+}
+.studio-tab.active {
+    background: #fff;
+    color: var(--primary-purple-dark);
+    box-shadow: 0 2px 10px rgba(139, 102, 255, 0.18);
+}
+
+.studio-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.studio-bpm-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-weight: 800;
+    font-size: 0.88rem;
+}
+.studio-bpm-wrap input[type="range"] {
+    flex: 1;
+    min-width: 120px;
+    accent-color: var(--primary-purple);
+}
+.studio-bpm-unit { color: var(--text-light); font-weight: 700; }
+.studio-toolbar-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+.studio-export-row {
+    padding-top: 4px;
+    border-top: 1px dashed rgba(139, 102, 255, 0.2);
+}
+.btn-studio {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 2px solid rgba(139, 102, 255, 0.25);
+    background: #fff;
+    font-weight: 800;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text-dark);
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(139, 102, 255, 0.08);
+    transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+}
+.btn-studio svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.25;
+}
+.btn-studio:active { transform: translateY(2px); }
+.btn-studio-primary {
+    border-color: var(--primary-purple);
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(139, 102, 255, 0.35);
+}
+.btn-studio-soft {
+    border-color: rgba(0, 166, 237, 0.35);
+    background: rgba(0, 166, 237, 0.08);
+    color: var(--primary-blue-dark);
+}
+
+.studio-panel { margin-top: 4px; }
+#studioPanelRhythm,
+#studioPanelMelody {
+    display: flex;
+    flex-direction: column;
+}
+
+#studioPanelRhythm .studio-vf-wrap {
+    flex: 0 0 auto;
+}
+
+/* Rhythm: keep palette visually anchored and avoid weird remaining space */
+#studioPanelRhythm .studio-rhythm-status,
+#studioPanelRhythm .studio-hint {
+    flex: 0 0 auto;
+}
+#studioPanelRhythm .studio-token-palette {
+    flex: 1 1 auto;
+    align-content: start;
+    justify-content: center;
+    /* small padding so aspect-ratio buttons don't clip on very small widths */
+    padding: 2px 4px 4px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Melody: make vertical spacing consistent across tab switches */
+#studioPanelMelody .studio-vf-wrap {
+    flex: 0 0 auto;
+}
+#studioPanelMelody .studio-hint {
+    flex: 0 0 auto;
+}
+
+/* Melody specific ordering and sizing */
+#studioPanelMelody {
+    min-height: 0;
+}
+#studioPanelMelody .studio-vf-wrap {
+    order: 0;
+    flex: 1 1 auto;
+    min-height: 220px;
+}
+#studioPanelMelody #studioMelodyHint {
+    order: 1;
+    margin: 6px 0 4px;
+}
+#studioPanelMelody .studio-key-row { order: 2; }
+#studioPanelMelody .studio-row-label--tight:not(.studio-dur-label-row) { order: 2; }
+#studioPanelMelody .studio-dur-label-row { order: 3; }
+#studioPanelMelody #studioInputHud { order: 4; }
+#studioPanelMelody #studioMelodyDurRow { order: 5; }
+#studioPanelMelody .studio-pitch-scroll {
+    order: 6;
+    margin-top: auto;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+/* Slightly smaller piano for the melody layout */
+#studioPanelMelody .studio-piano-white { height: 6rem; }
+#studioPanelMelody .studio-piano-blacks { height: 4.15rem; }
+#screen-composition-studio .studio-sub--compact {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+.studio-hint--tight {
+    margin: 6px 0 4px !important;
+    font-size: 0.78rem !important;
+}
+.studio-row-label--tight {
+    margin-top: 6px !important;
+    margin-bottom: 4px !important;
+}
+.studio-key-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+.studio-key-label {
+    margin: 0 !important;
+    flex-shrink: 0;
+}
+.studio-key-select {
+    flex: 1;
+    min-width: 160px;
+    max-width: 320px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 2px solid rgba(139, 102, 255, 0.28);
+    background: #fff;
+    font-weight: 800;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+.studio-key-select:focus-visible {
+    outline: 3px solid rgba(139, 102, 255, 0.4);
+    outline-offset: 1px;
+}
+.studio-dur-row--icons {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    align-items: stretch;
+}
+.studio-dur-row--icons .studio-chip {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 3px;
+    min-width: 0;
+    min-height: clamp(4.15rem, 8vw, 4.8rem);
+    padding: 8px 6px 12px;
+    border-radius: 10px;
+    overflow: visible;
+}
+.studio-chip-glyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: clamp(2.6rem, 5.5vw, 3rem);
+    line-height: 0;
+    overflow: visible;
+}
+.studio-chip-glyph svg,
+.studio-chip-glyph .studio-chip-glyph-img {
+    width: clamp(36px, 6.4vw, 50px);
+    max-width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+    vertical-align: middle;
+}
+.studio-chip-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.studio-vf-wrap {
+    width: 100%;
+    min-height: 120px;
+    overflow-x: auto;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fafbff, #fff);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 8px 4px;
+}
+.studio-vf-wrap svg { display: block; margin: 0 auto; }
+.studio-hint, .studio-rhythm-status {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin: 10px 0 6px;
+    line-height: 1.4;
+}
+.studio-rhythm-status {
+    color: var(--primary-purple-dark);
+    font-weight: 900;
+}
+.studio-row-label {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+.studio-dur-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.studio-input-hud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 1px 0 6px;
+}
+.studio-hud-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    font-size: 0.64rem;
+    font-weight: 800;
+    color: #3f2f84;
+    background: rgba(139, 102, 255, 0.1);
+    border: 1px solid rgba(139, 102, 255, 0.28);
+}
+.studio-hud-pill b {
+    font-size: 0.64rem;
+    opacity: 0.85;
+}
+.studio-dotted-badge {
+    font-size: 0.68rem;
+    font-weight: 900;
+    color: #4b3a97;
+    background: rgba(139, 102, 255, 0.14);
+    border: 1px solid rgba(139, 102, 255, 0.35);
+    border-radius: 999px;
+    padding: 4px 8px;
+    line-height: 1;
+    white-space: nowrap;
+}
+.studio-dotted-badge.is-on {
+    color: #ffffff;
+    background: linear-gradient(180deg, #8b66ff, #6f4bf5);
+    border-color: rgba(111, 75, 245, 0.9);
+}
+.studio-pitch-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
+
+/* 旋律卡片內鋼琴左右滿版（抵銷 .card 左右 padding） */
+#studioPanelMelody .studio-pitch-scroll {
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    box-sizing: border-box;
+}
+
+/* —— 創作工作室 · 旋律鋼琴鍵盤 —— */
+.studio-piano-host {
+    min-height: 1px;
+    width: 100%;
+}
+.studio-piano {
+    --studio-piano-gap: 3px;
+    width: 100%;
+    max-width: none;
+    min-width: min(100%, calc(1.65rem * var(--studio-piano-n-white, 13) + var(--studio-piano-gap) * (var(--studio-piano-n-white, 13) - 1)));
+    box-sizing: border-box;
+}
+.studio-piano-inner {
+    position: relative;
+    width: 100%;
+    padding-top: 2px;
+}
+.studio-piano-whites {
+    display: flex;
+    gap: var(--studio-piano-gap);
+    position: relative;
+    z-index: 1;
+}
+.studio-piano-white {
+    flex: 1 1 0;
+    min-width: 1.35rem;
+    height: 7.1rem;
+    margin: 0;
+    padding: 0 2px 10px;
+    border-radius: 0 0 10px 10px;
+    border: 2px solid rgba(45, 49, 66, 0.16);
+    background: linear-gradient(180deg, #ffffff 0%, #eef0f6 55%, #e4e7ef 100%);
+    box-shadow: 0 5px 0 rgba(45, 49, 66, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    font-size: 0.68rem;
+    font-weight: 900;
+    color: var(--text-dark);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    font-family: inherit;
+    line-height: 1;
+    transition: background 0.12s, border-color 0.12s, transform 0.08s, box-shadow 0.12s;
+}
+.studio-piano-white:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f6fb 55%, #ebeefa 100%);
+    border-color: rgba(139, 102, 255, 0.35);
+}
+.studio-piano-white:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 rgba(45, 49, 66, 0.1);
+}
+.studio-piano-white.active {
+    border-color: var(--primary-purple);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(139, 102, 255, 0.14) 100%);
+    color: var(--primary-purple-dark);
+    box-shadow: 0 4px 0 rgba(139, 102, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.studio-piano-blacks {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4.55rem;
+    pointer-events: none;
+    z-index: 2;
+}
+.studio-piano-black {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    width: min(1.65rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.58));
+    height: 100%;
+    border-radius: 0 0 6px 6px;
+    border: 2px solid #12141c;
+    background: linear-gradient(180deg, #3a3f52 0%, #1e2130 42%, #12141c 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.38), inset 0 -2px 0 rgba(255, 255, 255, 0.06);
+    cursor: default;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    transition: opacity 0.12s, filter 0.12s;
+}
+.studio-piano-black:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+.studio-piano-black:active:not(:disabled) {
+    filter: brightness(0.92);
+}
+.studio-piano-key--disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    filter: grayscale(0.25);
+    pointer-events: none;
+}
+.studio-piano-black.studio-piano-key--disabled {
+    background: linear-gradient(180deg, #6f7382 0%, #4a4d5c 100%);
+    border-color: rgba(18, 20, 28, 0.55);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.studio-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.studio-chip-row.studio-dur-row--icons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    align-items: stretch;
+}
+.studio-dur-group {
+    border: 1px solid rgba(139, 102, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.84);
+    padding: 4px;
+}
+.studio-dur-group-title {
+    font-size: 0.62rem;
+    font-weight: 900;
+    color: #504282;
+    margin: 0 0 3px;
+    text-align: center;
+}
+.studio-dur-group-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+}
+.studio-chip-row.studio-dur-row--icons .studio-chip {
+    width: 100%;
+    min-height: 3.4rem;
+    padding: 4px 4px 5px;
+    border-radius: 9px;
+}
+.studio-chip-row.studio-dur-row--icons .studio-chip-glyph {
+    min-height: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.studio-chip-row.studio-dur-row--icons .studio-chip-glyph svg,
+.studio-chip-row.studio-dur-row--icons .studio-chip-glyph .studio-chip-glyph-img {
+    width: auto;
+    height: clamp(27px, 4.2vw, 36px);
+    max-width: 42px;
+    transform-origin: center center;
+    transform: translateY(var(--glyph-ty, 0px)) scale(var(--glyph-scale, 1));
+    will-change: transform;
+}
+/* 休止符 SVG 視框通常偏下，向上微調讓圖示視覺置中 */
+.studio-chip-row.studio-dur-row--icons .studio-rest-chip .studio-chip-glyph svg,
+.studio-chip-row.studio-dur-row--icons .studio-rest-chip .studio-chip-glyph .studio-chip-glyph-img {
+    transform: translateY(calc(var(--glyph-ty, 0px) - 1px)) scale(var(--glyph-scale, 1));
+}
+.studio-chip {
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 2px solid rgba(139, 102, 255, 0.2);
+    background: #fff;
+    font-weight: 800;
+    font-size: 0.76rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+@media (max-width: 900px) {
+    .studio-dur-row--icons {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    .studio-dur-group-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+    .studio-dur-row--icons {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .studio-dur-row--icons .studio-chip {
+        min-height: 4.35rem;
+        padding: 9px 6px 12px;
+    }
+    .studio-chip-row.studio-dur-row--icons {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+    .studio-dur-group-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .studio-chip-row.studio-dur-row--icons .studio-chip {
+        min-height: 3.35rem;
+        padding: 4px 3px 6px;
+    }
+    .studio-dur-label-row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+    .studio-dotted-badge {
+        font-size: 0.64rem;
+        padding: 4px 7px;
+    }
+}
+.studio-chip:active { transform: scale(0.97); }
+.studio-chip.active {
+    border-color: var(--primary-purple);
+    background: rgba(139, 102, 255, 0.12);
+    color: var(--primary-purple-dark);
+}
+.studio-add-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px;
+    font-size: 1rem;
+    border-radius: var(--btn-radius);
+}
+
+.studio-token-palette {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+    align-items: stretch;
+}
+.studio-rtok {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 6px;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    border: 2px solid rgba(212, 120, 42, 0.25);
+    background: linear-gradient(180deg, #fff, #FFF8F0);
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.1s, box-shadow 0.12s;
+}
+.studio-rtok:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none;
+    filter: grayscale(0.25);
+}
+.studio-rtok:active { transform: scale(0.98); }
+.studio-rtok .studio-rtok-glyph-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+.studio-rtok .studio-rtok-glyph-item {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.studio-rtok .studio-rtok-glyph-item svg {
+    width: 34px;
+    height: 34px;
+    display: block;
+    transform: translateY(-1px) scale(1.22);
+    transform-origin: center center;
+}
+.studio-rtok .studio-rtok-glyph-group .studio-rtok-glyph-item:only-child svg {
+    width: 38px;
+    height: 38px;
+    transform: translateY(-1px) scale(1.26);
+}
+
+@media (max-width: 1024px) {
+    .studio-token-palette {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .studio-token-palette {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .studio-rtok {
+        padding: 4px;
+    }
+}
+
+/* —— 創作工作室 · 示範模式（手動開關） —— */
+.studio-demo-bar {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    justify-content: center;
+    margin: 2px 0 4px;
+}
+.studio-demo-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(139, 102, 255, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    font-weight: 900;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+.studio-demo-toggle:hover {
+    border-color: var(--primary-purple);
+}
+.studio-demo-toggle:focus-visible {
+    outline: 3px solid rgba(139, 102, 255, 0.45);
+    outline-offset: 2px;
+}
+.studio-demo-toggle-track {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    border-radius: 999px;
+    background: rgba(45, 49, 66, 0.15);
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.studio-demo-toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, background 0.2s;
+}
+.studio-demo-toggle[aria-pressed="true"] .studio-demo-toggle-track {
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+}
+.studio-demo-toggle[aria-pressed="true"] .studio-demo-toggle-knob {
+    transform: translateX(18px);
+    background: #fff;
+}
+.studio-demo-toggle-text {
+    letter-spacing: 0.02em;
+}
+
+#screen-composition-studio.studio-demo-mode {
+    max-width: min(920px, calc(100vw - 24px));
+    gap: 14px;
+}
+#screen-composition-studio.studio-demo-mode .studio-main-title {
+    font-size: clamp(1.55rem, 4.5vw, 2.05rem);
+    font-weight: 900;
+    color: #1e2130;
+}
+#screen-composition-studio.studio-demo-mode .studio-sub {
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: #3a3f52;
+}
+#screen-composition-studio.studio-demo-mode .card {
+    padding: 18px 20px;
+    border-width: 2px;
+    border-color: rgba(139, 102, 255, 0.22);
+    box-shadow: 0 8px 28px rgba(45, 49, 66, 0.08);
+}
+#screen-composition-studio.studio-demo-mode .studio-tabs {
+    max-width: 100%;
+    padding: 6px;
+}
+#screen-composition-studio.studio-demo-mode .studio-tab {
+    padding: 14px 12px;
+    font-size: 1.05rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-tab.active {
+    color: #3d1d8a;
+}
+#screen-composition-studio.studio-demo-mode .studio-bpm-wrap {
+    font-size: 1rem;
+}
+#screen-composition-studio.studio-demo-mode .btn-studio {
+    padding: 12px 18px;
+    font-size: 0.98rem;
+    border-width: 2px;
+}
+#screen-composition-studio.studio-demo-mode .btn-studio svg {
+    width: 20px;
+    height: 20px;
+}
+#screen-composition-studio.studio-demo-mode .studio-vf-wrap {
+    min-height: 150px;
+    padding: 12px 8px;
+    border-width: 2px;
+    border-color: rgba(45, 49, 66, 0.1);
+}
+#screen-composition-studio.studio-demo-mode .studio-hint,
+#screen-composition-studio.studio-demo-mode .studio-rhythm-status {
+    font-size: 0.98rem;
+    color: #3a3f52;
+}
+#screen-composition-studio.studio-demo-mode .studio-rhythm-status {
+    color: #4a1f9e;
+}
+#screen-composition-studio.studio-demo-mode .studio-row-label {
+    font-size: 0.92rem;
+    margin-top: 12px;
+}
+#screen-composition-studio.studio-demo-mode .studio-chip {
+    padding: 11px 16px;
+    font-size: 0.92rem;
+    border-width: 2px;
+}
+#screen-composition-studio.studio-demo-mode .studio-dur-row--icons .studio-chip {
+    min-width: 0;
+    min-height: 5rem;
+    padding: 10px 10px 14px;
+}
+#screen-composition-studio.studio-demo-mode .studio-chip-glyph svg,
+#screen-composition-studio.studio-demo-mode .studio-chip-glyph .studio-chip-glyph-img {
+    width: clamp(44px, 7.2vw, 56px);
+}
+#screen-composition-studio.studio-demo-mode .studio-key-select {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-piano-white {
+    min-width: 2.35rem;
+    height: 8.4rem;
+    font-size: 0.82rem;
+    padding-bottom: 12px;
+    border-width: 2px;
+    border-radius: 0 0 12px 12px;
+}
+#screen-composition-studio.studio-demo-mode .studio-piano-blacks {
+    height: 5.35rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-piano-black {
+    width: min(1.85rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.6));
+}
+#screen-composition-studio.studio-demo-mode #studioPanelMelody .studio-pitch-scroll {
+    width: calc(100% + 40px);
+    margin-left: -20px;
+    margin-right: -20px;
+}
+#screen-composition-studio.studio-demo-mode .studio-add-btn {
+    padding: 16px;
+    font-size: 1.08rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-rtok {
+    padding: 12px 10px;
+}
+#screen-composition-studio.studio-demo-mode .studio-rtok .studio-rtok-name {
+    font-size: 0.82rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-rtok .studio-rtok-sub {
+    font-size: 0.72rem;
+}
+#screen-composition-studio.studio-demo-mode .studio-demo-toggle {
+    font-size: 0.95rem;
+    padding: 12px 18px;
+}
+#screen-composition-studio.studio-demo-mode .studio-demo-bar {
+    max-width: 100%;
 }

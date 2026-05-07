@@ -258,6 +258,8 @@
     let dom = {};
     let state = {};
     let audio = {};
+    /** 創作工作室實例 — 於 IIFE 末尾以 CompositionStudioFactory 建立 */
+    let CompositionStudio = { open() {}, init() {} };
     let noteBtnMap = new Map();
     // Canvas offscreen cache for static staff lines + clef
     let _staffCache = null;
@@ -895,6 +897,10 @@
                 dom.bgMusic.pause();
                 dom.bgMusic.currentTime = 0;
             },
+            bgPause() {
+                if (!dom.bgMusic) return;
+                dom.bgMusic.pause();
+            },
             bgSetMute(muted) {
                 if (!dom.bgMusic) return;
                 if (muted) { dom.bgMusic.pause(); } else { dom.bgMusic.volume = parseInt(dom.bgVolume?.value ?? 18) / 100; dom.bgMusic.play().catch(()=>{}); }
@@ -1202,6 +1208,7 @@
     // ==========================================
     function switchScreen(screenId) {
         const current = [...dom.screens].find(s => s.classList.contains('active'));
+        const prevScreenId = current?.id;
         const next = dom.screenMap.get(screenId);
 
         // Cleanup active games when navigating away from game screens
@@ -1224,6 +1231,13 @@
             current.classList.remove('active');
         }
         next?.classList.add('active');
+
+        // 創作工作室：暫停背景樂（保留進度，返回大廳後續播）；仍遵守總靜音開關
+        if (screenId === 'screen-composition-studio') {
+            audio.bgPause();
+        } else if (prevScreenId === 'screen-composition-studio') {
+            audio.bgPlay();
+        }
         
         // 當切換到遊戲畫面時，需要重新計算 Canvas 的大小
         if (screenId === 'screen-game') {
@@ -2455,12 +2469,45 @@
     // ==========================================
     // 🏆 排行榜與 API 串接
     // ==========================================
+    /** POST 到 GAS Web App：使用 CORS 讀取 JSON 回應（須部署為可匿名存取）。 */
+    async function gasPostJson(record) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(record),
+                mode: 'cors',
+                redirect: 'follow',
+                signal: controller.signal
+            });
+            const text = await res.text();
+            let data = {};
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch (_parseErr) {
+                if (!res.ok) {
+                    return { ok: false, error: (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+                }
+                return { ok: res.ok };
+            }
+            if (!res.ok) {
+                return { ok: false, error: (data && data.error) || (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+            }
+            if (typeof data.ok === 'boolean') return data;
+            return { ok: true };
+        } catch (err) {
+            const msg = err && err.name === 'AbortError' ? '逾時' : (err && err.message) || 'network';
+            return { ok: false, error: msg };
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const record = {
             game: 'game1',
@@ -2480,28 +2527,22 @@
         // Always save locally as backup
         saveLocalRank('game1', state.currentUser, record.score, record.accuracy, record.max_combo, state.currentMode);
         try {
-            await fetch(CONFIG.API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-                body: JSON.stringify(record),
-                mode: 'no-cors',
-                redirect: 'follow',
-                signal: controller.signal
-            });
-            _showToast('✅ 分數已上傳！', 'success');
-            setTimeout(loadRanks, 2000);
+            const r = await gasPostJson(record);
+            if (r.ok) {
+                _showToast('✅ 分數已上傳！', 'success');
+                setTimeout(loadRanks, 2000);
+            } else {
+                console.error('上傳失敗：', r.error);
+                _showToast('⚠️ 上傳未成功：' + (r.error || '未知') + '（分數已儲存在本機）', 'warn');
+            }
         } catch (e) {
-            console.error("上傳失敗：", e);
+            console.error('上傳失敗：', e);
             _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
-        } finally {
-            clearTimeout(timeoutId);
         }
     }
 
     async function submitScoreToGAS(game, user, score, accuracy, maxCombo, modeName) {
         if (!user || !user.name) return;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const record = {
             game,
             name: user.name,
@@ -2518,27 +2559,20 @@
         // Always save locally as backup
         saveLocalRank(game, user, score, accuracy, maxCombo, modeName);
         try {
-            await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(record),
-                mode: 'no-cors',
-                redirect: 'follow',
-                signal: controller.signal
-            });
-            _showToast('✅ 分數已上傳！', 'success');
-        } catch(e) {
+            const r = await gasPostJson(record);
+            if (r.ok) _showToast('✅ 分數已上傳！', 'success');
+            else {
+                console.error('上傳失敗：', r.error);
+                _showToast('⚠️ 上傳未成功：' + (r.error || '未知') + '（分數已儲存在本機）', 'warn');
+            }
+        } catch (e) {
             console.error('上傳失敗：', e);
             _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
-        } finally {
-            clearTimeout(timeoutId);
         }
     }
 
     async function submitProfileResultToGAS(game, user, score, accuracy, maxCombo, profile) {
         if (!user || !user.name || !profile) return;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
         const record = {
             action: 'saveProfileResult',
             game,
@@ -2559,18 +2593,10 @@
         };
 
         try {
-            await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(record),
-                mode: 'no-cors',
-                redirect: 'follow',
-                signal: controller.signal
-            });
+            const r = await gasPostJson(record);
+            if (!r.ok) console.error('Profile 上傳失敗：', r.error);
         } catch (e) {
             console.error('Profile 上傳失敗：', e);
-        } finally {
-            clearTimeout(timeoutId);
         }
     }
 
@@ -3778,6 +3804,14 @@
             switchScreen('screen-g4-setup');
         });
 
+        document.getElementById('enterCompositionStudio')?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            const user = getHubUser();
+            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
+            CompositionStudio.open();
+            switchScreen('screen-composition-studio');
+        });
+
         document.getElementById('hubViewRanksBtn').addEventListener('click', () => {
             dom.leaderboardLayout.classList.add('view-only');
             dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
@@ -4501,7 +4535,13 @@
             const noteGameMap = [];
             const barTapStart = tapIdx;
             let eighthRun = [];
-            const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
+            const flushEighthRun = () => {
+                while (eighthRun.length >= 2) {
+                    beamGroups.push(eighthRun.slice(0, 2));
+                    eighthRun = eighthRun.slice(2);
+                }
+                eighthRun = [];
+            };
 
             barLabel.split(' ').forEach(token => {
                 const isRest = token === '休';
@@ -4539,7 +4579,15 @@
                     vfNotes.push(note);
                     noteGameMap.push([tapIdx]);
                     tapIdx++;
-                    if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
+                    if (dur === '8') {
+                        eighthRun.push(note);
+                        while (eighthRun.length >= 2) {
+                            beamGroups.push(eighthRun.slice(0, 2));
+                            eighthRun = eighthRun.slice(2);
+                        }
+                    } else {
+                        flushEighthRun();
+                    }
                 }
             });
             flushEighthRun();
@@ -4552,11 +4600,16 @@
             new Formatter().joinVoices([voice]).format([voice], Math.max(barW - (nsx - x) - 16, 40));
             const beams = [];
             beamGroups.forEach(g => {
-                try { beams.push(new Beam(g)); }
-                catch (e) { beams.push(null); }
+                if (g.length < 2) { beams.push(null); return; }
+                try {
+                    const b = new Beam(g, false);
+                    if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
+                    b.setContext(context);
+                    beams.push(b);
+                } catch (e) { beams.push(null); }
             });
             voice.draw(context, stave);
-            beams.forEach(b => { if (b) b.setContext(context).draw(); });
+            beams.forEach(b => { if (b) { try { b.draw(); } catch (e) {} } });
 
             // Map beam SVG elements to their note indices
             const beamElMap = new Map();
@@ -5154,10 +5207,13 @@
         const durMap = { 4: 'w', 2: 'h', 1.5: 'q', 1: 'q', 0.5: '8', 0.25: '16' };
         const dotBeats = new Set([1.5]);
         const { Beam } = VexFlow;
-        const beams = [];
+        const beamGroups = [];
         const vfNotes = [];
         let eighthRun = [];
-        const flushRun = () => { if (eighthRun.length > 1) { try { beams.push(new Beam([...eighthRun])); } catch(e) {} } eighthRun = []; };
+        const flushRun = () => {
+            if (eighthRun.length > 1) beamGroups.push(eighthRun.slice());
+            eighthRun = [];
+        };
 
         notes.forEach((n, i) => {
             const dur = durMap[n.beats] || 'q';
@@ -5189,8 +5245,18 @@
         voice.addTickables(vfNotes);
         const nsx = stave.getNoteStartX();
         new Formatter().joinVoices([voice]).format([voice], W - nsx - 20);
+        const beams = [];
+        beamGroups.forEach(g => {
+            if (g.length < 2) return;
+            try {
+                const b = new Beam(g, false);
+                if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
+                b.setContext(context);
+                beams.push(b);
+            } catch (e) { /* ignore */ }
+        });
         voice.draw(context, stave);
-        beams.forEach(b => b.setContext(context).draw());
+        beams.forEach(b => { try { b.draw(); } catch (e) { /* ignore */ } });
 
         // Draw blank placeholder over the hidden note
         const blankNote = vfNotes[blankIdx];
@@ -5224,25 +5290,44 @@
     function _omRenderNoteIcon(duration, dotted) {
         if (typeof VexFlow === 'undefined') return '';
         const { Renderer, Stave, StaveNote, Voice, Formatter, Stem, Dot } = VexFlow;
+        const BarlineType = VexFlow.BarlineType || (VexFlow.Barline && VexFlow.Barline.type);
+
+        const isRest = /r$/i.test(String(duration));
+        const dStr = String(duration);
+        const iconH = isRest && dStr === '16r' ? 96 : isRest ? 90 : 88;
+        const staveY = isRest && dStr === '16r' ? 28 : isRest ? 24 : 6;
 
         const div = document.createElement('div');
-        div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:60px;height:52px;';
+        div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:76px;height:' + iconH + 'px;';
         document.body.appendChild(div);
 
         const renderer = new Renderer(div, Renderer.Backends.SVG);
-        renderer.resize(60, 52);
+        renderer.resize(76, iconH);
         const context = renderer.getContext();
 
-        const stave = new Stave(-10, -16, 80);
+        const stave = new Stave(-14, staveY, 100);
         [0, 1, 2, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+        if (BarlineType) {
+            try {
+                stave.setBegBarType(BarlineType.NONE);
+                stave.setEndBarType(BarlineType.NONE);
+            } catch (e) { /* ignore */ }
+        }
         stave.setContext(context).draw();
 
-        const note = new StaveNote({ keys: ['b/4'], duration: duration, stemDirection: Stem.UP });
+        const noteStruct = { keys: [isRest ? 'b/4' : 'c/5'], duration };
+        if (!isRest) noteStruct.stemDirection = Stem.DOWN;
+        const note = new StaveNote(noteStruct);
         if (dotted) Dot.buildAndAttach([note], { all: true });
+        if (isRest) {
+            try {
+                note.setStyle({ fillStyle: '#242424', strokeStyle: '#242424' });
+            } catch (e) { /* ignore */ }
+        }
         const voice = new Voice({ numBeats: 4, beatValue: 4 });
         voice.setMode(2);
         voice.addTickables([note]);
-        new Formatter().joinVoices([voice]).format([voice], 40);
+        new Formatter().joinVoices([voice]).format([voice], 56);
         voice.draw(context, stave);
 
         const svgEl = div.querySelector('svg');
@@ -6086,20 +6171,56 @@
         _rcDrawAllBarsPreview(bars, logW, previewH, ctx);
     }
 
+    const STUDIO_RHYTHM_MEASURES_PER_ROW_MAX = 2;
+    /** 可調：節奏譜每小節最小寬度（px），過窄時自動減少每行小節數。 */
+    const STUDIO_RHYTHM_MIN_STAVE_WIDTH = 112;
+
+    function _chunkBarsForStudioRhythm(bars, perRow) {
+        const rows = [];
+        const n = perRow || STUDIO_RHYTHM_MEASURES_PER_ROW_MAX;
+        for (let i = 0; i < bars.length; i += n) {
+            rows.push(bars.slice(i, i + n));
+        }
+        return rows;
+    }
+
+    function _computeRhythmMeasuresPerRow(barCount, containerWidth) {
+        const W = Math.max(containerWidth || 360, 280);
+        const LEFT_PAD = 10;
+        const RIGHT_PAD = 10;
+        const GAP = 4;
+        const avail = W - LEFT_PAD - RIGHT_PAD;
+        const maxPer = Math.min(STUDIO_RHYTHM_MEASURES_PER_ROW_MAX, Math.max(1, barCount));
+        for (let p = maxPer; p >= 1; p--) {
+            const staveW = (avail - GAP * (p - 1)) / p;
+            if (staveW >= STUDIO_RHYTHM_MIN_STAVE_WIDTH) return p;
+        }
+        return 1;
+    }
+
     /* ── VexFlow renderer for Kodály rhythm bars ── */
     function _renderVexFlowBars(bars, container) {
         const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot } = VexFlow;
+        const rhythmStem = typeof Stem !== 'undefined' && Stem.DOWN !== undefined ? Stem.DOWN : -1;
 
         container.innerHTML = '';
 
         const W = container.clientWidth || 360;
-        const STAVE_W = W - 20;
-        const STAVE_H = 110;
-        const totalH = bars.length * STAVE_H + 20;
+        const LEFT_PAD = 10;
+        const RIGHT_PAD = 10;
+        const GAP = 4;
+        const avail = W - LEFT_PAD - RIGHT_PAD;
+        const STAVE_H = 118;
+        const perRow = _computeRhythmMeasuresPerRow(bars.length, W);
+        const systems = _chunkBarsForStudioRhythm(bars, perRow);
+        const totalH = systems.length * STAVE_H + 20;
 
         const renderer = new Renderer(container, Renderer.Backends.SVG);
         renderer.resize(W, totalH);
         const context = renderer.getContext();
+
+        const BarlineType = VexFlow.BarlineType || (VexFlow.Barline && VexFlow.Barline.type);
+        const totalMeasures = bars.length;
 
         const durMap = {
             0.25: '16',
@@ -6112,72 +6233,136 @@
         };
         const dotSet3 = new Set([0.75, 1.5, 3]);
 
-        bars.forEach((barLabel, bi) => {
-            const y = bi * STAVE_H + 10;
-            const stave = new Stave(10, y, STAVE_W - 10);
-            [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
-            if (bi === 0) stave.addTimeSignature('4/4');
-            stave.setContext(context).draw();
+        let globalBi = 0;
+        systems.forEach((rowBars, rowIdx) => {
+            const nInRow = rowBars.length;
+            const staveW = (avail - GAP * (nInRow - 1)) / nInRow;
+            let x = LEFT_PAD;
+            const y = rowIdx * STAVE_H + 10;
 
-            const notes = [];
-            const beamGroups = [];
-            let eighthRun = [];
-            const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
+            rowBars.forEach(barLabel => {
+                const stave = new Stave(x, y, staveW);
+                [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
+                if (globalBi === 0) stave.addTimeSignature('4/4');
+                if (BarlineType) {
+                    try {
+                        stave.setBegBarType(BarlineType.NONE);
+                        const isPieceEnd = globalBi === totalMeasures - 1;
+                        stave.setEndBarType(isPieceEnd ? BarlineType.END : BarlineType.SINGLE);
+                    } catch (e) { /* ignore */ }
+                }
+                stave.setContext(context).draw();
 
-            barLabel.split(' ').forEach(token => {
-                const isRest = token === '休';
-                const compound = COMPOUND_TOKENS[token];
+                const notes = [];
+                const beamGroups = [];
+                let eighthRun = [];
+                let sixteenthRun = [];
+                const flushEighthRun = () => {
+                    while (eighthRun.length >= 2) {
+                        beamGroups.push(eighthRun.slice(0, 2));
+                        eighthRun = eighthRun.slice(2);
+                    }
+                    eighthRun = [];
+                };
+                const flushSixteenthRun = () => {
+                    while (sixteenthRun.length >= 4) {
+                        beamGroups.push(sixteenthRun.slice(0, 4));
+                        sixteenthRun = sixteenthRun.slice(4);
+                    }
+                    if (sixteenthRun.length > 1) beamGroups.push([...sixteenthRun]);
+                    sixteenthRun = [];
+                };
+                const flushAllSimpleRuns = () => { flushEighthRun(); flushSixteenthRun(); };
 
-                if (isRest) {
-                    flushEighthRun();
-                    const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
-                    note.addModifier(new Annotation('休止')
-                        .setVerticalJustification(3));
-                    notes.push(note);
-                } else if (compound) {
-                    flushEighthRun();
-                    const group = [];
-                    compound.forEach(sub => {
-                        const dur = durMap[sub.d];
+                barLabel.split(' ').forEach(token => {
+                    const isRest = token === '休';
+                    const compound = COMPOUND_TOKENS[token];
+
+                    if (isRest) {
+                        flushAllSimpleRuns();
+                        const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
+                        note.addModifier(new Annotation('休止')
+                            .setVerticalJustification(3));
+                        notes.push(note);
+                    } else if (compound) {
+                        flushAllSimpleRuns();
+                        const group = [];
+                        compound.forEach(sub => {
+                            const dur = durMap[sub.d];
+                            if (!dur) return;
+                            const note = new StaveNote({
+                                keys: ['b/4'],
+                                duration: dur,
+                                stemDirection: rhythmStem
+                            });
+                            if (dotSet3.has(sub.d)) Dot.buildAndAttach([note], { all: true });
+                            note.addModifier(new Annotation(sub.l)
+                                .setVerticalJustification(3));
+                            notes.push(note);
+                            group.push(note);
+                        });
+                        if (group.length > 1) beamGroups.push(group);
+                    } else {
+                        const tokenDur = getRhythmTokenDuration(token);
+                        const dur = durMap[tokenDur];
                         if (!dur) return;
                         const note = new StaveNote({
                             keys: ['b/4'],
                             duration: dur,
-                            stemDirection: Stem.UP
+                            stemDirection: rhythmStem
                         });
-                        if (dotSet3.has(sub.d)) Dot.buildAndAttach([note], { all: true });
-                        note.addModifier(new Annotation(sub.l)
+                        if (dotSet3.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
+                        note.addModifier(new Annotation(token)
                             .setVerticalJustification(3));
                         notes.push(note);
-                        group.push(note);
-                    });
-                    if (group.length > 1) beamGroups.push(group);
-                } else {
-                    const tokenDur = getRhythmTokenDuration(token);
-                    const dur = durMap[tokenDur];
-                    if (!dur) return;
-                    const note = new StaveNote({
-                        keys: ['b/4'],
-                        duration: dur,
-                        stemDirection: Stem.UP
-                    });
-                    if (dotSet3.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
-                    note.addModifier(new Annotation(token)
-                        .setVerticalJustification(3));
-                    notes.push(note);
-                    if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
-                }
+                        if (dur === '8') {
+                            flushSixteenthRun();
+                            eighthRun.push(note);
+                            while (eighthRun.length >= 2) {
+                                beamGroups.push(eighthRun.slice(0, 2));
+                                eighthRun = eighthRun.slice(2);
+                            }
+                        } else if (dur === '16') {
+                            flushEighthRun();
+                            sixteenthRun.push(note);
+                            while (sixteenthRun.length >= 4) {
+                                beamGroups.push(sixteenthRun.slice(0, 4));
+                                sixteenthRun = sixteenthRun.slice(4);
+                            }
+                        } else {
+                            flushAllSimpleRuns();
+                        }
+                    }
+                });
+                flushAllSimpleRuns();
+
+                const voice = new Voice({ numBeats: 4, beatValue: 4 });
+                voice.setMode(2); // SOFT mode — allow incomplete bars
+                voice.addTickables(notes);
+
+                const fmtW = staveW - (globalBi === 0 ? 46 : 22);
+                new Formatter().joinVoices([voice]).format([voice], Math.max(48, fmtW));
+                beamGroups.forEach(g => {
+                    if (g.length < 2) return;
+                    const d0 = g[0].getStemDirection();
+                    for (let bi = 1; bi < g.length; bi++) g[bi].setStemDirection(d0);
+                });
+                const beams = [];
+                beamGroups.forEach(g => {
+                    if (g.length < 2) return;
+                    try {
+                        const b = new Beam(g, false);
+                        if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
+                        b.setContext(context);
+                        beams.push(b);
+                    } catch (e) { /* ignore */ }
+                });
+                voice.draw(context, stave);
+                beams.forEach(b => { try { b.draw(); } catch (e) { /* ignore */ } });
+
+                globalBi++;
+                x += staveW + GAP;
             });
-            flushEighthRun();
-
-            const voice = new Voice({ numBeats: 4, beatValue: 4 });
-            voice.setMode(2); // SOFT mode — allow incomplete bars
-            voice.addTickables(notes);
-
-            new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
-            const beams = beamGroups.map(g => new Beam(g));
-            voice.draw(context, stave);
-            beams.forEach(b => b.setContext(context).draw());
         });
     }
 
@@ -6208,7 +6393,13 @@
         const vfToGame = [];
         let gameNoteIdx = 0;
         let eighthRun = [];
-        const flushEighthRun = () => { if (eighthRun.length > 1) beamGroups.push([...eighthRun]); eighthRun = []; };
+        const flushEighthRun = () => {
+            while (eighthRun.length >= 2) {
+                beamGroups.push(eighthRun.slice(0, 2));
+                eighthRun = eighthRun.slice(2);
+            }
+            eighthRun = [];
+        };
 
         barLabel.split(' ').forEach(token => {
             const isRest = token === '休';
@@ -6245,7 +6436,15 @@
                 vfNotes.push(note);
                 vfToGame.push([gameNoteIdx]);
                 gameNoteIdx++;
-                if (dur === '8') { eighthRun.push(note); } else { flushEighthRun(); }
+                if (dur === '8') {
+                    eighthRun.push(note);
+                    while (eighthRun.length >= 2) {
+                        beamGroups.push(eighthRun.slice(0, 2));
+                        eighthRun = eighthRun.slice(2);
+                    }
+                } else {
+                    flushEighthRun();
+                }
             }
         });
         flushEighthRun();
@@ -6254,9 +6453,23 @@
         voice.setMode(2);
         voice.addTickables(vfNotes);
         new Formatter().joinVoices([voice]).format([voice], STAVE_W - 60);
-        const beams = beamGroups.map(g => new Beam(g));
+        beamGroups.forEach(g => {
+            if (g.length < 2) return;
+            const d0 = g[0].getStemDirection();
+            for (let bi = 1; bi < g.length; bi++) g[bi].setStemDirection(d0);
+        });
+        const beams = [];
+        beamGroups.forEach(g => {
+            if (g.length < 2) return;
+            try {
+                const b = new Beam(g, false);
+                if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
+                b.setContext(context);
+                beams.push(b);
+            } catch (e) { /* ignore */ }
+        });
         voice.draw(context, stave);
-        beams.forEach(b => b.setContext(context).draw());
+        beams.forEach(b => { try { b.draw(); } catch (e) { /* ignore */ } });
 
         // Collect SVG elements and X positions
         const noteStartX = stave.getNoteStartX();
@@ -8847,8 +9060,10 @@
             <div class="g4-fact-card"><div class="g4-fact-icon">🎨</div><div class="g4-fact-label">音色特質</div><div class="g4-fact-val">${toneLabel}</div></div>
             <div class="g4-fact-card"><div class="g4-fact-icon">📊</div><div class="g4-fact-label">音域範圍</div><div class="g4-fact-val">${rangeLabel}</div></div>`;
 
-        const videoId = inst.video ? (inst.video.match(/embed\/([^?]+)/) || [])[1] : '';
+        const hasVideo = Boolean(inst.video);
+        const videoId = hasVideo ? (inst.video.match(/embed\/([^?]+)/) || [])[1] : '';
         const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : '';
+        const historyText = inst.history || inst.desc;
 
         const isCard = inst.img && inst.img.includes('/cards/');
         const imgHtml = inst.img
@@ -8860,6 +9075,30 @@
         const structToggle = structData.length
             ? `<button class="g4-modal-struct-toggle"><span class="struct-toggle-icon">🔬</span><span class="struct-toggle-text">顯示構造</span><span class="struct-toggle-arrow">›</span></button>`
             : '';
+
+        const videoTabBtnHtml = hasVideo
+            ? '<button class="g4-tab-btn" data-tab="video" role="tab">🎬 演奏</button>'
+            : '';
+        const videoPanelHtml = hasVideo
+            ? `
+                        <div class="g4-tab-panel" data-panel="video">
+                            <div class="g4-modal-video-wrap g4-video-lazy" data-src="${inst.video}">
+                                <div class="g4-video-poster" style="background-image:url(${thumbUrl})">
+                                    <div class="g4-video-play">▶</div>
+                                </div>
+                            </div>
+                        </div>`
+            : '';
+
+        function activateModalTab(box, tabName) {
+            if (!box || !tabName) return;
+            box.querySelectorAll('.g4-tab-btn').forEach(b => b.classList.remove('active'));
+            box.querySelectorAll('.g4-tab-panel').forEach(p => p.classList.remove('active'));
+            const activeBtn = box.querySelector(`.g4-tab-btn[data-tab="${tabName}"]`);
+            const activePanel = box.querySelector(`[data-panel="${tabName}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            if (activePanel) activePanel.classList.add('active');
+        }
 
         const modal = document.createElement('div');
         modal.className = 'g4-instrument-modal';
@@ -8881,7 +9120,7 @@
                     <nav class="g4-modal-tabs" role="tablist">
                         <button class="g4-tab-btn active" data-tab="intro" role="tab">📖 介紹</button>
                         <button class="g4-tab-btn" data-tab="history" role="tab">📜 歷史</button>
-                        ${inst.video ? '<button class="g4-tab-btn" data-tab="video" role="tab">🎬 演奏</button>' : ''}
+                        ${videoTabBtnHtml}
                     </nav>
 
                     <div class="g4-tab-panels">
@@ -8898,18 +9137,11 @@
 
                         <div class="g4-tab-panel" data-panel="history">
                             <div class="g4-history-body">
-                                <div class="g4-history-quote">${inst.history || inst.desc}</div>
+                                <div class="g4-history-quote">${historyText}</div>
                             </div>
                         </div>
 
-                        ${inst.video ? `
-                        <div class="g4-tab-panel" data-panel="video">
-                            <div class="g4-modal-video-wrap g4-video-lazy" data-src="${inst.video}">
-                                <div class="g4-video-poster" style="background-image:url(${thumbUrl})">
-                                    <div class="g4-video-play">▶</div>
-                                </div>
-                            </div>
-                        </div>` : ''}
+                        ${videoPanelHtml}
                     </div>
                 </div>
             </div>
@@ -8941,11 +9173,7 @@
             const tabBtn = e.target.closest('.g4-tab-btn');
             if (tabBtn) {
                 const box = tabBtn.closest('.g4-instrument-modal-box');
-                box.querySelectorAll('.g4-tab-btn').forEach(b => b.classList.remove('active'));
-                box.querySelectorAll('.g4-tab-panel').forEach(p => p.classList.remove('active'));
-                tabBtn.classList.add('active');
-                const panel = box.querySelector(`[data-panel="${tabBtn.dataset.tab}"]`);
-                if (panel) panel.classList.add('active');
+                activateModalTab(box, tabBtn.dataset.tab);
                 return;
             }
             // Lazy YouTube: click poster to load iframe
@@ -9256,5 +9484,25 @@
         modal.style.animation = 'g4ModalBgIn 0.18s ease reverse both';
         setTimeout(() => { modal.remove(); document.body.style.overflow = ''; }, 180);
     }
+
+    // 創作工作室 — 見 composition-studio.js（CompositionStudioFactory）；須先於 script.js 載入
+    CompositionStudio = (typeof CompositionStudioFactory === 'function')
+        ? CompositionStudioFactory({
+            CONFIG,
+            MAPS,
+            getRhythmTokenDuration,
+            beamTokens: _BEAM_TOKENS,
+            parseRhythmTaps,
+            renderVexFlowBars: _renderVexFlowBars,
+            audio,
+            getState: () => state,
+            switchScreen,
+            showToast: _showToast,
+            gasPost: gasPostJson,
+            renderNoteGlyph: _omRenderNoteIcon,
+            keySignatures: KEY_SIGNATURES
+        })
+        : { open() { console.warn('composition-studio.js 未載入'); }, init() {} };
+    try { CompositionStudio.init(); } catch (e) { console.error('CompositionStudio.init error:', e); }
 
 })();

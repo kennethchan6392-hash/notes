@@ -61,11 +61,55 @@ function getProfileSheet() {
   return sheet;
 }
 
+// 學生創作備份工作表（旋律／節奏 JSON）
+const COMPOSITION_COLUMNS = ['name', 'grade', 'class', 'id', 'tab', 'key_sig', 'json', 'timestamp'];
+
+function getCompositionSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = '學生創作';
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(COMPOSITION_COLUMNS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, COMPOSITION_COLUMNS.length)
+      .setFontWeight('bold')
+      .setBackground('#8B66FF')
+      .setFontColor('#FFFFFF');
+    sheet.setColumnWidths(1, COMPOSITION_COLUMNS.length, 120);
+  }
+  return sheet;
+}
+
 // ── 接收分數（POST） ─────────────────────────────────────────
 function doPost(e) {
   try {
     const raw = e.postData && e.postData.contents ? e.postData.contents : '{}';
     const rec = JSON.parse(raw);
+
+    // 創作工作室 — 備份 JSON（不計分）
+    if (rec.action === 'saveComposition') {
+      const name = String(rec.name || '').trim().slice(0, 20);
+      if (!name) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ ok: false, error: 'invalid name' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const sheet = getCompositionSheet();
+      sheet.appendRow([
+        name,
+        String(parseInt(rec.grade, 10) || 0),
+        String(rec.class || '').trim(),
+        String(rec.id || '').trim(),
+        String(rec.tab || '').trim(),
+        String(rec.keySig || rec.key_sig || '').trim().slice(0, 12),
+        String(rec.json || '').slice(0, 50000),
+        String(rec.timestamp || new Date().toLocaleString('zh-TW'))
+      ]);
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
 
     // 個人檔案結果寫入（與排行榜分流）
     if (rec.action === 'saveProfileResult') {

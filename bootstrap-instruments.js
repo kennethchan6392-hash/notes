@@ -2,10 +2,22 @@
   var el = document.querySelector("script[data-app-bootstrap]");
   var base = el && el.src ? new URL(".", el.src) : new URL("./", location.href);
   function loadApp() {
-    var s = document.createElement("script");
-    s.src = new URL("script.js", base).href;
-    s.defer = true;
-    document.body.appendChild(s);
+    var studio = document.createElement("script");
+    studio.src = new URL("composition-studio.js", base).href;
+    studio.onload = function () {
+      var s = document.createElement("script");
+      s.src = new URL("script.js", base).href;
+      s.defer = true;
+      document.body.appendChild(s);
+    };
+    studio.onerror = function () {
+      console.warn("[bootstrap-instruments] composition-studio.js failed, loading script.js only");
+      var s = document.createElement("script");
+      s.src = new URL("script.js", base).href;
+      s.defer = true;
+      document.body.appendChild(s);
+    };
+    document.body.appendChild(studio);
   }
   Promise.all([
     fetch(new URL("data/instrument-bank.json", base)),
