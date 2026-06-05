@@ -3377,6 +3377,17 @@
 
 
     function initHub() {
+        // Announcement shown via inline onclick attributes in index.html
+        // (localStorage check + display logic kept here for clarity)
+        const announceModal = document.getElementById('announcementModal');
+        if (announceModal) {
+            const today = new Date().toDateString();
+            if (localStorage.getItem('announcementSeen') !== today) {
+                announceModal.style.display = 'flex';
+                localStorage.setItem('announcementSeen', today);
+            }
+        }
+
         const hubGrade = document.getElementById('hubGrade');
         const hubClass = document.getElementById('hubClass');
         const hubName  = document.getElementById('hubName');
@@ -5225,100 +5236,103 @@
     function _omRenderQuestion(container, timeSig, notes, blankIdx) {
         container.innerHTML = '';
         if (typeof VexFlow === 'undefined') return;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Stem, Dot } = VexFlow;
+        requestAnimationFrame(() => {
+            // Defer to after layout so clientWidth reflects the visible container size
+            const { Renderer, Stave, StaveNote, Voice, Formatter, Stem, Dot } = VexFlow;
 
-        const rawW = container.clientWidth || 340;
-        const W = Math.min(rawW, 460);
-        const H = 100;
-        const renderer = new Renderer(container, Renderer.Backends.SVG);
-        renderer.resize(W, H);
-        const context = renderer.getContext();
+            const rawW = container.clientWidth || 340;
+            const W = Math.min(rawW, 460);
+            const H = 100;
+            const renderer = new Renderer(container, Renderer.Backends.SVG);
+            renderer.resize(W, H);
+            const context = renderer.getContext();
 
-        const stave = new Stave(0, 0, W - 4);
-        stave.addClef('percussion');
-        stave.addTimeSignature(timeSig);
-        stave.setContext(context).draw();
+            const stave = new Stave(0, 0, W - 4);
+            stave.addClef('percussion');
+            stave.addTimeSignature(timeSig);
+            stave.setContext(context).draw();
 
-        const durMap = { 4: 'w', 2: 'h', 1.5: 'q', 1: 'q', 0.5: '8', 0.25: '16' };
-        const dotBeats = new Set([1.5]);
-        const { Beam } = VexFlow;
-        const beamGroups = [];
-        const vfNotes = [];
-        let eighthRun = [];
-        const flushRun = () => {
-            if (eighthRun.length > 1) beamGroups.push(eighthRun.slice());
-            eighthRun = [];
-        };
+            const durMap = { 4: 'w', 2: 'h', 1.5: 'q', 1: 'q', 0.5: '8', 0.25: '16' };
+            const dotBeats = new Set([1.5]);
+            const { Beam } = VexFlow;
+            const beamGroups = [];
+            const vfNotes = [];
+            let eighthRun = [];
+            const flushRun = () => {
+                if (eighthRun.length > 1) beamGroups.push(eighthRun.slice());
+                eighthRun = [];
+            };
 
-        notes.forEach((n, i) => {
-            const dur = durMap[n.beats] || 'q';
-            if (i === blankIdx) {
-                flushRun(); // break beam before blank note
-                const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
-                if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
-                note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
-                note.setStemStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
-                if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
-                vfNotes.push(note);
-                // blank note is NOT added to eighthRun — beam is broken after it too
-            } else {
-                const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
-                if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
-                vfNotes.push(note);
-                if (n.beats < 1) {
-                    eighthRun.push(note);
+            notes.forEach((n, i) => {
+                const dur = durMap[n.beats] || 'q';
+                if (i === blankIdx) {
+                    flushRun(); // break beam before blank note
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                    if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
+                    note.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                    note.setStemStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                    if (note.flag) note.flag.setStyle({ fillStyle: 'transparent', strokeStyle: 'transparent' });
+                    vfNotes.push(note);
+                    // blank note is NOT added to eighthRun — beam is broken after it too
                 } else {
-                    flushRun();
+                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                    if (dotBeats.has(n.beats)) Dot.buildAndAttach([note], { all: true });
+                    vfNotes.push(note);
+                    if (n.beats < 1) {
+                        eighthRun.push(note);
+                    } else {
+                        flushRun();
+                    }
                 }
+            });
+            flushRun();
+
+            const [num] = timeSig.split('/').map(Number);
+            const voice = new Voice({ numBeats: num, beatValue: 4 });
+            voice.setMode(2);
+            voice.addTickables(vfNotes);
+            const nsx = stave.getNoteStartX();
+            new Formatter().joinVoices([voice]).format([voice], W - nsx - 20);
+            const beams = [];
+            beamGroups.forEach(g => {
+                if (g.length < 2) return;
+                try {
+                    const b = new Beam(g, false);
+                    if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
+                    b.setContext(context);
+                    beams.push(b);
+                } catch (e) { /* ignore */ }
+            });
+            voice.draw(context, stave);
+            beams.forEach(b => { try { b.draw(); } catch (e) { /* ignore */ } });
+
+            // Draw blank placeholder over the hidden note
+            const blankNote = vfNotes[blankIdx];
+            const bb = blankNote.getBoundingBox();
+            if (bb) {
+                const svg = container.querySelector('svg');
+                const ns = 'http://www.w3.org/2000/svg';
+                const rect = document.createElementNS(ns, 'rect');
+                const pad = 6;
+                rect.setAttribute('x', bb.x - pad);
+                rect.setAttribute('y', bb.y - pad);
+                rect.setAttribute('width', bb.w + pad * 2);
+                rect.setAttribute('height', bb.h + pad * 2);
+                rect.setAttribute('class', 'om-blank-rect');
+                svg.appendChild(rect);
+
+                // Question mark inside
+                const txt = document.createElementNS(ns, 'text');
+                txt.setAttribute('x', bb.x + bb.w / 2);
+                txt.setAttribute('y', bb.y + bb.h / 2 + 5);
+                txt.setAttribute('text-anchor', 'middle');
+                txt.setAttribute('font-size', '18');
+                txt.setAttribute('font-weight', '900');
+                txt.setAttribute('fill', '#6366f1');
+                txt.textContent = '？';
+                svg.appendChild(txt);
             }
         });
-        flushRun();
-
-        const [num] = timeSig.split('/').map(Number);
-        const voice = new Voice({ numBeats: num, beatValue: 4 });
-        voice.setMode(2);
-        voice.addTickables(vfNotes);
-        const nsx = stave.getNoteStartX();
-        new Formatter().joinVoices([voice]).format([voice], W - nsx - 20);
-        const beams = [];
-        beamGroups.forEach(g => {
-            if (g.length < 2) return;
-            try {
-                const b = new Beam(g, false);
-                if (b.renderOptions) b.renderOptions.beamWidth = 3.5;
-                b.setContext(context);
-                beams.push(b);
-            } catch (e) { /* ignore */ }
-        });
-        voice.draw(context, stave);
-        beams.forEach(b => { try { b.draw(); } catch (e) { /* ignore */ } });
-
-        // Draw blank placeholder over the hidden note
-        const blankNote = vfNotes[blankIdx];
-        const bb = blankNote.getBoundingBox();
-        if (bb) {
-            const svg = container.querySelector('svg');
-            const ns = 'http://www.w3.org/2000/svg';
-            const rect = document.createElementNS(ns, 'rect');
-            const pad = 6;
-            rect.setAttribute('x', bb.x - pad);
-            rect.setAttribute('y', bb.y - pad);
-            rect.setAttribute('width', bb.w + pad * 2);
-            rect.setAttribute('height', bb.h + pad * 2);
-            rect.setAttribute('class', 'om-blank-rect');
-            svg.appendChild(rect);
-
-            // Question mark inside
-            const txt = document.createElementNS(ns, 'text');
-            txt.setAttribute('x', bb.x + bb.w / 2);
-            txt.setAttribute('y', bb.y + bb.h / 2 + 5);
-            txt.setAttribute('text-anchor', 'middle');
-            txt.setAttribute('font-size', '18');
-            txt.setAttribute('font-weight', '900');
-            txt.setAttribute('fill', '#6366f1');
-            txt.textContent = '？';
-            svg.appendChild(txt);
-        }
     }
 
     // Render a small SVG note icon for option buttons
@@ -9535,7 +9549,8 @@
             showToast: _showToast,
             gasPost: gasPostJson,
             renderNoteGlyph: _omRenderNoteIcon,
-            keySignatures: KEY_SIGNATURES
+            keySignatures: KEY_SIGNATURES,
+            openLightbox
         })
         : { open() { console.warn('composition-studio.js 未載入'); }, init() {} };
     try { CompositionStudio.init(); } catch (e) { console.error('CompositionStudio.init error:', e); }

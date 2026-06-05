@@ -125,14 +125,6 @@ input { user-select: auto; }
     background-size: 42px 42px, 28px 28px, 56px 56px;
     background-position: 0 0, 14px 14px, 7px 28px;
 }
-.bg-dots::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0.08;
-    background: url("img/chiikawa-watermark.png") center 56% / clamp(320px, 58vw, 760px) no-repeat;
-    filter: saturate(0.95) contrast(1.04);
-}
 .bg-dots::after {
     content: ''; position: absolute; inset: 0;
     background:
@@ -1193,6 +1185,172 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     max-height: calc(100dvh - 28px); overflow-y: auto;
     display: flex; flex-direction: column; gap: 12px;
     animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── 重要公告 Announcement Modal ── */
+.announcement-modal {
+    position: fixed; inset: 0; background: rgba(48, 49, 44, 0.7);
+    display: flex; align-items: flex-start; justify-content: center;
+    z-index: 9500; padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+    animation: fadeIn 0.2s ease;
+    contain: layout paint;
+}
+.announcement-box {
+    background: var(--ds-surface-container-lowest); border-radius: var(--ds-radius-xl); width: 100%; max-width: 520px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.08);
+    animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.announcement-header {
+    background: linear-gradient(135deg, #6236FF 0%, #8B66FF 50%, #C084FC 100%);
+    padding: 28px 24px 22px;
+    display: flex; align-items: center; gap: 16px;
+    position: relative;
+}
+.announcement-header::after {
+    content: '';
+    position: absolute; bottom: -12px; left: 0; right: 0; height: 24px;
+    background: var(--ds-surface-container-lowest);
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+.announcement-trophy {
+    font-size: 3rem; line-height: 1; flex-shrink: 0;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+    animation: trophyBounce 2s ease-in-out infinite;
+}
+@keyframes trophyBounce {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-6px) rotate(3deg); }
+}
+.announcement-header-text { flex: 1; }
+.announcement-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.22); border-radius: 20px;
+    padding: 3px 12px; font-size: 0.72rem; font-weight: 700;
+    color: rgba(255,255,255,0.95); letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 6px;
+}
+.announcement-title {
+    font-size: 1.9rem; font-weight: 900; color: #fff;
+    margin: 0; font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.18);
+}
+.announcement-close {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(255,255,255,0.2); border: none; border-radius: 50%;
+    width: 36px; height: 36px; font-size: 0.85rem; cursor: pointer;
+    color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; z-index: 1;
+}
+.announcement-close:hover { background: rgba(255,255,255,0.35); }
+
+.announcement-body {
+    padding: 36px 20px 0;
+    display: flex; flex-direction: column; gap: 16px;
+}
+.announcement-info-row {
+    display: flex; gap: 12px; align-items: stretch;
+}
+.announcement-deadline {
+    flex: 1;
+    background: linear-gradient(135deg, #FFF5EC, #FFF0F8);
+    border: 2.5px solid rgba(255,140,66,0.35);
+    border-radius: var(--ds-radius-lg);
+    padding: 14px 14px 12px;
+    text-align: center;
+}
+.announcement-deadline-label {
+    font-size: 0.72rem; font-weight: 700; color: var(--primary-orange-dark);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+}
+.announcement-deadline-date {
+    font-size: 1.45rem; font-weight: 900; color: var(--primary-red-dark);
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+    animation: dateGlow 2.5s ease-in-out infinite;
+}
+@keyframes dateGlow {
+    0%, 100% { text-shadow: 0 0 0px rgba(255,74,107,0); }
+    50% { text-shadow: 0 0 14px rgba(255,74,107,0.3); }
+}
+.announcement-deadline-note {
+    font-size: 0.78rem; color: var(--text-light); margin-top: 6px; line-height: 1.5;
+}
+
+.announcement-reward {
+    flex: 1;
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, #FFF8E7, #FFFDF0);
+    border: 2.5px solid rgba(255,203,69,0.5);
+    border-radius: var(--ds-radius-lg);
+    padding: 12px 14px;
+}
+.announcement-reward-icon { font-size: 2rem; flex-shrink: 0; }
+.announcement-reward-title {
+    font-size: 0.88rem; font-weight: 900; color: #7A5C00;
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif; line-height: 1.3;
+}
+.announcement-reward-desc { font-size: 0.72rem; color: #8B6B00; margin-top: 2px; line-height: 1.4; }
+
+.announcement-section-title {
+    font-size: 0.78rem; font-weight: 800; color: var(--text-light);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding-bottom: 6px; border-bottom: 2px solid var(--ds-outline-variant);
+}
+
+.announcement-games-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+.announcement-game-item {
+    background: rgba(255,255,255,0.7);
+    border: 2px solid color-mix(in srgb, var(--ag-color) 30%, transparent);
+    border-radius: var(--ds-radius);
+    padding: 12px 6px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    cursor: default;
+}
+.announcement-game-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--ag-color) 25%, transparent);
+    background: rgba(255,255,255,0.95);
+}
+.announcement-game-icon { font-size: 1.5rem; margin-bottom: 4px; }
+.announcement-game-name {
+    font-size: 0.76rem; font-weight: 800; color: var(--text-dark);
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif; line-height: 1.2;
+}
+.announcement-game-sub {
+    font-size: 0.64rem; color: var(--text-light); margin-top: 2px;
+}
+
+.announcement-dismiss-btn {
+    width: calc(100% - 40px); margin: 16px 20px 18px;
+    padding: 14px;
+    font-size: 0.98rem; font-weight: 900;
+    background: linear-gradient(135deg, #6236FF, #8B66FF);
+    color: #fff; border: none;
+    border-radius: var(--ds-radius-lg);
+    box-shadow: 0 6px 16px rgba(98,54,255,0.32);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+@media (max-width: 480px) {
+    .announcement-header { padding: 20px 16px 16px; }
+    .announcement-title { font-size: 1.5rem; }
+    .announcement-body { padding: 28px 14px 0; gap: 12px; }
+    .announcement-info-row { gap: 8px; }
+    .announcement-deadline { padding: 10px 10px 8px; }
+    .announcement-deadline-date { font-size: 1.15rem; }
+    .announcement-reward { padding: 10px 12px; gap: 8px; }
+    .announcement-reward-icon { font-size: 1.6rem; }
+    .announcement-games-grid { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+    .announcement-game-item { padding: 10px 3px; }
+    .announcement-game-icon { font-size: 1.2rem; }
+    .announcement-game-name { font-size: 0.66rem; }
+    .announcement-game-sub { font-size: 0.58rem; }
+    .announcement-dismiss-btn { width: calc(100% - 28px); margin: 14px 14px 14px; font-size: 0.92rem; }
 }
 .tut-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -4627,6 +4785,11 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     padding-bottom: 32px;
     max-width: min(768px, calc(100vw - 24px));
     margin: 0 auto;
+    /* Opaque background prevents body-decorative gradient from bleeding through cards */
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: var(--ds-radius-lg);
+    /* Push above .bg-dots fixed overlay (watermark) — base .screen has z-index: 1 */
+    z-index: 2;
 }
 
 /* Mimic game screens: move studio controls to bottom (like action-row) */
@@ -4761,6 +4924,11 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     background: var(--ds-secondary-container);
     color: var(--ds-on-secondary-container);
 }
+.studio-teach-btn {
+    align-self: flex-start;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+}
 
 .studio-panel { margin-top: 4px; }
 #studioPanelRhythm,
@@ -4779,9 +4947,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     flex: 0 0 auto;
 }
 #studioPanelRhythm .studio-token-palette {
-    flex: 1 1 auto;
-    align-content: start;
-    justify-content: center;
+    flex: unset !important;
+    align-content: unset !important;
+    justify-content: unset !important;
     /* small padding so aspect-ratio buttons don't clip on very small widths */
     padding: 2px 4px 4px;
     box-sizing: border-box;
@@ -5220,42 +5388,159 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border-radius: var(--btn-radius);
 }
 
+/* ── 創作工作室 · 節奏面板：分組與顏色 ──────────────────────────────── */
 .studio-token-palette {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 8px;
-    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-content: flex-start;
+    justify-content: flex-start;
+    padding: 2px 4px 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
+
+/* 三大分組外層 */
+.studio-rtok-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+.studio-rtok-group:last-child {
+    margin-bottom: 0;
+}
+
+/* 分組標題列 */
+.studio-rtok-group-title {
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-light, #7a6a9a);
+    padding: 0 2px 4px;
+    border-bottom: 1.5px solid rgba(139, 102, 255, 0.14);
+    margin-bottom: 5px;
+    flex-shrink: 0;
+}
+
+/* 單一 grid：強制 3 列展開至全寬，覆蓋父層 flex 影響 */
+.studio-rtok-group-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* 通用按鈕（保留原有外觀當作 fallback） */
 .studio-rtok {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 6px;
+    gap: 2px;
+    padding: 6px 4px 4px;
     min-height: 0;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: unset;
+    height: 76px;
     border-radius: 12px;
     border: 2px solid rgba(212, 120, 42, 0.25);
     background: linear-gradient(180deg, #fff, #FFF8F0);
     cursor: pointer;
     font-family: inherit;
-    transition: transform 0.1s, box-shadow 0.12s;
+    transition: transform 0.1s, box-shadow 0.12s, border-color 0.15s, background 0.15s;
+    position: relative;
+    overflow: hidden;
 }
+.studio-rtok::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* 按下回饋 */
+.studio-rtok:active { transform: scale(0.96); }
+
+/* 停用 */
 .studio-rtok:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none;
-    filter: grayscale(0.25);
+    filter: grayscale(0.3);
 }
-.studio-rtok:active { transform: scale(0.98); }
+
+/* ── 三大分組顏色主題 ──────────────────────────────────────────── */
+.studio-rtok--warm {
+    border-color: rgba(212, 120, 42, 0.28);
+    background: linear-gradient(160deg, #fff 60%, #FFF3E6 100%);
+}
+.studio-rtok--warm::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(255, 180, 80, 0.12), transparent 70%);
+}
+.studio-rtok--warm:hover::before { opacity: 1; }
+.studio-rtok--warm:hover {
+    border-color: rgba(212, 120, 42, 0.55);
+    box-shadow: 0 3px 10px rgba(212, 100, 20, 0.18);
+}
+.studio-rtok--warm:active { box-shadow: none; }
+
+.studio-rtok--accent {
+    border-color: rgba(0, 166, 237, 0.30);
+    background: linear-gradient(160deg, #fff 60%, #E8F6FF 100%);
+}
+.studio-rtok--accent::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(80, 190, 255, 0.14), transparent 70%);
+}
+.studio-rtok--accent:hover::before { opacity: 1; }
+.studio-rtok--accent:hover {
+    border-color: rgba(0, 150, 220, 0.55);
+    box-shadow: 0 3px 10px rgba(0, 130, 210, 0.18);
+}
+.studio-rtok--accent:active { box-shadow: none; }
+
+.studio-rtok--cool {
+    border-color: rgba(100, 90, 160, 0.28);
+    background: linear-gradient(160deg, #fff 60%, #F0EDFF 100%);
+}
+.studio-rtok--cool::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(140, 110, 220, 0.12), transparent 70%);
+}
+.studio-rtok--cool:hover::before { opacity: 1; }
+.studio-rtok--cool:hover {
+    border-color: rgba(100, 80, 160, 0.55);
+    box-shadow: 0 3px 10px rgba(100, 70, 180, 0.18);
+}
+.studio-rtok--cool:active { box-shadow: none; }
+
+.studio-rtok--special {
+    border-color: rgba(0, 184, 148, 0.30);
+    background: linear-gradient(160deg, #fff 60%, #E6FBF5 100%);
+}
+.studio-rtok--special::before {
+    background: radial-gradient(ellipse at 50% 0%, rgba(0, 210, 160, 0.12), transparent 70%);
+}
+.studio-rtok--special:hover::before { opacity: 1; }
+.studio-rtok--special:hover {
+    border-color: rgba(0, 170, 130, 0.55);
+    box-shadow: 0 3px 10px rgba(0, 160, 120, 0.18);
+}
+.studio-rtok--special:active { box-shadow: none; }
+
+/* ── 按鈕內部排版 ──────────────────────────────────────────────── */
 .studio-rtok .studio-rtok-glyph-group {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0;
+    flex-shrink: 0;
 }
 .studio-rtok .studio-rtok-glyph-item {
     width: 22px;
@@ -5278,21 +5563,63 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     transform: translateY(-1px) scale(1.26);
 }
 
+/* 節奏名稱 */
+.studio-rtok-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #4a3860;
+    line-height: 1.1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    padding: 0 2px;
+}
+
+/* 拍數徽章 */
+.studio-rtok-beat-badge {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: rgba(139, 102, 255, 0.10);
+    color: #6a50b0;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+}
+
+/* ── 響應式 ───────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .studio-rtok-group-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
 @media (max-width: 1024px) {
-    .studio-token-palette {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+    .studio-rtok-group-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
     }
 }
 
 @media (max-width: 640px) {
-    .studio-token-palette {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .studio-rtok-group-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px;
     }
     .studio-rtok {
-        padding: 4px;
+        padding: 4px 2px 3px;
+        height: 70px;
+    }
+    .studio-rtok-name {
+        font-size: 0.58rem;
+    }
+    .studio-rtok-beat-badge {
+        font-size: 0.54rem;
+        padding: 1px 4px;
     }
 }
-
 /* —— 創作工作室 · 示範模式（手動開關） —— */
 .studio-demo-bar {
     width: 100%;

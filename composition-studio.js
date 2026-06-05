@@ -28,6 +28,7 @@
         var _showToast = deps.showToast;
         var gasPost = deps.gasPost;
         var renderNoteGlyph = deps.renderNoteGlyph;
+        var _openLightbox = deps.openLightbox;
         var keySignatures = deps.keySignatures || [];
 
         var MELODY_DUR_BEATS = {
@@ -72,19 +73,45 @@
             var dotted = dotDur(d);
             return MELODY_DUR_BEATS[dotted] != null ? dotted : d;
         }
-        var STUDIO_RHYTHM_TOKENS = [
-            { id: 'ta', label: '四分 ta', sub: '1 拍' },
-            { id: 'ti-ti', label: '兩個八分', sub: '1 拍' },
-            { id: 'ta-a', label: '二分 ta-a', sub: '2 拍' },
-            { id: '休', label: '休止符', sub: '1 拍' },
-            { id: 'ti', label: '八分 ti', sub: '½ 拍' },
-            { id: 'ti-ri-ti-ri', label: '四個十六分', sub: '1 拍' },
-            { id: 'ta-a-a', label: '附點二分', sub: '3 拍' },
-            { id: 'ti-ri', label: '前附點', sub: '1 拍' },
-            { id: 'ti-ti-ri', label: '前八後十六', sub: '1 拍' },
-            { id: 'ti-ri-ti', label: '前十六後八', sub: '1 拍' },
-            { id: 'ri-ti-ri', label: '小切分', sub: '1 拍' },
+        var STUDIO_RHYTHM_TOKENS_GROUPED = [
+            {
+                title: '強拍 · 完整一拍',
+                tokens: [
+                    { id: 'ta',    label: '四分 ta',  sub: '1 拍',   color: 'warm' },
+                    { id: 'ta-a',  label: '二分 ta-a', sub: '2 拍',   color: 'warm' },
+                    { id: '休',    label: '休止符',   sub: '1 拍',   color: 'cool' },
+                ]
+            },
+            {
+                title: '弱拍 · 半拍及更短',
+                tokens: [
+                    { id: 'ti',           label: '八分 ti',   sub: '½ 拍',  color: 'accent' },
+                    { id: 'ti-ti',        label: '兩個八分',  sub: '1 拍',  color: 'accent' },
+                    { id: 'ti-ti-ri',     label: '前八後十六', sub: '1 拍', color: 'accent' },
+                    { id: 'ti-ri-ti',     label: '前十六後八', sub: '1 拍', color: 'accent' },
+                    { id: 'ti-ri-ti-ri',  label: '四個十六分', sub: '1 拍', color: 'accent' },
+                ]
+            },
+            {
+                title: '特殊節奏 · 附點與切分',
+                tokens: [
+                    { id: 'ta-a-a',   label: '附點二分',  sub: '3 拍', color: 'special' },
+                    { id: 'ti-ri',    label: '前附點',    sub: '1 拍', color: 'special' },
+                    { id: 'ri-ti-ri', label: '小切分',    sub: '1 拍', color: 'special' },
+                ]
+            }
         ];
+
+        /**
+         * 內部連桿標記：這些 token 在拍點非整數位置時禁止插入，
+         * 以確保連桿（Beam）永遠落在拍點邊界內。
+         * 注意：「二分 ta-a」與「附點二分 ta-a-a」的 duration 為 2/3 拍，
+         * 在 Kodály 教學法中不使用連桿表示，直接用符桿。
+         */
+        var _STUDIO_BEAM_TOKENS = new Set([
+            'ti-ti', 'ti-ri-ti-ri', 'ti-ri',
+            'ti-ti-ri', 'ti-ri-ti', 'ri-ti-ri'
+        ]);
 
         var melodyNotes = [];
         var rhythmFlat = [];
@@ -306,7 +333,7 @@
                 onBeat = true;
             }
             if (barBeats + d > 4 + 1e-6) return false;
-            if (!onBeat && _BEAM_TOKENS.has(tok)) return false;
+            if (!onBeat && _STUDIO_BEAM_TOKENS.has(tok)) return false;
             var next = flat.concat([tok]);
             return flatToRhythmBarStrings(next).length <= 8;
         }
@@ -1481,12 +1508,28 @@
         function buildRhythmPalette() {
             var pal = document.getElementById('studioRhythmPalette');
             if (!pal) return;
-            pal.innerHTML = STUDIO_RHYTHM_TOKENS.map(function (t) {
-                var glyphHtml = renderRhythmTokenGlyphHtml(t.id);
-                var tokenLabel = t.label + '，' + t.sub;
-                return '<button type="button" class="studio-rtok" data-tok="' + t.id + '" aria-label="' + tokenLabel + '" title="' + tokenLabel + '">' +
-                    glyphHtml + '</button>';
-            }).join('');
+
+            var groups = STUDIO_RHYTHM_TOKENS_GROUPED;
+
+            // Build grouped HTML with section headers and beat-count badge.
+            var html = '';
+            groups.forEach(function (grp) {
+                html += '<div class="studio-rtok-group">';
+                html += '<div class="studio-rtok-group-title">' + grp.title + '</div>';
+                html += '<div class="studio-rtok-group-grid">';
+                grp.tokens.forEach(function (t) {
+                    var glyphHtml = renderRhythmTokenGlyphHtml(t.id);
+                    var tokenLabel = t.label + '，' + t.sub;
+                    html += '<button type="button" class="studio-rtok studio-rtok--' + (t.color || 'warm') + '" data-tok="' + t.id + '" aria-label="' + tokenLabel + '" title="' + tokenLabel + '">' +
+                        glyphHtml +
+                        '<span class="studio-rtok-name">' + t.label + '</span>' +
+                        '<span class="studio-rtok-beat-badge">' + t.sub + '</span>' +
+                        '</button>';
+                });
+                html += '</div></div>';
+            });
+
+            pal.innerHTML = html;
             pal.querySelectorAll('.studio-rtok').forEach(function (btn) {
                 btn.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -1562,6 +1605,22 @@
                 if (audio.playClick) audio.playClick();
                 switchScreen('screen-hub');
             });
+
+            var teachImgIdx = 0;
+            var teachImgs = ['img/teach-rhythm-L1.jpg', 'img/teach-rhythm-L2.jpg'];
+            var teachTitles = ['節奏圖（一）—— 基本時值', '節奏圖（二）—— 附點與切分音'];
+            document.getElementById('studioTeachRhythmBtn') && document.getElementById('studioTeachRhythmBtn').addEventListener('click', function () {
+                teachImgIdx = 0;
+                if (_openLightbox) _openLightbox(teachImgs[0], teachTitles[0]);
+            });
+            var _lbEl = document.getElementById('imgLightbox');
+            if (_lbEl) {
+                _lbEl.addEventListener('click', function (e) {
+                    if (e.target.id !== 'imgLightboxImg' && !e.target.classList.contains('img-lightbox-img')) return;
+                    teachImgIdx = (teachImgIdx + 1) % teachImgs.length;
+                    if (_openLightbox) _openLightbox(teachImgs[teachImgIdx], teachTitles[teachImgIdx]);
+                });
+            }
 
             document.querySelectorAll('.studio-tab').forEach(function (btn) {
                 btn.addEventListener('click', function () { setTab(btn.dataset.studioTab); });
