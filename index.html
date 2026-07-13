@@ -52,68 +52,6 @@
     <!-- ===================================== -->
     <div id="screen-hub" class="screen active">
 
-        <!-- 重要公告 Modal -->
-        <div id="announcementModal" class="announcement-modal" role="dialog" aria-modal="true" aria-label="重要公告" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-            <div class="announcement-box">
-                <div class="announcement-header">
-                    <div class="announcement-trophy">🏆</div>
-                    <div class="announcement-header-text">
-                        <div class="announcement-badge">全校競賽</div>
-                        <h2 class="announcement-title">重要公告</h2>
-                    </div>
-                    <button class="announcement-close announcement-close--inline" id="announcementClose" aria-label="關閉" onclick="document.getElementById('announcementModal').style.display='none'">✕</button>
-                </div>
-
-                <div class="announcement-body">
-                    <div class="announcement-info-row">
-                        <div class="announcement-deadline">
-                            <div class="announcement-deadline-label">截止日期</div>
-                            <div class="announcement-deadline-date">2026年6月12日</div>
-                            <div class="announcement-deadline-note">所有分數將會截止<br>請抓緊時間練習！</div>
-                        </div>
-                        <div class="announcement-reward">
-                            <div class="announcement-reward-icon">🥇</div>
-                            <div class="announcement-reward-info">
-                                <div class="announcement-reward-title">全校頭三名獎勵</div>
-                                <div class="announcement-reward-desc">積分最高三位學生將獲得神秘獎勵</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="announcement-section-title">🏅 計分遊戲項目</div>
-                    <div class="announcement-games-grid">
-                        <div class="announcement-game-item" style="--ag-color:#8B66FF;">
-                            <div class="announcement-game-icon">♩</div>
-                            <div class="announcement-game-name">音名辨別</div>
-                            <div class="announcement-game-sub">高音譜號</div>
-                        </div>
-                        <div class="announcement-game-item" style="--ag-color:#FFCB45;">
-                            <div class="announcement-game-icon">🔥</div>
-                            <div class="announcement-game-name">冇失誤挑戰</div>
-                            <div class="announcement-game-sub">零失誤取勝</div>
-                        </div>
-                        <div class="announcement-game-item" style="--ag-color:#00D28E;">
-                            <div class="announcement-game-icon">🥁</div>
-                            <div class="announcement-game-name">節奏挑戰</div>
-                            <div class="announcement-game-sub">節奏打擊</div>
-                        </div>
-                        <div class="announcement-game-item" style="--ag-color:#00A6ED;">
-                            <div class="announcement-game-icon">📖</div>
-                            <div class="announcement-game-name">術語辨別</div>
-                            <div class="announcement-game-sub">音樂術語</div>
-                        </div>
-                        <div class="announcement-game-item" style="--ag-color:#FF65A3;">
-                            <div class="announcement-game-icon">🎻</div>
-                            <div class="announcement-game-name">樂器辨別</div>
-                            <div class="announcement-game-sub">認識樂器</div>
-                        </div>
-                    </div>
-                </div>
-
-                <button class="btn-start announcement-dismiss-btn" id="announcementDismissBtn" onclick="document.getElementById('announcementModal').style.display='none'">我知道了 · 立即挑戰！</button>
-            </div>
-        </div>
-
         <div class="hub-corner-actions">
             <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案">👤</button>
             <span class="hub-corner-hint">個人檔案</span>
