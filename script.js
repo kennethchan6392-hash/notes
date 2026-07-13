@@ -3377,17 +3377,6 @@
 
 
     function initHub() {
-        // Announcement shown via inline onclick attributes in index.html
-        // (localStorage check + display logic kept here for clarity)
-        const announceModal = document.getElementById('announcementModal');
-        if (announceModal) {
-            const today = new Date().toDateString();
-            if (localStorage.getItem('announcementSeen') !== today) {
-                announceModal.style.display = 'flex';
-                localStorage.setItem('announcementSeen', today);
-            }
-        }
-
         const hubGrade = document.getElementById('hubGrade');
         const hubClass = document.getElementById('hubClass');
         const hubName  = document.getElementById('hubName');
