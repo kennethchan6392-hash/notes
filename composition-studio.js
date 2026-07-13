@@ -971,6 +971,113 @@
             return copyJson();
         }
 
+        function hasCompositionContent() {
+            if (activeTab === 'melody') return melodyNotes.length > 0;
+            return rhythmFlat.length > 0;
+        }
+
+        function getCopyrightTypeLabel() {
+            return activeTab === 'melody' ? '旋律創作' : '節奏創作';
+        }
+
+        function closeCopyrightModal() {
+            var modal = document.getElementById('studioCopyrightModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function openCopyrightModal() {
+            var user = getState().currentUser;
+            if (!user || !user.name) {
+                _showToast('請先在大廳登入', 'warn');
+                return;
+            }
+            if (!hasCompositionContent()) {
+                _showToast('請先完成創作再申請版權', 'warn');
+                return;
+            }
+            var modal = document.getElementById('studioCopyrightModal');
+            var titleInput = document.getElementById('studioCopyrightTitle');
+            var metaEl = document.getElementById('studioCopyrightMeta');
+            var typeEl = document.getElementById('studioCopyrightType');
+            var agreeEl = document.getElementById('studioCopyrightAgree');
+            if (!modal || !titleInput || !metaEl || !typeEl || !agreeEl) return;
+
+            var gradeLabel = '小' + ['一', '二', '三', '四', '五', '六'][Math.max(0, (parseInt(user.grade, 10) || 1) - 1)];
+            metaEl.textContent = '申請人：' + user.name + ' · ' + gradeLabel + user.class + '班 · 座號 ' + (user.id || user.seat || '—');
+            typeEl.textContent = '作品類型：' + getCopyrightTypeLabel();
+            if (!titleInput.value.trim()) {
+                titleInput.value = getCopyrightTypeLabel() + ' ' + new Date().toLocaleDateString('zh-TW');
+            }
+            agreeEl.checked = false;
+            modal.style.display = 'flex';
+            titleInput.focus();
+        }
+
+        function submitCopyrightApplication() {
+            var user = getState().currentUser;
+            if (!user || !user.name) {
+                _showToast('請先在大廳登入', 'warn');
+                return;
+            }
+            if (!hasCompositionContent()) {
+                _showToast('請先完成創作再申請版權', 'warn');
+                return;
+            }
+            var titleInput = document.getElementById('studioCopyrightTitle');
+            var agreeEl = document.getElementById('studioCopyrightAgree');
+            var submitBtn = document.getElementById('studioCopyrightSubmit');
+            if (!titleInput || !agreeEl) return;
+
+            var title = titleInput.value.trim();
+            if (!title) {
+                _showToast('請填寫作品名稱', 'warn');
+                titleInput.focus();
+                return;
+            }
+            if (!agreeEl.checked) {
+                _showToast('請勾選原創聲明', 'warn');
+                return;
+            }
+
+            var jsonStr = JSON.stringify(buildJsonPayload());
+            var rec = {
+                action: 'applyCopyright',
+                name: user.name,
+                grade: user.grade,
+                class: user.class,
+                id: user.id || user.seat || '',
+                title: title.slice(0, 40),
+                tab: activeTab,
+                keySig: activeTab === 'melody' ? getMelodyKeyIdFromUi() : '',
+                json: jsonStr.slice(0, 48000),
+                timestamp: new Date().toLocaleString('zh-TW')
+            };
+            if (typeof gasPost !== 'function') {
+                _showToast('版權申請未設定後端', 'warn');
+                return Promise.resolve();
+            }
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = '提交中…';
+            }
+            return gasPost(rec).then(function (r) {
+                if (r && r.ok) {
+                    _showToast('✅ 版權申請已提交，待老師審核', 'success');
+                    closeCopyrightModal();
+                } else {
+                    _showToast('申請失敗：' + ((r && r.error) || '未知'), 'warn');
+                }
+            }).catch(function (err) {
+                console.error(err);
+                _showToast('提交時發生錯誤，請稍後再試', 'warn');
+            }).finally(function () {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '提交申請';
+                }
+            });
+        }
+
         function uploadBackup() {
             var user = getState().currentUser;
             if (!user || !user.name) {
@@ -1682,6 +1789,19 @@
             document.getElementById('studioUploadBtn') && document.getElementById('studioUploadBtn').addEventListener('click', function () {
                 uploadBackup();
                 if (audio.playClick) audio.playClick();
+            });
+            document.getElementById('studioCopyrightBtn') && document.getElementById('studioCopyrightBtn').addEventListener('click', function () {
+                openCopyrightModal();
+                if (audio.playClick) audio.playClick();
+            });
+            document.getElementById('studioCopyrightClose') && document.getElementById('studioCopyrightClose').addEventListener('click', closeCopyrightModal);
+            document.getElementById('studioCopyrightCancel') && document.getElementById('studioCopyrightCancel').addEventListener('click', closeCopyrightModal);
+            document.getElementById('studioCopyrightSubmit') && document.getElementById('studioCopyrightSubmit').addEventListener('click', function () {
+                submitCopyrightApplication();
+                if (audio.playClick) audio.playClick();
+            });
+            document.getElementById('studioCopyrightModal') && document.getElementById('studioCopyrightModal').addEventListener('click', function (e) {
+                if (e.target === e.currentTarget) closeCopyrightModal();
             });
 
             window.addEventListener('resize', function () {

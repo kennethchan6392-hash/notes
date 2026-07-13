@@ -64,6 +64,9 @@ function getProfileSheet() {
 // 學生創作備份工作表（旋律／節奏 JSON）
 const COMPOSITION_COLUMNS = ['name', 'grade', 'class', 'id', 'tab', 'key_sig', 'json', 'timestamp'];
 
+// 版權申請工作表
+const COPYRIGHT_COLUMNS = ['name', 'grade', 'class', 'id', 'title', 'tab', 'key_sig', 'status', 'json', 'timestamp'];
+
 function getCompositionSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = '學生創作';
@@ -77,6 +80,23 @@ function getCompositionSheet() {
       .setBackground('#8B66FF')
       .setFontColor('#FFFFFF');
     sheet.setColumnWidths(1, COMPOSITION_COLUMNS.length, 120);
+  }
+  return sheet;
+}
+
+function getCopyrightSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = '版權申請';
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(COPYRIGHT_COLUMNS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, COPYRIGHT_COLUMNS.length)
+      .setFontWeight('bold')
+      .setBackground('#D97706')
+      .setFontColor('#FFFFFF');
+    sheet.setColumnWidths(1, COPYRIGHT_COLUMNS.length, 120);
   }
   return sheet;
 }
@@ -103,6 +123,38 @@ function doPost(e) {
         String(rec.id || '').trim(),
         String(rec.tab || '').trim(),
         String(rec.keySig || rec.key_sig || '').trim().slice(0, 12),
+        String(rec.json || '').slice(0, 50000),
+        String(rec.timestamp || new Date().toLocaleString('zh-TW'))
+      ]);
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 創作工作室 — 版權申請
+    if (rec.action === 'applyCopyright') {
+      const name = String(rec.name || '').trim().slice(0, 20);
+      const title = String(rec.title || '').trim().slice(0, 40);
+      if (!name) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ ok: false, error: 'invalid name' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      if (!title) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ ok: false, error: 'invalid title' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const sheet = getCopyrightSheet();
+      sheet.appendRow([
+        name,
+        String(parseInt(rec.grade, 10) || 0),
+        String(rec.class || '').trim(),
+        String(rec.id || '').trim(),
+        title,
+        String(rec.tab || '').trim(),
+        String(rec.keySig || rec.key_sig || '').trim().slice(0, 12),
+        '待審核',
         String(rec.json || '').slice(0, 50000),
         String(rec.timestamp || new Date().toLocaleString('zh-TW'))
       ]);
