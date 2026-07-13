@@ -1,7 +1,7 @@
 /* ===== 基礎變數 & 重置 ===== */
-html { font-size: 110%; cursor: url("img/cursors/hub-cursor-default.png") 4 4, auto; }
+html { font-size: 110%; }
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-a, button, select, label, [role="button"] { cursor: url("img/cursors/hub-cursor-pointer.png") 6 6, pointer; }
+a, button, select, label, [role="button"] { cursor: pointer; }
 button, select, input { touch-action: manipulation; }
 @media (pointer: coarse) {
     html { cursor: auto; }
@@ -23,7 +23,7 @@ button, select, input { touch-action: manipulation; }
 .app-toast.info { background: var(--ds-primary); color: var(--ds-on-primary); }
 
 :root {
-    /* Chiikawa Garden — stitch DESIGN.md */
+    /* 音符小精靈 Hub — stitch DESIGN.md */
     --ds-surface: #fbf9f1;
     --ds-surface-dim: #dcdad2;
     --ds-surface-container-lowest: #ffffff;
@@ -88,7 +88,7 @@ body {
         radial-gradient(circle at 18% 16%, rgba(255, 245, 214, 0.32) 0%, transparent 38%),
         radial-gradient(circle at 84% 18%, rgba(255, 220, 235, 0.3) 0%, transparent 42%),
         radial-gradient(circle at 22% 84%, rgba(183, 231, 247, 0.28) 0%, transparent 40%),
-        url("img/chiikawa-scene-bg.png"),
+        url("img/hub-scene-bg.png"),
         linear-gradient(160deg,
             var(--ds-surface) 0%, #fff5f0 24%, #eef6fb 48%,
             #f5f0fa 68%, #ecf8f3 86%, var(--ds-surface-container-low) 100%);
@@ -330,24 +330,14 @@ input { user-select: auto; }
     opacity: 0.95;
 }
 
-/* Hub — match stitch screen: title + subtitle */
+/* Hub — title + subtitle (音符小精靈) */
 #screen-hub .game-title {
     padding-top: 0;
-    padding-right: 56px;
-    padding-left: 56px;
-    width: min(760px, calc(100vw - 80px));
-    height: clamp(92px, 12vw, 128px);
     margin: 2px auto 4px;
-    background: url("img/hub-title-banner.png") center/contain no-repeat;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    font-size: 0;
-    line-height: 0;
-    filter: drop-shadow(0 5px 16px rgba(125, 82, 94, 0.16));
 }
-#screen-hub .game-title .title-icon { display: none; }
+#screen-hub .game-title .title-icon { display: inline-block; }
 #screen-hub .game-subtitle {
-    display: none;
+    display: flex;
 }
 
 .user-info-area { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
@@ -1487,7 +1477,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border-radius: 4px 4px 0 0;
 }
 .hub-login-card::after {
-    content: '';
+    content: '♪  𝄞  ♫';
     position: absolute;
     left: 0;
     right: 0;
@@ -1495,12 +1485,19 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     height: 150px;
     pointer-events: none;
     z-index: 1;
-    opacity: 0.16;
-    background-image: url("img/chiikawa-left.png"), url("img/chiikawa-center.png"), url("img/chiikawa-right.png");
-    background-repeat: no-repeat;
-    background-position: left 14px bottom, calc(50% - 250px) top, right 14px bottom;
-    background-size: 70px auto, 62px auto, 70px auto;
+    opacity: 0.2;
+    font-size: clamp(2rem, 5vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-align: center;
+    line-height: 150px;
+    color: var(--ds-secondary);
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+    animation: hubLoginNotes 4.5s ease-in-out infinite alternate;
+}
+@keyframes hubLoginNotes {
+    0%   { transform: translateY(0) scale(1); opacity: 0.16; }
+    100% { transform: translateY(-6px) scale(1.04); opacity: 0.24; }
 }
 .hub-login-title {
     font-size: 1rem; font-weight: 700; color: var(--ds-on-surface);
@@ -1548,8 +1545,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     #screen-hub .game-title {
         padding-right: 46px;
         padding-left: 46px;
-        width: calc(100vw - 26px);
-        height: clamp(70px, 18vw, 96px);
+        font-size: 2.4rem;
         text-align: center;
     }
     #screen-hub .game-subtitle {
@@ -1641,106 +1637,34 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .hub-game-card:hover::after { opacity: 1; }
 .hub-game-card:active { transform: translateY(-2px) scale(1.01); }
 
-/* Hub: stitch mockup hides corner “遊戲一” chips */
-#screen-hub .hub-game-tag { display: none; }
+/* Hub: 遊戲卡以 SVG 插圖呈現，無角色 IP 素材 */
+#screen-hub .hub-game-tag { display: block; }
 
-/*
- * 大廳五張全圖卡：圖檔已正規化為 687×993（同比例置中裁切），CSS 統一版面避免 1–2 與 3–5 視覺框架不一。
- */
-#screen-hub .hub-game1,
-#screen-hub .hub-game2,
-#screen-hub .hub-game3,
-#screen-hub .hub-game4,
-#screen-hub .hub-game-studio {
-    aspect-ratio: 687 / 993;
-    padding: 0;
-    gap: 0;
-    min-height: unset;
-    align-items: stretch;
-    text-align: center;
-    border-radius: clamp(22px, 5.4vw, 42px);
-    border-width: 2.5px;
-    border-style: solid;
-    background-repeat: no-repeat;
-    background-position: center center;
-    background-size: 100% 100%;
-}
-#screen-hub .hub-game1::after,
-#screen-hub .hub-game2::after,
-#screen-hub .hub-game3::after,
-#screen-hub .hub-game4::after,
-#screen-hub .hub-game-studio::after {
-    display: none;
-}
-#screen-hub .hub-game1 > .hub-game-tag,
-#screen-hub .hub-game1 > .hub-game-illust,
-#screen-hub .hub-game1 > .hub-game-name,
-#screen-hub .hub-game1 > .hub-game-desc,
-#screen-hub .hub-game1 > .hub-game-btn,
-#screen-hub .hub-game2 > .hub-game-tag,
-#screen-hub .hub-game2 > .hub-game-illust,
-#screen-hub .hub-game2 > .hub-game-name,
-#screen-hub .hub-game2 > .hub-game-desc,
-#screen-hub .hub-game2 > .hub-game-btn,
-#screen-hub .hub-game3 > .hub-game-tag,
-#screen-hub .hub-game3 > .hub-game-illust,
-#screen-hub .hub-game3 > .hub-game-name,
-#screen-hub .hub-game3 > .hub-game-desc,
-#screen-hub .hub-game3 > .hub-game-btn,
-#screen-hub .hub-game4 > .hub-game-tag,
-#screen-hub .hub-game4 > .hub-game-illust,
-#screen-hub .hub-game4 > .hub-game-name,
-#screen-hub .hub-game4 > .hub-game-desc,
-#screen-hub .hub-game4 > .hub-game-btn,
-#screen-hub .hub-game-studio > .hub-game-tag,
-#screen-hub .hub-game-studio > .hub-game-illust,
-#screen-hub .hub-game-studio > .hub-game-name,
-#screen-hub .hub-game-studio > .hub-game-desc,
-#screen-hub .hub-game-studio > .hub-game-btn {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-}
-#screen-hub .hub-game1 .hub-game-illust::after,
-#screen-hub .hub-game2 .hub-game-illust::after,
-#screen-hub .hub-game3 .hub-game-illust::after,
-#screen-hub .hub-game4 .hub-game-illust::after,
-#screen-hub .hub-game-studio .hub-game-illust::after {
-    content: none;
-    display: none;
-}
+.hub-game1 { border-color: rgba(255, 214, 150, 0.72); background: linear-gradient(160deg, #fff 50%, #fff9e8 100%); }
+.hub-game1::after { background: var(--primary-yellow-dark); }
+.hub-game1 .hub-game-btn { background: linear-gradient(135deg, var(--primary-yellow), var(--primary-yellow-dark)); box-shadow: 0 4px 12px rgba(255, 203, 69, 0.4); }
+.hub-game1 .hub-game-tag { background: linear-gradient(135deg, var(--primary-yellow), var(--primary-yellow-dark)); }
 
-#screen-hub .hub-game1 {
-    border-color: rgba(255, 214, 150, 0.72);
-    background-color: #fff9e8;
-    background-image: url("img/hub-game1-card-full.png");
-}
-#screen-hub .hub-game2 {
-    border-color: rgba(232, 190, 160, 0.75);
-    background-color: #fde9d4;
-    background-image: url("img/hub-game2-card-full.png");
-}
-#screen-hub .hub-game3 {
-    border-color: rgba(120, 170, 210, 0.55);
-    background-color: #eaf6ff;
-    background-image: url("img/hub-game3-card-full.png");
-}
-#screen-hub .hub-game4 {
-    border-color: rgba(130, 190, 155, 0.6);
-    background-color: #e2f5e9;
-    background-image: url("img/hub-game4-card-full.png");
-}
-#screen-hub .hub-game-studio {
-    border-color: rgba(255, 170, 190, 0.65);
-    background-color: #fdeef2;
-    background-image: url("img/hub-game-studio-card-full.png");
-}
+.hub-game2 { border-color: rgba(232, 190, 160, 0.75); background: linear-gradient(160deg, #fff 50%, #fde9d4 100%); }
+.hub-game2::after { background: var(--primary-orange); }
+.hub-game2 .hub-game-btn { background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark)); box-shadow: 0 4px 12px rgba(255, 140, 66, 0.4); }
+.hub-game2 .hub-game-tag { background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark)); }
+
+.hub-game3 { border-color: rgba(120, 170, 210, 0.55); background: linear-gradient(160deg, #fff 50%, #eaf6ff 100%); }
+.hub-game3::after { background: var(--primary-blue); }
+.hub-game3 .hub-game-btn { background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); box-shadow: 0 4px 12px rgba(0, 166, 237, 0.4); }
+.hub-game3 .hub-game-tag { background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); }
+
+.hub-game4 { border-color: rgba(130, 190, 155, 0.6); background: linear-gradient(160deg, #fff 50%, #e2f5e9 100%); }
+.hub-game4::after { background: var(--primary-green); }
+.hub-game4 .hub-game-btn { background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark)); box-shadow: 0 4px 12px rgba(0, 210, 142, 0.4); }
+.hub-game4 .hub-game-tag { background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark)); }
+
+.hub-game-studio { border-color: rgba(255, 170, 190, 0.65); background: linear-gradient(160deg, #fff 50%, #fdeef2 100%); }
+.hub-game-studio::after { background: var(--primary-pink); }
+.hub-game-studio .hub-game-btn { background: linear-gradient(135deg, var(--primary-pink), var(--primary-pink-dark)); box-shadow: 0 4px 12px rgba(255, 101, 163, 0.4); }
+.hub-game-studio .hub-game-tag { background: linear-gradient(135deg, var(--primary-pink), var(--primary-pink-dark)); }
+.illust-studio { background: linear-gradient(160deg, #fff0f6 0%, #ffd6e8 50%, #ffc4dc 100%); }
 
 .hub-game-tag {
     position: absolute; top: 10px; left: 12px; z-index: 2;
@@ -1755,31 +1679,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border-radius: 24px 24px 0 0; margin-bottom: 4px;
     overflow: hidden; display: flex; align-items: center; justify-content: center;
 }
+/* Game card illustrations — SVG only */
 .hub-game-illust::after {
-    content: '';
-    position: absolute;
-    inset: 7px 10px;
-    z-index: 2;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16));
-    pointer-events: none;
-}
-/* Game 1 主視覺已併入 .hub-game1 全卡背景圖，無需 ::after 疊圖 */
-.illust-1::after {
-    content: none;
-    display: none;
-}
-/* Game 2 主視覺已併入 .hub-game2 全卡背景圖 */
-.illust-2::after {
-    content: none;
-    display: none;
-}
-/* Game 3–4、創作卡主視覺已併入全卡背景圖 */
-.illust-3::after,
-.illust-4::after,
-.illust-studio::after {
     content: none;
     display: none;
 }
@@ -1799,12 +1700,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     width: 85%; height: 85%; z-index: 1; position: relative;
     transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
 }
-#screen-hub .illust-svg { opacity: 0.14; }
-#screen-hub .illust-1 .illust-svg,
-#screen-hub .illust-2 .illust-svg,
-#screen-hub .illust-3 .illust-svg,
-#screen-hub .illust-4 .illust-svg,
-#screen-hub .illust-studio .illust-svg { opacity: 0; }
+#screen-hub .illust-svg { opacity: 1; }
 .hub-game-card:hover .illust-svg { transform: scale(1.08) translateY(-4px); }
 
 /* .hub-game-icon — orphaned, cards use .illust-svg instead */
@@ -2388,8 +2284,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .hub-login-card::after {
         top: -106px;
         height: 120px;
-        background-position: left 2px bottom, calc(50% - 165px) top, right 2px bottom;
-        background-size: 54px auto, 48px auto, 54px auto;
+        line-height: 120px;
+        font-size: 1.75rem;
+        letter-spacing: 0.2em;
     }
     .quiz-card { padding: 18px 14px 16px; }
     .quiz-question { font-size: 1.08rem; }
