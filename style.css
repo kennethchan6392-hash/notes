@@ -23,7 +23,7 @@ button, select, input { touch-action: manipulation; }
 .app-toast.info { background: var(--ds-primary); color: var(--ds-on-primary); }
 
 :root {
-    /* Chiikawa Garden — stitch DESIGN.md */
+    /* Design system tokens */
     --ds-surface: #fbf9f1;
     --ds-surface-dim: #dcdad2;
     --ds-surface-container-lowest: #ffffff;
@@ -88,13 +88,12 @@ body {
         radial-gradient(circle at 18% 16%, rgba(255, 245, 214, 0.32) 0%, transparent 38%),
         radial-gradient(circle at 84% 18%, rgba(255, 220, 235, 0.3) 0%, transparent 42%),
         radial-gradient(circle at 22% 84%, rgba(183, 231, 247, 0.28) 0%, transparent 40%),
-        url("img/chiikawa-scene-bg.png"),
         linear-gradient(160deg,
             var(--ds-surface) 0%, #fff5f0 24%, #eef6fb 48%,
             #f5f0fa 68%, #ecf8f3 86%, var(--ds-surface-container-low) 100%);
-    background-size: auto, auto, auto, auto, cover, 500% 500%;
-    background-position: center, center, center, center, center, center;
-    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: auto, auto, auto, auto, 500% 500%;
+    background-position: center, center, center, center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
     background-attachment: fixed;
     animation: gradientDrift 40s ease infinite;
     min-height: 100vh; min-height: 100dvh;
@@ -330,24 +329,11 @@ input { user-select: auto; }
     opacity: 0.95;
 }
 
-/* Hub — match stitch screen: title + subtitle */
+/* Hub: keep title clear of corner buttons */
 #screen-hub .game-title {
-    padding-top: 0;
+    padding-top: 4px;
     padding-right: 56px;
     padding-left: 56px;
-    width: min(760px, calc(100vw - 80px));
-    height: clamp(92px, 12vw, 128px);
-    margin: 2px auto 4px;
-    background: url("img/hub-title-banner.png") center/contain no-repeat;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    font-size: 0;
-    line-height: 0;
-    filter: drop-shadow(0 5px 16px rgba(125, 82, 94, 0.16));
-}
-#screen-hub .game-title .title-icon { display: none; }
-#screen-hub .game-subtitle {
-    display: none;
 }
 
 .user-info-area { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
@@ -1187,171 +1173,6 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* ── 重要公告 Announcement Modal ── */
-.announcement-modal {
-    position: fixed; inset: 0; background: rgba(48, 49, 44, 0.7);
-    display: flex; align-items: flex-start; justify-content: center;
-    z-index: 9500; padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
-    animation: fadeIn 0.2s ease;
-    contain: layout paint;
-}
-.announcement-box {
-    background: var(--ds-surface-container-lowest); border-radius: var(--ds-radius-xl); width: 100%; max-width: 520px;
-    position: relative; overflow: hidden;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.08);
-    animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.announcement-header {
-    background: linear-gradient(135deg, #6236FF 0%, #8B66FF 50%, #C084FC 100%);
-    padding: 28px 24px 22px;
-    display: flex; align-items: center; gap: 16px;
-    position: relative;
-}
-.announcement-header::after {
-    content: '';
-    position: absolute; bottom: -12px; left: 0; right: 0; height: 24px;
-    background: var(--ds-surface-container-lowest);
-    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-}
-.announcement-trophy {
-    font-size: 3rem; line-height: 1; flex-shrink: 0;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
-    animation: trophyBounce 2s ease-in-out infinite;
-}
-@keyframes trophyBounce {
-    0%, 100% { transform: translateY(0) rotate(-3deg); }
-    50% { transform: translateY(-6px) rotate(3deg); }
-}
-.announcement-header-text { flex: 1; }
-.announcement-badge {
-    display: inline-block;
-    background: rgba(255,255,255,0.22); border-radius: 20px;
-    padding: 3px 12px; font-size: 0.72rem; font-weight: 700;
-    color: rgba(255,255,255,0.95); letter-spacing: 0.06em;
-    text-transform: uppercase; margin-bottom: 6px;
-}
-.announcement-title {
-    font-size: 1.9rem; font-weight: 900; color: #fff;
-    margin: 0; font-family: 'Nunito', 'Noto Sans TC', sans-serif;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.18);
-}
-.announcement-close {
-    position: absolute; top: 14px; right: 14px;
-    background: rgba(255,255,255,0.2); border: none; border-radius: 50%;
-    width: 36px; height: 36px; font-size: 0.85rem; cursor: pointer;
-    color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s; z-index: 1;
-}
-.announcement-close:hover { background: rgba(255,255,255,0.35); }
-
-.announcement-body {
-    padding: 36px 20px 0;
-    display: flex; flex-direction: column; gap: 16px;
-}
-.announcement-info-row {
-    display: flex; gap: 12px; align-items: stretch;
-}
-.announcement-deadline {
-    flex: 1;
-    background: linear-gradient(135deg, #FFF5EC, #FFF0F8);
-    border: 2.5px solid rgba(255,140,66,0.35);
-    border-radius: var(--ds-radius-lg);
-    padding: 14px 14px 12px;
-    text-align: center;
-}
-.announcement-deadline-label {
-    font-size: 0.72rem; font-weight: 700; color: var(--primary-orange-dark);
-    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
-}
-.announcement-deadline-date {
-    font-size: 1.45rem; font-weight: 900; color: var(--primary-red-dark);
-    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
-    animation: dateGlow 2.5s ease-in-out infinite;
-}
-@keyframes dateGlow {
-    0%, 100% { text-shadow: 0 0 0px rgba(255,74,107,0); }
-    50% { text-shadow: 0 0 14px rgba(255,74,107,0.3); }
-}
-.announcement-deadline-note {
-    font-size: 0.78rem; color: var(--text-light); margin-top: 6px; line-height: 1.5;
-}
-
-.announcement-reward {
-    flex: 1;
-    display: flex; align-items: center; gap: 10px;
-    background: linear-gradient(135deg, #FFF8E7, #FFFDF0);
-    border: 2.5px solid rgba(255,203,69,0.5);
-    border-radius: var(--ds-radius-lg);
-    padding: 12px 14px;
-}
-.announcement-reward-icon { font-size: 2rem; flex-shrink: 0; }
-.announcement-reward-title {
-    font-size: 0.88rem; font-weight: 900; color: #7A5C00;
-    font-family: 'Nunito', 'Noto Sans TC', sans-serif; line-height: 1.3;
-}
-.announcement-reward-desc { font-size: 0.72rem; color: #8B6B00; margin-top: 2px; line-height: 1.4; }
-
-.announcement-section-title {
-    font-size: 0.78rem; font-weight: 800; color: var(--text-light);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    padding-bottom: 6px; border-bottom: 2px solid var(--ds-outline-variant);
-}
-
-.announcement-games-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-}
-.announcement-game-item {
-    background: rgba(255,255,255,0.7);
-    border: 2px solid color-mix(in srgb, var(--ag-color) 30%, transparent);
-    border-radius: var(--ds-radius);
-    padding: 12px 6px;
-    text-align: center;
-    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-    cursor: default;
-}
-.announcement-game-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--ag-color) 25%, transparent);
-    background: rgba(255,255,255,0.95);
-}
-.announcement-game-icon { font-size: 1.5rem; margin-bottom: 4px; }
-.announcement-game-name {
-    font-size: 0.76rem; font-weight: 800; color: var(--text-dark);
-    font-family: 'Nunito', 'Noto Sans TC', sans-serif; line-height: 1.2;
-}
-.announcement-game-sub {
-    font-size: 0.64rem; color: var(--text-light); margin-top: 2px;
-}
-
-.announcement-dismiss-btn {
-    width: calc(100% - 40px); margin: 16px 20px 18px;
-    padding: 14px;
-    font-size: 0.98rem; font-weight: 900;
-    background: linear-gradient(135deg, #6236FF, #8B66FF);
-    color: #fff; border: none;
-    border-radius: var(--ds-radius-lg);
-    box-shadow: 0 6px 16px rgba(98,54,255,0.32);
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-
-@media (max-width: 480px) {
-    .announcement-header { padding: 20px 16px 16px; }
-    .announcement-title { font-size: 1.5rem; }
-    .announcement-body { padding: 28px 14px 0; gap: 12px; }
-    .announcement-info-row { gap: 8px; }
-    .announcement-deadline { padding: 10px 10px 8px; }
-    .announcement-deadline-date { font-size: 1.15rem; }
-    .announcement-reward { padding: 10px 12px; gap: 8px; }
-    .announcement-reward-icon { font-size: 1.6rem; }
-    .announcement-games-grid { grid-template-columns: repeat(5, 1fr); gap: 5px; }
-    .announcement-game-item { padding: 10px 3px; }
-    .announcement-game-icon { font-size: 1.2rem; }
-    .announcement-game-name { font-size: 0.66rem; }
-    .announcement-game-sub { font-size: 0.58rem; }
-    .announcement-dismiss-btn { width: calc(100% - 28px); margin: 14px 14px 14px; font-size: 0.92rem; }
-}
 .tut-header {
     display: flex; align-items: center; justify-content: space-between;
 }
@@ -1486,22 +1307,6 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     background: linear-gradient(90deg, var(--ds-secondary-container), var(--ds-primary-container), var(--ds-tertiary-container));
     border-radius: 4px 4px 0 0;
 }
-.hub-login-card::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -132px;
-    height: 150px;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.16;
-    background-image: url("img/chiikawa-left.png"), url("img/chiikawa-center.png"), url("img/chiikawa-right.png");
-    background-repeat: no-repeat;
-    background-position: left 14px bottom, calc(50% - 250px) top, right 14px bottom;
-    background-size: 70px auto, 62px auto, 70px auto;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
-}
 .hub-login-title {
     font-size: 1rem; font-weight: 700; color: var(--ds-on-surface);
     margin-bottom: 16px; letter-spacing: 0.02em;
@@ -1546,10 +1351,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 
 @media (max-width: 480px) {
     #screen-hub .game-title {
-        padding-right: 46px;
-        padding-left: 46px;
-        width: calc(100vw - 26px);
-        height: clamp(70px, 18vw, 96px);
+        padding-right: 52px;
+        padding-left: 52px;
+        font-size: 2.2rem;
         text-align: center;
     }
     #screen-hub .game-subtitle {
@@ -1641,105 +1445,37 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .hub-game-card:hover::after { opacity: 1; }
 .hub-game-card:active { transform: translateY(-2px) scale(1.01); }
 
-/* Hub: stitch mockup hides corner “遊戲一” chips */
-#screen-hub .hub-game-tag { display: none; }
+.hub-game1 { border-color: rgba(139,102,255,0.3); background: linear-gradient(160deg, #fff 50%, #F5F0FF 100%); }
+.hub-game1::after { background: var(--primary-purple); }
+.hub-game1 .hub-game-btn { background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark)); box-shadow: 0 4px 12px rgba(139,102,255,0.4); }
+.hub-game1 .hub-game-tag { background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark)); }
 
-/*
- * 大廳五張全圖卡：圖檔已正規化為 687×993（同比例置中裁切），CSS 統一版面避免 1–2 與 3–5 視覺框架不一。
- */
-#screen-hub .hub-game1,
-#screen-hub .hub-game2,
-#screen-hub .hub-game3,
-#screen-hub .hub-game4,
-#screen-hub .hub-game-studio {
-    aspect-ratio: 687 / 993;
-    padding: 0;
-    gap: 0;
-    min-height: unset;
-    align-items: stretch;
-    text-align: center;
-    border-radius: clamp(22px, 5.4vw, 42px);
-    border-width: 2.5px;
-    border-style: solid;
-    background-repeat: no-repeat;
-    background-position: center center;
-    background-size: 100% 100%;
-}
-#screen-hub .hub-game1::after,
-#screen-hub .hub-game2::after,
-#screen-hub .hub-game3::after,
-#screen-hub .hub-game4::after,
-#screen-hub .hub-game-studio::after {
-    display: none;
-}
-#screen-hub .hub-game1 > .hub-game-tag,
-#screen-hub .hub-game1 > .hub-game-illust,
-#screen-hub .hub-game1 > .hub-game-name,
-#screen-hub .hub-game1 > .hub-game-desc,
-#screen-hub .hub-game1 > .hub-game-btn,
-#screen-hub .hub-game2 > .hub-game-tag,
-#screen-hub .hub-game2 > .hub-game-illust,
-#screen-hub .hub-game2 > .hub-game-name,
-#screen-hub .hub-game2 > .hub-game-desc,
-#screen-hub .hub-game2 > .hub-game-btn,
-#screen-hub .hub-game3 > .hub-game-tag,
-#screen-hub .hub-game3 > .hub-game-illust,
-#screen-hub .hub-game3 > .hub-game-name,
-#screen-hub .hub-game3 > .hub-game-desc,
-#screen-hub .hub-game3 > .hub-game-btn,
-#screen-hub .hub-game4 > .hub-game-tag,
-#screen-hub .hub-game4 > .hub-game-illust,
-#screen-hub .hub-game4 > .hub-game-name,
-#screen-hub .hub-game4 > .hub-game-desc,
-#screen-hub .hub-game4 > .hub-game-btn,
-#screen-hub .hub-game-studio > .hub-game-tag,
-#screen-hub .hub-game-studio > .hub-game-illust,
-#screen-hub .hub-game-studio > .hub-game-name,
-#screen-hub .hub-game-studio > .hub-game-desc,
-#screen-hub .hub-game-studio > .hub-game-btn {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-}
-#screen-hub .hub-game1 .hub-game-illust::after,
-#screen-hub .hub-game2 .hub-game-illust::after,
-#screen-hub .hub-game3 .hub-game-illust::after,
-#screen-hub .hub-game4 .hub-game-illust::after,
-#screen-hub .hub-game-studio .hub-game-illust::after {
-    content: none;
-    display: none;
-}
+.hub-game2 { border-color: rgba(255,140,66,0.3); background: linear-gradient(160deg, #fff 50%, #FFF4EC 100%); }
+.hub-game2::after { background: var(--primary-orange); }
+.hub-game2 .hub-game-btn { background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark)); box-shadow: 0 4px 12px rgba(255,140,66,0.4); }
+.hub-game2 .hub-game-tag { background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark)); }
 
-#screen-hub .hub-game1 {
-    border-color: rgba(255, 214, 150, 0.72);
-    background-color: #fff9e8;
-    background-image: url("img/hub-game1-card-full.png");
+.hub-game3 { border-color: rgba(0,166,237,0.3); background: linear-gradient(160deg, #fff 50%, #EDF9FF 100%); }
+.hub-game3::after { background: var(--primary-blue); }
+.hub-game3 .hub-game-btn { background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); box-shadow: 0 4px 12px rgba(0,166,237,0.4); }
+.hub-game3 .hub-game-tag { background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)); }
+
+.hub-game4 { border-color: rgba(0,210,142,0.3); background: linear-gradient(160deg, #fff 50%, #EEFAF5 100%); }
+.hub-game4::after { background: var(--primary-green); }
+.hub-game4 .hub-game-btn { background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark)); box-shadow: 0 4px 12px rgba(0,210,142,0.4); }
+.hub-game4 .hub-game-tag { background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark)); }
+
+.hub-game-studio {
+    border-color: rgba(255, 101, 163, 0.4);
+    background: linear-gradient(165deg, #fff 45%, #FFF0F6 100%);
 }
-#screen-hub .hub-game2 {
-    border-color: rgba(232, 190, 160, 0.75);
-    background-color: #fde9d4;
-    background-image: url("img/hub-game2-card-full.png");
+.hub-game-studio::after { background: linear-gradient(135deg, var(--primary-pink), var(--primary-pink-dark)); }
+.hub-game-studio .hub-game-btn {
+    background: linear-gradient(135deg, var(--primary-pink), var(--primary-pink-dark));
+    box-shadow: 0 4px 14px rgba(255, 101, 163, 0.35);
 }
-#screen-hub .hub-game3 {
-    border-color: rgba(120, 170, 210, 0.55);
-    background-color: #eaf6ff;
-    background-image: url("img/hub-game3-card-full.png");
-}
-#screen-hub .hub-game4 {
-    border-color: rgba(130, 190, 155, 0.6);
-    background-color: #e2f5e9;
-    background-image: url("img/hub-game4-card-full.png");
-}
-#screen-hub .hub-game-studio {
-    border-color: rgba(255, 170, 190, 0.65);
-    background-color: #fdeef2;
-    background-image: url("img/hub-game-studio-card-full.png");
+.hub-game-studio .hub-game-tag {
+    background: linear-gradient(135deg, var(--primary-pink), var(--primary-pink-dark));
 }
 
 .hub-game-tag {
@@ -1755,56 +1491,23 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border-radius: 24px 24px 0 0; margin-bottom: 4px;
     overflow: hidden; display: flex; align-items: center; justify-content: center;
 }
-.hub-game-illust::after {
-    content: '';
-    position: absolute;
-    inset: 7px 10px;
-    z-index: 2;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16));
-    pointer-events: none;
-}
-/* Game 1 主視覺已併入 .hub-game1 全卡背景圖，無需 ::after 疊圖 */
-.illust-1::after {
-    content: none;
-    display: none;
-}
-/* Game 2 主視覺已併入 .hub-game2 全卡背景圖 */
-.illust-2::after {
-    content: none;
-    display: none;
-}
-/* Game 3–4、創作卡主視覺已併入全卡背景圖 */
-.illust-3::after,
-.illust-4::after,
-.illust-studio::after {
-    content: none;
-    display: none;
-}
 .illust-bg {
     position: absolute; inset: 0; opacity: 0.12; border-radius: inherit;
 }
-.illust-1 { background: linear-gradient(175deg, #ffe566 0%, #ffd54a 45%, #ffc93c 100%); }
-.illust-1 .illust-bg { background: radial-gradient(circle at 35% 55%, rgba(255, 255, 255, 0.35), transparent 55%), radial-gradient(circle at 75% 25%, rgba(255, 220, 120, 0.4), transparent 50%); opacity: 1; }
-.illust-2 { background: linear-gradient(160deg, #fff8ef 0%, #ffe9cf 54%, #ffd8af 100%); }
-.illust-2 .illust-bg { background: radial-gradient(circle at 70% 60%, rgba(255,150,82,0.22), transparent 60%), radial-gradient(circle at 20% 30%, rgba(255,208,132,0.2), transparent 50%); opacity:1; }
+.illust-1 { background: linear-gradient(160deg, #F5F0FF 0%, #E8DEFF 50%, #D1C1FF 100%); }
+.illust-1 .illust-bg { background: radial-gradient(circle at 30% 60%, rgba(139,102,255,0.25), transparent 60%), radial-gradient(circle at 80% 30%, rgba(206,147,216,0.2), transparent 50%); opacity:1; }
+.illust-2 { background: linear-gradient(160deg, #FFF4EC 0%, #FFE4CC 50%, #FFD1A8 100%); }
+.illust-2 .illust-bg { background: radial-gradient(circle at 70% 60%, rgba(255,140,66,0.25), transparent 60%), radial-gradient(circle at 20% 30%, rgba(255,193,7,0.2), transparent 50%); opacity:1; }
 .illust-3 { background: linear-gradient(160deg, #EDF9FF 0%, #D6F0FF 50%, #B8E4FF 100%); }
 .illust-3 .illust-bg { background: radial-gradient(circle at 40% 50%, rgba(0,166,237,0.25), transparent 60%), radial-gradient(circle at 80% 70%, rgba(77,208,225,0.2), transparent 50%); opacity:1; }
 .illust-4 { background: linear-gradient(160deg, #EEFAF5 0%, #D4F5E9 50%, #A8EDCF 100%); }
 .illust-4 .illust-bg { background: radial-gradient(circle at 50% 50%, rgba(0,210,142,0.25), transparent 60%), radial-gradient(circle at 75% 65%, rgba(0,184,122,0.2), transparent 50%); opacity:1; }
+.illust-studio { background: linear-gradient(160deg, #FFF0F6 0%, #FFE0EC 50%, #FFC8DA 100%); }
 
 .illust-svg {
     width: 85%; height: 85%; z-index: 1; position: relative;
     transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
 }
-#screen-hub .illust-svg { opacity: 0.14; }
-#screen-hub .illust-1 .illust-svg,
-#screen-hub .illust-2 .illust-svg,
-#screen-hub .illust-3 .illust-svg,
-#screen-hub .illust-4 .illust-svg,
-#screen-hub .illust-studio .illust-svg { opacity: 0; }
 .hub-game-card:hover .illust-svg { transform: scale(1.08) translateY(-4px); }
 
 /* .hub-game-icon — orphaned, cards use .illust-svg instead */
@@ -2385,12 +2088,6 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .hub-game-name { font-size: 0.8rem; }
     .hub-game-desc { font-size: 0.68rem; }
     .hub-login-card { padding: 18px 14px 16px; }
-    .hub-login-card::after {
-        top: -106px;
-        height: 120px;
-        background-position: left 2px bottom, calc(50% - 165px) top, right 2px bottom;
-        background-size: 54px auto, 48px auto, 54px auto;
-    }
     .quiz-card { padding: 18px 14px 16px; }
     .quiz-question { font-size: 1.08rem; }
     .quiz-opt-btn { font-size: 0.95rem; padding: 14px 8px; }
@@ -4773,7 +4470,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     border-radius: 10px; white-space: nowrap;
 }
 
-/* ===== 創作工作室（大廳卡樣式見 #screen-hub .hub-game-studio） ===== */
+/* ===== 創作工作室 ===== */
 .illust-studio .illust-bg {
     background: radial-gradient(circle at 30% 30%, rgba(255, 101, 163, 0.22), transparent 55%);
 }
