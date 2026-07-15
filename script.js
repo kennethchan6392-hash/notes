@@ -390,7 +390,7 @@
             avatar: '🎵',
             signature: '',
             registeredAt: new Date().toISOString(),
-            totalPlayTime: 0,
+            totalPlayTime: 0, // seconds
             level: 1,
             exp: 0,
             stats: {
@@ -400,10 +400,80 @@
             },
             diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
             gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
+            history: [], // recent sessions for progress trend
         };
     }
 
     function _expForLevel(lvl) { return lvl * 100; }
+
+    const PROFILE_GAME_LABELS = {
+        game1: '音名識辨', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
+    };
+
+    let _profilePlayStartedAt = 0;
+    function markProfilePlayStart() { _profilePlayStartedAt = Date.now(); }
+    function _consumeProfilePlaySecs() {
+        if (!_profilePlayStartedAt) return 0;
+        const secs = Math.max(0, Math.round((Date.now() - _profilePlayStartedAt) / 1000));
+        _profilePlayStartedAt = 0;
+        return secs;
+    }
+
+    function formatPlayTime(totalSecs) {
+        const s = Math.max(0, Math.floor(totalSecs || 0));
+        if (s < 60) return s > 0 ? `${s} 秒` : '0 分鐘';
+        const mins = Math.floor(s / 60);
+        if (mins < 60) return `${mins} 分鐘`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m ? `${h} 小時 ${m} 分鐘` : `${h} 小時`;
+    }
+
+    function _historyEntryFromRow(row) {
+        return {
+            date: row.timestamp || row.date || new Date().toLocaleString('zh-TW'),
+            game: String(row.game || '').trim(),
+            score: parseInt(row.score, 10) || 0,
+            accuracy: parseInt(row.accuracy, 10) || 0,
+            maxCombo: parseInt(row.max_combo != null ? row.max_combo : row.maxCombo, 10) || 0,
+        };
+    }
+
+    function getProfileProgressSummary(history) {
+        const list = Array.isArray(history) ? history : [];
+        if (list.length < 2) {
+            return { ready: false, message: list.length === 1
+                ? '再玩一次就能看到進步趨勢！'
+                : '完成遊戲後，這裡會顯示你的進步。' };
+        }
+        const recent = list.slice(-5);
+        const older = list.length >= 10 ? list.slice(-10, -5) : list.slice(0, Math.max(1, list.length - recent.length));
+        if (!older.length) {
+            return { ready: false, message: '再多玩幾次就能比較進步！' };
+        }
+        const avg = (arr, key) => Math.round(arr.reduce((a, r) => a + (r[key] || 0), 0) / arr.length);
+        const recentAcc = avg(recent, 'accuracy');
+        const olderAcc = avg(older, 'accuracy');
+        const recentScore = avg(recent, 'score');
+        const olderScore = avg(older, 'score');
+        const accDiff = recentAcc - olderAcc;
+        const scoreDiff = recentScore - olderScore;
+        let tone = 'stable';
+        let headline = '表現穩定，繼續保持！';
+        if (accDiff >= 5 || scoreDiff >= 20) {
+            tone = 'up';
+            headline = '有進步！繼續加油！';
+        } else if (accDiff <= -5 || scoreDiff <= -20) {
+            tone = 'down';
+            headline = '最近有點退步，多練習就會回來！';
+        }
+        return {
+            ready: true, tone, headline,
+            olderAcc, recentAcc, accDiff,
+            olderScore, recentScore, scoreDiff,
+            totalSessions: list.length,
+        };
+    }
 
     // Derive basic stats from allRanks (leaderboard data) for a student
     function _statsFromRanks(name, grade, cls) {
@@ -450,6 +520,21 @@
         profile.stats.accuracyCount++;
         if (maxCombo > profile.stats.maxCombo) profile.stats.maxCombo = maxCombo;
         if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
+
+        // Play time (seconds)
+        const playSecs = _consumeProfilePlaySecs();
+        if (playSecs > 0) profile.totalPlayTime = (profile.totalPlayTime || 0) + playSecs;
+
+        // Session history for progress trend
+        if (!Array.isArray(profile.history)) profile.history = [];
+        profile.history.push({
+            date: new Date().toLocaleString('zh-TW'),
+            game: gameKey,
+            score: score || 0,
+            accuracy: accuracy || 0,
+            maxCombo: maxCombo || 0,
+        });
+        if (profile.history.length > 30) profile.history = profile.history.slice(-30);
 
         // FC / AP detection
         if (hitCounts) {
@@ -541,6 +626,11 @@
             profile.stats.cleared = latestCleared || rows.filter(row => (parseInt(row.accuracy, 10) || 0) >= 60).length;
             profile.stats.fcCount = latestFcCount;
             profile.stats.apCount = latestApCount;
+            profile.history = rows.map(_historyEntryFromRow).slice(-30);
+            // Prefer longer local history if GAS returned fewer rows (offline sessions)
+            if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
+                profile.history = existing.history.slice(-30);
+            }
 
             saveProfile(profile);
         } catch (e) {
@@ -613,6 +703,10 @@
                 profile.stats.cleared = latestCleared || rows.filter(r => (parseInt(r.accuracy, 10) || 0) >= 60).length;
                 profile.stats.fcCount = latestFcCount;
                 profile.stats.apCount = latestApCount;
+                profile.history = rows.map(_historyEntryFromRow).slice(-30);
+                if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
+                    profile.history = existing.history.slice(-30);
+                }
 
                 saveProfile(profile);
             });
@@ -628,10 +722,15 @@
 
     function renderProfileScreen(user) {
         const p = loadProfile(user);
-        if (user && user.name && p.stats.totalPlayed === 0) {
+        if (user && user.name && (!(p.history && p.history.length) || p.stats.totalPlayed === 0)) {
+            const beforePlayed = p.stats.totalPlayed;
+            const beforeHist = (p.history && p.history.length) || 0;
             syncProfileFromGAS(user).then(() => {
                 const refreshed = loadProfile(user);
-                if (refreshed.stats.totalPlayed > 0) renderProfileScreen(user);
+                const afterHist = (refreshed.history && refreshed.history.length) || 0;
+                if (afterHist > beforeHist || refreshed.stats.totalPlayed > beforePlayed) {
+                    renderProfileScreen(user);
+                }
             });
         }
         const avInfo = _avatarLookup(p.avatar);
@@ -649,7 +748,7 @@
         const pct = Math.min(100, Math.round((p.exp / needed) * 100));
         document.getElementById('profileExpFill').style.width = pct + '%';
         document.getElementById('profileExpText').textContent = `${p.exp} / ${needed} EXP`;
-        document.getElementById('profilePlaytime').textContent = `🕐 累計遊戲時長：${p.totalPlayTime || 0} 分鐘`;
+        document.getElementById('profilePlaytime').textContent = `🕐 累計遊戲時長：${formatPlayTime(p.totalPlayTime)}`;
 
         // Stats
         const s = p.stats;
@@ -673,6 +772,52 @@
         document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
         const pgb4 = document.getElementById('pgbGame4');
         if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
+
+        // Progress trend + recent sessions
+        const trendEl = document.getElementById('profileProgressTrend');
+        const recentEl = document.getElementById('profileRecentGames');
+        if (trendEl) {
+            const summary = getProfileProgressSummary(p.history);
+            if (!summary.ready) {
+                trendEl.innerHTML = `<div class="profile-trend-empty">${summary.message}</div>`;
+            } else {
+                const accArrow = summary.accDiff > 0 ? '▲' : summary.accDiff < 0 ? '▼' : '•';
+                const scoreArrow = summary.scoreDiff > 0 ? '▲' : summary.scoreDiff < 0 ? '▼' : '•';
+                const accSign = summary.accDiff > 0 ? '+' : '';
+                const scoreSign = summary.scoreDiff > 0 ? '+' : '';
+                trendEl.innerHTML = `
+                    <div class="profile-trend-headline trend-${summary.tone}">${summary.headline}</div>
+                    <div class="profile-trend-compare">
+                        <div class="profile-trend-metric">
+                            <div class="ptm-label">準確率</div>
+                            <div class="ptm-vals">${summary.olderAcc}% → ${summary.recentAcc}%</div>
+                            <div class="ptm-delta trend-${summary.tone}">${accArrow} ${accSign}${summary.accDiff}%</div>
+                        </div>
+                        <div class="profile-trend-metric">
+                            <div class="ptm-label">平均分數</div>
+                            <div class="ptm-vals">${summary.olderScore} → ${summary.recentScore}</div>
+                            <div class="ptm-delta trend-${summary.tone}">${scoreArrow} ${scoreSign}${summary.scoreDiff}</div>
+                        </div>
+                    </div>
+                    <div class="profile-trend-note">比較近 ${Math.min(5, summary.totalSessions)} 次 vs 更早的遊玩紀錄（共 ${summary.totalSessions} 次）</div>`;
+            }
+        }
+        if (recentEl) {
+            const recent = (p.history || []).slice(-8).reverse();
+            if (!recent.length) {
+                recentEl.innerHTML = '<div class="profile-trend-empty">還沒有遊玩紀錄</div>';
+            } else {
+                recentEl.innerHTML = recent.map(h => {
+                    const label = PROFILE_GAME_LABELS[h.game] || h.game || '遊戲';
+                    return `<div class="profile-recent-row">
+                        <div class="prr-game">${label}</div>
+                        <div class="prr-meta">${h.date || ''}</div>
+                        <div class="prr-score">${h.score} 分</div>
+                        <div class="prr-acc">${h.accuracy}%</div>
+                    </div>`;
+                }).join('');
+            }
+        }
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
@@ -1829,6 +1974,7 @@
         dom.nameField.classList.remove('error');
         saveSettings();
         state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
+        markProfilePlayStart();
         buildNoteButtons();
         dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學，加油！模式：${state.modeConfig.name}`;
         dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
@@ -2526,11 +2672,14 @@
 
         // Always save locally as backup
         saveLocalRank('game1', state.currentUser, record.score, record.accuracy, record.max_combo, state.currentMode);
+        // Optimistic: show new score on leaderboard immediately
+        state.allRanks.push(record);
+        _writeRanksCache(state.allRanks);
         try {
             const r = await gasPostJson(record);
             if (r.ok) {
                 _showToast('✅ 分數已上傳！', 'success');
-                setTimeout(loadRanks, 2000);
+                setTimeout(() => loadRanks(2, { force: true }), 800);
             } else {
                 console.error('上傳失敗：', r.error);
                 _showToast('⚠️ 上傳未成功：' + (r.error || '未知') + '（分數已儲存在本機）', 'warn');
@@ -2558,6 +2707,9 @@
         };
         // Always save locally as backup
         saveLocalRank(game, user, score, accuracy, maxCombo, modeName);
+        // Optimistic: keep in-memory ranks fresh for instant display
+        state.allRanks.push(record);
+        _writeRanksCache(state.allRanks);
         try {
             const r = await gasPostJson(record);
             if (r.ok) _showToast('✅ 分數已上傳！', 'success');
@@ -2646,45 +2798,114 @@
         return html;
     }
 
-    async function loadRanks(retries) {
-        if (retries === undefined) retries = 2;
-        dom.rankList.innerHTML = _buildSkeletonRanks(6);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        try { 
-            const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { redirect: 'follow', signal: controller.signal });
-            if (!res.ok) throw new Error(`伺服器回應錯誤 (HTTP ${res.status})`);
-            const contentType = res.headers.get('content-type') || '';
-            const text = await res.text();
-            if (!contentType.includes('json') && (text.trimStart().startsWith('<'))) {
-                console.error("GAS 回傳 HTML 錯誤頁面，請檢查部署設定：", text.slice(0, 300));
-                throw new Error("GAS 部署錯誤：請確認部署權限設為「所有人」");
-            }
-            const data = JSON.parse(text);
-            state.allRanks = Array.isArray(data) ? data.filter(r => r && r.mode && r.name).map(r => {
-                r.score = parseInt(r.score) || 0;
-                r.max_combo = parseInt(r.max_combo) || 0;
-                r.accuracy = parseInt(r.accuracy) || 0;
-                r.grade = r.grade ? String(r.grade) : '';
-                return r;
-            }) : []; 
-            renderRanks(); 
-        } catch (e) {
-            if (retries > 0) {
-                console.warn('排行榜載入失敗，重試中...', retries);
-                clearTimeout(timeoutId);
-                setTimeout(() => loadRanks(retries - 1), 2000);
-                return;
-            }
-            const isTimeout = e.name === 'AbortError';
-            const msg = isTimeout ? '網絡連線太慢了，請檢查網絡' : (e.message || '未知錯誤');
-            dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`; 
-            const retryBtn = dom.rankList.querySelector('.rank-retry-btn');
-            if (retryBtn) retryBtn.addEventListener('click', () => loadRanks());
-            console.warn("排行榜載入異常：", e);
-        } finally {
-            clearTimeout(timeoutId);
+    const RANKS_CACHE_KEY = 'musicGameRanksCacheV1';
+    const RANKS_SOFT_TTL_MS = 40000; // skip network if fresher than this
+    let _ranksFetchedAt = 0;
+    let _ranksFetchPromise = null;
+
+    function _normalizeRankRows(data) {
+        if (!Array.isArray(data)) return [];
+        return data.filter(r => r && r.mode && r.name).map(r => {
+            r.score = parseInt(r.score) || 0;
+            r.max_combo = parseInt(r.max_combo) || 0;
+            r.accuracy = parseInt(r.accuracy) || 0;
+            r.grade = r.grade ? String(r.grade) : '';
+            return r;
+        });
+    }
+
+    function _readRanksCache() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(RANKS_CACHE_KEY) || 'null');
+            if (!parsed || !Array.isArray(parsed.data)) return null;
+            return parsed;
+        } catch (e) { return null; }
+    }
+
+    function _writeRanksCache(data) {
+        try {
+            localStorage.setItem(RANKS_CACHE_KEY, JSON.stringify({ at: Date.now(), data }));
+        } catch (e) { /* quota */ }
+    }
+
+    function _applyRanksData(data, { render = true } = {}) {
+        state.allRanks = _normalizeRankRows(data);
+        _ranksFetchedAt = Date.now();
+        _writeRanksCache(state.allRanks);
+        if (render && dom.rankList) renderRanks();
+    }
+
+    function _paintRanksFromCache() {
+        if (state.allRanks.length) {
+            renderRanks();
+            return true;
         }
+        const cached = _readRanksCache();
+        if (cached && cached.data.length) {
+            state.allRanks = _normalizeRankRows(cached.data);
+            _ranksFetchedAt = cached.at || 0;
+            renderRanks();
+            return true;
+        }
+        return false;
+    }
+
+    async function loadRanks(retries, opts) {
+        if (retries === undefined) retries = 2;
+        opts = opts || {};
+        const force = !!opts.force;
+
+        // Instant paint from memory / localStorage
+        const painted = _paintRanksFromCache();
+        if (!painted && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+
+        // Soft TTL: reuse recent fetch unless forced
+        if (!force && state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS) {
+            return state.allRanks;
+        }
+
+        if (_ranksFetchPromise) return _ranksFetchPromise;
+
+        _ranksFetchPromise = (async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
+            try {
+                const res = await fetch(`${CONFIG.API_URL}?v=${Date.now()}`, { redirect: 'follow', signal: controller.signal });
+                if (!res.ok) throw new Error(`伺服器回應錯誤 (HTTP ${res.status})`);
+                const contentType = res.headers.get('content-type') || '';
+                const text = await res.text();
+                if (!contentType.includes('json') && (text.trimStart().startsWith('<'))) {
+                    console.error("GAS 回傳 HTML 錯誤頁面，請檢查部署設定：", text.slice(0, 300));
+                    throw new Error("GAS 部署錯誤：請確認部署權限設為「所有人」");
+                }
+                const data = JSON.parse(text);
+                if (data && data.error) throw new Error(data.error);
+                _applyRanksData(data);
+                return state.allRanks;
+            } catch (e) {
+                if (retries > 0) {
+                    console.warn('排行榜載入失敗，重試中...', retries);
+                    clearTimeout(timeoutId);
+                    _ranksFetchPromise = null;
+                    await new Promise(r => setTimeout(r, 1200));
+                    return loadRanks(retries - 1, opts);
+                }
+                // Keep cached list if we already painted it
+                if (!state.allRanks.length && dom.rankList) {
+                    const isTimeout = e.name === 'AbortError';
+                    const msg = isTimeout ? '網絡連線太慢了，請檢查網絡' : (e.message || '未知錯誤');
+                    dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`;
+                    const retryBtn = dom.rankList.querySelector('.rank-retry-btn');
+                    if (retryBtn) retryBtn.addEventListener('click', () => loadRanks(2, { force: true }));
+                }
+                console.warn("排行榜載入異常：", e);
+                return state.allRanks;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        })().finally(() => { _ranksFetchPromise = null; });
+
+        return _ranksFetchPromise;
     }
 
     function escHtml(str) {
@@ -3088,8 +3309,8 @@
             dom.reportWeakness.innerHTML = '';
             const gf = document.getElementById('rankGameFilter');
             if (gf) { gf.value = 'game1'; const mfRow = dom.rankModeFilter?.closest?.('.rank-filter'); if (mfRow) mfRow.style.display = ''; }
-            loadRanks();
             switchScreen('screen-leaderboard');
+            loadRanks();
         });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！記住它！`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！記住它！`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，聽聽看！記住位置，下題加油！`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
@@ -3344,6 +3565,8 @@
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initLightbox(); } catch(e) { console.error('initLightbox error:', e); }
+        // Prefetch ranks so opening 排行榜 feels instant
+        setTimeout(() => { _paintRanksFromCache(); loadRanks(1); }, 300);
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', runAppInit);
@@ -3375,6 +3598,52 @@
         lb.style.display = 'flex';
     }
 
+    function initFullscreenToggle() {
+        const btn = document.getElementById('hubFullscreenBtn');
+        if (!btn) return;
+
+        const root = document.documentElement;
+        const canRequest = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+        const canExit = !!(document.exitFullscreen || document.webkitExitFullscreen);
+        if (!canRequest || !canExit) {
+            btn.hidden = true;
+            return;
+        }
+
+        function isFullscreen() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement);
+        }
+
+        function syncFullscreenUi() {
+            const on = isFullscreen();
+            btn.classList.toggle('is-active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.title = on ? '結束全螢幕' : '全螢幕';
+            btn.setAttribute('aria-label', on ? '結束全螢幕' : '全螢幕');
+            btn.textContent = on ? '⤡' : '⛶';
+            document.body.classList.toggle('is-fullscreen', on);
+        }
+
+        btn.addEventListener('click', async () => {
+            try {
+                if (isFullscreen()) {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                } else if (root.requestFullscreen) {
+                    await root.requestFullscreen();
+                } else if (root.webkitRequestFullscreen) {
+                    await root.webkitRequestFullscreen();
+                }
+            } catch (err) {
+                console.warn('Fullscreen failed:', err);
+            }
+            syncFullscreenUi();
+        });
+
+        document.addEventListener('fullscreenchange', syncFullscreenUi);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenUi);
+        syncFullscreenUi();
+    }
 
     function initHub() {
         const hubGrade = document.getElementById('hubGrade');
@@ -3854,8 +4123,8 @@
             if (gf) gf.value = 'game1';
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = '';
-            loadRanks();
             switchScreen('screen-leaderboard');
+            loadRanks();
         });
 
         // ——— 個人檔案按鈕 ———
@@ -3872,6 +4141,8 @@
         if (hubMobileRanksBtn && hubViewRanksEl) hubMobileRanksBtn.addEventListener('click', () => hubViewRanksEl.click());
         if (hubMobileProfileBtn) hubMobileProfileBtn.addEventListener('click', () => document.getElementById('hubProfileBtn')?.click());
         document.getElementById('profileBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
+
+        initFullscreenToggle();
 
         // ——— 社交功能 Social Features ———
         initSocialFeatures();
@@ -4164,7 +4435,7 @@
     }
 
     // ==========================================
-    // 🎴 RC Canvas Game — 節奏打擊
+    // 🎴 RC Canvas Game — 節奏識辨
     // ==========================================
     const WIN_PERFECT = 50;
     const WIN_GREAT   = 115;
@@ -4783,6 +5054,7 @@
     function _rchalBeginPlay() {
         rchalState.phase = 'playing';
         rchalState.startTime = performance.now();
+        markProfilePlayStart();
         rchalState.nextTapIdx = 0;
         const lvl = rchalState.level;
         const beatMs = 60000 / lvl.bpm;
@@ -6911,6 +7183,7 @@
         audio.bgStop();
         if (!audio.ctx) return;
         if (audio.ctx.state === 'suspended') audio.ctx.resume();
+        markProfilePlayStart();
 
         const beatSec = 60 / bpm;
         const beatMs = beatSec * 1000;
@@ -8305,6 +8578,7 @@
         mode = mode || 'challenge';
         difficulty = difficulty || 'easy';
         const isChallenge = mode === 'challenge';
+        markProfilePlayStart();
         g3State = { user, mode, difficulty, score: 0, combo: 0, maxCombo: 0, qIdx: 0, wrong: 0, correct: 0, questions: [], totalTime: isChallenge ? 60 : Infinity, globalTimeLeft: isChallenge ? 60 : Infinity, mistakes: [] };
         if (g3TimerHandle) clearInterval(g3TimerHandle);
         audio.init(); audio.warmUp();
@@ -8317,7 +8591,7 @@
 
         const modeLabel = isChallenge ? '⏱️ 限時挑戰 (60秒)' : '📝 練習模式';
         const diffEmoji = (DIFFICULTY_CONFIG[difficulty] || {}).emoji || '';
-        document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 音樂術語 ${modeLabel} ${diffEmoji}`;
+        document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 術語識辨 ${modeLabel} ${diffEmoji}`;
         document.getElementById('g3EndBtn').onclick = () => endGame3();
         document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
         switchScreen('screen-game3');
@@ -8473,8 +8747,10 @@
         const diffLabel = (DIFFICULTY_CONFIG[difficulty] || {}).label || 'Easy';
         if (mode !== 'practice') {
             saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
-            submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '音樂術語·' + diffLabel);
+            submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '術語識辨·' + diffLabel);
             recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
+        } else {
+            _consumeProfilePlaySecs();
         }
 
         const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
@@ -8485,7 +8761,7 @@
             <div class="report-item"><div class="report-label">答錯</div><div class="report-value" style="color:var(--primary-red)">${wrong}</div></div>
             <div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
         document.getElementById('g3Weakness').innerHTML = wrong === 0
-            ? '<div>🌟 全部答對！你是音樂術語小專家！🎉</div>'
+            ? '<div>🌟 全部答對！你是術語識辨小專家！🎉</div>'
             : `<div>繼續練習加油！正確 ${correct}/${totalAnswered} 題。</div>`;
 
         // Render mistake review
@@ -8504,7 +8780,7 @@
         }
 
         renderLocalRankList('game3', 'g3RankList', user, difficulty);
-        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 2500);
+        if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 800);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
         const g3Layout = document.getElementById('g3LeaderboardLayout');
@@ -8515,7 +8791,7 @@
     }
 
     // ==========================================
-    // 遊戲四：樂器辨別 (Instrument Identification)
+    // 遊戲四：樂器識辨 (Instrument Identification)
     // ==========================================
 
     // 遊戲四樂器庫與部件標註由 data/instrument-bank.json / data/instrument-structure.json 提供，
@@ -8666,6 +8942,7 @@
     function startGame4(user, mode) {
         const count = mode === 'practice' ? 10 : 999;
         const questions = generateG4Questions(Math.min(count, 40));
+        markProfilePlayStart();
 
         g4State = {
             user, mode,
@@ -8964,7 +9241,7 @@
 
         // Weakness
         document.getElementById('g4Weakness').innerHTML = counts.wrong === 0
-            ? '<div>🌟 全部答對！你是樂器辨別小專家！🎉</div>'
+            ? '<div>🌟 全部答對！你是樂器識辨小專家！🎉</div>'
             : `<div>繼續練習加油！正確 ${counts.correct}/${totalAnswered} 題。</div>`;
 
         // Mistake review
@@ -8985,12 +9262,14 @@
         // Save scores
         saveLocalRank('game4', user, score, accuracy, maxCombo);
         if (mode !== 'practice') {
-            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器辨別·挑戰');
+            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器識辨·挑戰');
             recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
+        } else {
+            _consumeProfilePlaySecs();
         }
 
         renderLocalRankList('game4', 'g4RankList', user);
-        if (mode !== 'practice') setTimeout(() => loadRanks().then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 2500);
+        if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 800);
         document.getElementById('g4PlayAgain').onclick = () => switchScreen('screen-g4-setup');
         document.getElementById('g4BackToHub').onclick = () => switchScreen('screen-g4-setup');
         const g4Layout = document.getElementById('g4LeaderboardLayout');

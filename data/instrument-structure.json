@@ -2163,36 +2163,46 @@
     {
       "part": "琴鍵",
       "en": "Keys",
-      "x": 50,
-      "y": 55,
-      "side": "right"
+      "x": 31,
+      "y": 61,
+      "lx": 13,
+      "ly": 72,
+      "side": "left"
     },
     {
       "part": "琴弦",
       "en": "Strings",
-      "x": 50,
-      "y": 25,
+      "x": 48,
+      "y": 50,
+      "lx": 75,
+      "ly": 51,
       "side": "right"
     },
     {
       "part": "琴槌",
       "en": "Hammers",
-      "x": 50,
-      "y": 35,
-      "side": "left"
+      "x": 44,
+      "y": 55,
+      "lx": 63,
+      "ly": 64,
+      "side": "right"
     },
     {
       "part": "踏板",
       "en": "Pedals",
-      "x": 50,
-      "y": 92,
-      "side": "right"
+      "x": 37,
+      "y": 90,
+      "lx": 24,
+      "ly": 93,
+      "side": "left"
     },
     {
       "part": "共鳴板",
       "en": "Soundboard",
-      "x": 25,
-      "y": 30,
+      "x": 58,
+      "y": 55,
+      "lx": 26,
+      "ly": 26,
       "side": "left"
     }
   ],
