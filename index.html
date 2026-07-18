@@ -316,6 +316,7 @@
                 <button type="button" class="btn-studio" id="studioCopyJsonBtn"><i data-lucide="clipboard"></i> 複製資料</button>
                 <button type="button" class="btn-studio" id="studioShareBtn" style="display:none"><i data-lucide="share-2"></i> 分享</button>
                 <button type="button" class="btn-studio btn-studio-soft" id="studioUploadBtn"><i data-lucide="cloud-upload"></i> 上傳備份</button>
+                <button type="button" class="btn-studio btn-studio-copyright" id="studioCopyrightBtn"><i data-lucide="shield-check"></i> 申請版權</button>
             </div>
         </div>
 
@@ -1371,6 +1372,33 @@
                 <img id="imgLightboxImg" src="" alt="教學圖表" class="img-lightbox-img">
             </div>
             <div class="img-lightbox-hint">🔍 可以縮放/拖動圖片查看細節</div>
+        </div>
+    </div>
+
+    <!-- 創作工作室：版權申請 Modal -->
+    <div id="studioCopyrightModal" class="tutorial-modal studio-copyright-modal" role="dialog" aria-modal="true" aria-label="申請版權" style="display:none">
+        <div class="tutorial-box studio-copyright-box">
+            <div class="tut-header">
+                <h3 style="margin:0;font-size:1.05rem;font-weight:900;">©️ 申請版權</h3>
+                <button class="tut-close" id="studioCopyrightClose" type="button" aria-label="關閉">✕</button>
+            </div>
+            <p class="studio-copyright-intro">完成創作後，可提交版權申請。請確認作品為原創，老師會協助審核與登記。</p>
+            <div class="studio-copyright-form">
+                <label class="studio-copyright-field">
+                    <span>作品名稱</span>
+                    <input type="text" id="studioCopyrightTitle" maxlength="40" placeholder="例如：我的快樂旋律" autocomplete="off">
+                </label>
+                <div class="studio-copyright-meta" id="studioCopyrightMeta">申請人：—</div>
+                <div class="studio-copyright-meta" id="studioCopyrightType">作品類型：—</div>
+                <label class="studio-copyright-check">
+                    <input type="checkbox" id="studioCopyrightAgree">
+                    <span>我確認此作品為本人原創，並同意提交學校版權登記。</span>
+                </label>
+            </div>
+            <div class="studio-copyright-actions">
+                <button type="button" class="btn-action" id="studioCopyrightCancel">取消</button>
+                <button type="button" class="btn-start" id="studioCopyrightSubmit">提交申請</button>
+            </div>
         </div>
     </div>
 
